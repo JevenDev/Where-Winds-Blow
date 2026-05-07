@@ -27,10 +27,12 @@ import org.jetbrains.annotations.Nullable;
 
 public final class GrassWindShaders {
     private static final int COLOR_OFFSET = 3;
-    private static final int SHORT_GRASS_MARKER = 254;
-    private static final int TALL_GRASS_MARKER = 253;
-    private static final int FERN_MARKER = 252;
-    private static final int FLOWER_MARKER = 251;
+    private static final int POSITION_Y_OFFSET = 1;
+    private static final int HEIGHT_LEVELS = 31;
+    private static final int SHORT_GRASS_MARKER = 1;
+    private static final int TALL_GRASS_MARKER = 2;
+    private static final int FERN_MARKER = 3;
+    private static final int FLOWER_MARKER = 4;
 
     private static final Set<String> SHORT_GRASS_MODELS = Set.of("short_grass");
     private static final Set<String> TALL_GRASS_MODELS = Set.of("tall_grass");
@@ -139,10 +141,25 @@ public final class GrassWindShaders {
     private static BakedQuad markQuad(BakedQuad quad, int alphaMarker) {
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
+        float minY = Float.POSITIVE_INFINITY;
+        float maxY = Float.NEGATIVE_INFINITY;
+
+        for (int vertex = 0; vertex < 4; vertex++) {
+            float y = Float.intBitsToFloat(vertices[vertex * stride + POSITION_Y_OFFSET]);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+        }
+
+        float heightRange = maxY - minY;
 
         for (int vertex = 0; vertex < 4; vertex++) {
             int colorIndex = vertex * stride + COLOR_OFFSET;
-            vertices[colorIndex] = (alphaMarker << 24) | (vertices[colorIndex] & 0x00FFFFFF);
+            float y = Float.intBitsToFloat(vertices[vertex * stride + POSITION_Y_OFFSET]);
+            float normalizedHeight = heightRange < 1.0E-4F ? 1.0F : (y - minY) / heightRange;
+            int heightMarker = Math.round(normalizedHeight * HEIGHT_LEVELS);
+            int packedMarker = (alphaMarker << 5) | Math.min(heightMarker, HEIGHT_LEVELS);
+            int encodedAlpha = 255 - packedMarker;
+            vertices[colorIndex] = (encodedAlpha << 24) | (vertices[colorIndex] & 0x00FFFFFF);
         }
 
         return new BakedQuad(vertices, quad.getTintIndex(), quad.getDirection(), quad.getSprite(), quad.isShade(), quad.hasAmbientOcclusion());
