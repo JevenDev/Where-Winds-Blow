@@ -6,23 +6,23 @@ public final class CommonConfig {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
     public static final ModConfigSpec.BooleanValue ENABLE_DENSE_GRASS_WORLDGEN = BUILDER
-            .comment("Reserved for future code-driven or generated worldgen tuning. The bundled v1 JSON worldgen remains static.")
+            .comment("Enables Where Winds Blow's added grass worldgen. Changes require a world reload/restart and only affect newly generated chunks.")
             .define("enableDenseGrassWorldgen", true);
 
     public static final ModConfigSpec.DoubleValue DENSE_GRASS_DENSITY_MULTIPLIER = BUILDER
-            .comment("Reserved for future code-driven or generated worldgen tuning. Static JSON features do not read this at runtime.")
+            .comment("Multiplies dense short grass feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
             .defineInRange("denseGrassDensityMultiplier", 1.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec.DoubleValue MEDIUM_GRASS_DENSITY_MULTIPLIER = BUILDER
-            .comment("Reserved for future code-driven or generated worldgen tuning. Static JSON features do not read this at runtime.")
+            .comment("Multiplies medium short grass feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
             .defineInRange("mediumGrassDensityMultiplier", 1.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec.DoubleValue SPARSE_GRASS_DENSITY_MULTIPLIER = BUILDER
-            .comment("Reserved for future code-driven or generated worldgen tuning. Static JSON features do not read this at runtime.")
+            .comment("Multiplies sparse short grass feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
             .defineInRange("sparseGrassDensityMultiplier", 1.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec.DoubleValue TALL_GRASS_PATCH_MULTIPLIER = BUILDER
-            .comment("Reserved for future code-driven or generated worldgen tuning. Static JSON features do not read this at runtime.")
+            .comment("Multiplies tall grass patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
             .defineInRange("tallGrassPatchMultiplier", 1.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
