@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#where_winds_blow:has_dense_grass",
+  "features": "where_winds_blow:dense_short_grass_patch",
+  "step": "vegetal_decoration"
+}
