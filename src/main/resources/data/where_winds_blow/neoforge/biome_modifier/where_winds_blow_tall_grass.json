@@ -1,9 +1,6 @@
 {
   "type": "neoforge:add_features",
-  "biomes": [
-    "#where_winds_blow:has_dense_grass",
-    "#where_winds_blow:has_medium_grass"
-  ],
+  "biomes": "#where_winds_blow:has_tall_grass_patches",
   "features": "where_winds_blow:tall_grass_patch",
   "step": "vegetal_decoration"
 }
