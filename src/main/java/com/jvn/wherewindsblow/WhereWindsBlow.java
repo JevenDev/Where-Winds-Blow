@@ -28,7 +28,7 @@ public class WhereWindsBlow {
         modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
-            WhereWindsBlowClient.register(modEventBus);
+            WhereWindsBlowClient.register(modEventBus, modContainer);
         }
     }
 
