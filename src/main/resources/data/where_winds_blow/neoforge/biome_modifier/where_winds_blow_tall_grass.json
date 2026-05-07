@@ -1,7 +1,16 @@
 {
   "type": "where_winds_blow:configurable_grass",
   "biomes": "#where_winds_blow:has_tall_grass_patches",
-  "features": "where_winds_blow:tall_grass_patch",
+  "features": [
+    "where_winds_blow:tall_grass_patch",
+    "where_winds_blow:tall_grass_patch_2",
+    "where_winds_blow:tall_grass_patch_3",
+    "where_winds_blow:tall_grass_patch_4",
+    "where_winds_blow:tall_grass_patch_5",
+    "where_winds_blow:tall_grass_patch_6",
+    "where_winds_blow:tall_grass_patch_7",
+    "where_winds_blow:tall_grass_patch_8"
+  ],
   "density": "tall_grass",
   "step": "vegetal_decoration"
 }

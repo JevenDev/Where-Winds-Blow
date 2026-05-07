@@ -2,6 +2,7 @@ package com.jvn.wherewindsblow.worldgen;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.List;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.world.level.biome.Biome;
@@ -36,8 +37,10 @@ public record ConfigurableGrassBiomeModifier(
         }
 
         BiomeGenerationSettingsBuilder generationSettings = builder.getGenerationSettings();
-        for (int pass = 0; pass < passes; pass++) {
-            features.forEach(feature -> generationSettings.addFeature(step, feature));
+        List<Holder<PlacedFeature>> availableFeatures = features.stream().toList();
+        int featureCount = Math.min(passes, availableFeatures.size());
+        for (int index = 0; index < featureCount; index++) {
+            generationSettings.addFeature(step, availableFeatures.get(index));
         }
     }
 
