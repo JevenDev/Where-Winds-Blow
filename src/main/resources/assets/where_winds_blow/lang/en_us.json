@@ -2,7 +2,7 @@
   "modmenu.descriptionTranslation.where_winds_blow": "Adds fuller vanilla grass coverage to grassy biomes.",
   "where_winds_blow.config.title": "Where Winds Blow",
   "where_winds_blow.config.worldgen.note": "Worldgen changes require a world reload and only affect new chunks.",
-  "where_winds_blow.config.wind.note": "Wind options are saved, but grass sway rendering is not wired yet.",
+  "where_winds_blow.config.wind.note": "Wind shader affects marked vanilla plant models; shader-pack guard can disable it.",
   "where_winds_blow.config.enableDenseGrassWorldgen": "Grass Worldgen",
   "where_winds_blow.config.denseGrassDensityMultiplier": "Dense Grass",
   "where_winds_blow.config.mediumGrassDensityMultiplier": "Medium Grass",

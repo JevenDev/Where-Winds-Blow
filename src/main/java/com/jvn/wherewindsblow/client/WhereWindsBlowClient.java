@@ -5,6 +5,7 @@ import com.jvn.wherewindsblow.config.ClientConfig;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
 public final class WhereWindsBlowClient {
@@ -14,11 +15,13 @@ public final class WhereWindsBlowClient {
     public static void register(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerExtensionPoint(IConfigScreenFactory.class, (container, screen) -> new WhereWindsBlowConfigScreen(screen));
         modEventBus.addListener(WhereWindsBlowClient::onClientSetup);
+        modEventBus.addListener(GrassWindShaders::wrapPlantModels);
+        NeoForge.EVENT_BUS.addListener(GrassWindShaders::updateUniforms);
     }
 
     private static void onClientSetup(FMLClientSetupEvent event) {
         if (ClientConfig.ENABLE_GRASS_WIND.getAsBoolean()) {
-            WhereWindsBlow.LOGGER.info("Grass wind config is enabled; renderer hook is intentionally deferred for compatibility.");
+            WhereWindsBlow.LOGGER.info("Grass wind shader is enabled for marked vanilla plant models.");
         }
     }
 }
