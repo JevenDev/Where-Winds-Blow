@@ -1,0 +1,16 @@
+{
+  "type": "where_winds_blow:configurable_grass",
+  "biomes": "#where_winds_blow:has_overgrown_grass_fields",
+  "features": [
+    "where_winds_blow:overgrown_grass_field_patch",
+    "where_winds_blow:overgrown_grass_field_patch_2",
+    "where_winds_blow:overgrown_grass_field_patch_3",
+    "where_winds_blow:overgrown_grass_field_patch_4",
+    "where_winds_blow:overgrown_grass_field_patch_5",
+    "where_winds_blow:overgrown_grass_field_patch_6",
+    "where_winds_blow:overgrown_grass_field_patch_7",
+    "where_winds_blow:overgrown_grass_field_patch_8"
+  ],
+  "density": "overgrown_grass",
+  "step": "vegetal_decoration"
+}

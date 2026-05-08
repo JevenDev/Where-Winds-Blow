@@ -17,6 +17,7 @@
         { "name": "WindTime", "type": "float", "count": 1, "values": [ 0.0 ] },
         { "name": "WindStrength", "type": "float", "count": 1, "values": [ 0.0 ] },
         { "name": "WindSpeed", "type": "float", "count": 1, "values": [ 1.0 ] },
-        { "name": "WindOptions", "type": "float", "count": 4, "values": [ 1.0, 1.0, 0.0, 0.0 ] }
+        { "name": "WindOptions", "type": "float", "count": 4, "values": [ 1.0, 1.0, 0.0, 0.0 ] },
+        { "name": "CameraPosition", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0 ] }
     ]
 }

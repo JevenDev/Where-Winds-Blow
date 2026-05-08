@@ -8,6 +8,7 @@
   "where_winds_blow.config.mediumGrassDensityMultiplier": "Medium Grass",
   "where_winds_blow.config.sparseGrassDensityMultiplier": "Sparse Grass",
   "where_winds_blow.config.tallGrassPatchMultiplier": "Tall Grass",
+  "where_winds_blow.config.overgrownGrassPatchMultiplier": "Overgrown Grass",
   "where_winds_blow.config.enableGrassWind": "Grass Wind",
   "where_winds_blow.config.windStrength": "Wind Strength",
   "where_winds_blow.config.windSpeed": "Wind Speed",
@@ -15,5 +16,6 @@
   "where_winds_blow.config.affectTallGrass": "Tall Grass Wind",
   "where_winds_blow.config.affectFerns": "Ferns",
   "where_winds_blow.config.affectFlowers": "Flowers",
-  "where_winds_blow.config.disableWhenShaderPackDetected": "Shader Guard"
+  "where_winds_blow.config.disableWhenShaderPackDetected": "Shader Guard",
+  "block.where_winds_blow.overgrown_grass": "Overgrown Grass"
 }

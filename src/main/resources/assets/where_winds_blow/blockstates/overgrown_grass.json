@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "part=lower": {
+      "model": "where_winds_blow:block/overgrown_grass_lower"
+    },
+    "part=middle": {
+      "model": "where_winds_blow:block/overgrown_grass_middle"
+    },
+    "part=upper": {
+      "model": "where_winds_blow:block/overgrown_grass_upper"
+    }
+  }
+}

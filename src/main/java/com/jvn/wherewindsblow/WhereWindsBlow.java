@@ -1,10 +1,12 @@
 package com.jvn.wherewindsblow;
 
+import com.jvn.wherewindsblow.block.ModBlocks;
 import com.mojang.logging.LogUtils;
 import com.jvn.wherewindsblow.client.WhereWindsBlowClient;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.jvn.wherewindsblow.config.CommonConfig;
 import com.jvn.wherewindsblow.worldgen.ModBiomeModifiers;
+import com.jvn.wherewindsblow.worldgen.ModFeatures;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -22,6 +24,8 @@ public class WhereWindsBlow {
     public WhereWindsBlow(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
 
+        ModBlocks.register(modEventBus);
+        ModFeatures.register(modEventBus);
         ModBiomeModifiers.register(modEventBus);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, CommonConfig.SPEC);

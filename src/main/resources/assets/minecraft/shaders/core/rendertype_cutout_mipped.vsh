@@ -20,13 +20,14 @@ uniform float WindTime;
 uniform float WindStrength;
 uniform float WindSpeed;
 uniform vec4 WindOptions;
+uniform vec3 CameraPosition;
 
 out float vertexDistance;
 out vec4 vertexColor;
 out vec2 texCoord0;
 
 void main() {
-    vec3 pos = wwb_apply_grass_wind(Position, ChunkOffset, Color.a, WindTime, WindStrength, WindSpeed, WindOptions);
+    vec3 pos = wwb_apply_grass_wind(Position, ChunkOffset, CameraPosition, Color.a, WindTime, WindStrength, WindSpeed, WindOptions);
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
     vertexDistance = fog_distance(pos, FogShape);

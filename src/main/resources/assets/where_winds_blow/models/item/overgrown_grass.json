@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "where_winds_blow:block/overgrown_grass_lower"
+  }
+}

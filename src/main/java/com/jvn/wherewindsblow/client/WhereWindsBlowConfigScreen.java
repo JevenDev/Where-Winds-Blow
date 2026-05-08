@@ -36,6 +36,7 @@ public class WhereWindsBlowConfigScreen extends Screen {
         this.addRenderableWidget(doubleButton(center + 5, y, "where_winds_blow.config.sparseGrassDensityMultiplier", CommonConfig.SPARSE_GRASS_DENSITY_MULTIPLIER::getAsDouble, value -> set(CommonConfig.SPARSE_GRASS_DENSITY_MULTIPLIER, value), WORLDGEN_STEPS));
         y += 24;
         this.addRenderableWidget(doubleButton(center - 155, y, "where_winds_blow.config.tallGrassPatchMultiplier", CommonConfig.TALL_GRASS_PATCH_MULTIPLIER::getAsDouble, value -> set(CommonConfig.TALL_GRASS_PATCH_MULTIPLIER, value), WORLDGEN_STEPS));
+        this.addRenderableWidget(doubleButton(center + 5, y, "where_winds_blow.config.overgrownGrassPatchMultiplier", CommonConfig.OVERGROWN_GRASS_PATCH_MULTIPLIER::getAsDouble, value -> set(CommonConfig.OVERGROWN_GRASS_PATCH_MULTIPLIER, value), WORLDGEN_STEPS));
 
         y += 42;
         this.addRenderableWidget(booleanButton(center - 155, y, ClientConfig.ENABLE_GRASS_WIND, ClientConfig.SPEC));

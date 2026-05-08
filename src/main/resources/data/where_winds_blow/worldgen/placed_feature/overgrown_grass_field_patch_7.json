@@ -1,0 +1,1 @@
+{"feature":"where_winds_blow:overgrown_grass_patch","placement":[{"type":"minecraft:noise_threshold_count","above_noise":3,"below_noise":0,"noise_level":0.2},{"type":"minecraft:in_square"},{"type":"minecraft:heightmap","heightmap":"WORLD_SURFACE_WG"},{"type":"minecraft:biome"}]}

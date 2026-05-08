@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client;
 
+import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.shaders.Uniform;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -17,6 +18,7 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.client.event.ModelEvent;
@@ -35,7 +37,7 @@ public final class GrassWindShaders {
     private static final int FLOWER_MARKER = 4;
 
     private static final Set<String> SHORT_GRASS_MODELS = Set.of("short_grass");
-    private static final Set<String> TALL_GRASS_MODELS = Set.of("tall_grass");
+    private static final Set<String> TALL_GRASS_MODELS = Set.of("tall_grass", "overgrown_grass");
     private static final Set<String> FERN_MODELS = Set.of("fern", "large_fern");
     private static final Set<String> FLOWER_MODELS = Set.of(
             "dandelion",
@@ -72,9 +74,10 @@ public final class GrassWindShaders {
         float time = event.getRenderTick() + event.getPartialTick().getGameTimeDeltaPartialTick(false);
         float strength = shouldRenderWind() ? ClientConfig.WIND_STRENGTH.get().floatValue() : 0.0F;
         float speed = ClientConfig.WIND_SPEED.get().floatValue();
+        Vec3 cameraPosition = event.getCamera().getPosition();
 
-        setUniforms(GameRenderer.getRendertypeCutoutShader(), time, strength, speed);
-        setUniforms(GameRenderer.getRendertypeCutoutMippedShader(), time, strength, speed);
+        setUniforms(GameRenderer.getRendertypeCutoutShader(), time, strength, speed, cameraPosition);
+        setUniforms(GameRenderer.getRendertypeCutoutMippedShader(), time, strength, speed, cameraPosition);
     }
 
     private static boolean shouldRenderWind() {
@@ -85,7 +88,7 @@ public final class GrassWindShaders {
         return !ClientConfig.DISABLE_WHEN_SHADER_PACK_DETECTED.getAsBoolean() || (!ModList.get().isLoaded("oculus") && !ModList.get().isLoaded("iris"));
     }
 
-    private static void setUniforms(@Nullable ShaderInstance shader, float time, float strength, float speed) {
+    private static void setUniforms(@Nullable ShaderInstance shader, float time, float strength, float speed, Vec3 cameraPosition) {
         if (shader == null) {
             return;
         }
@@ -114,10 +117,16 @@ public final class GrassWindShaders {
                     ClientConfig.AFFECT_FLOWERS.getAsBoolean() ? 1.0F : 0.0F
             );
         }
+
+        Uniform cameraUniform = shader.getUniform("CameraPosition");
+        if (cameraUniform != null) {
+            cameraUniform.set((float) cameraPosition.x, (float) cameraPosition.y, (float) cameraPosition.z);
+        }
     }
 
     private static int markerFor(ModelResourceLocation location) {
-        if (!"minecraft".equals(location.id().getNamespace())) {
+        String namespace = location.id().getNamespace();
+        if (!"minecraft".equals(namespace) && !WhereWindsBlow.MOD_ID.equals(namespace)) {
             return 0;
         }
 

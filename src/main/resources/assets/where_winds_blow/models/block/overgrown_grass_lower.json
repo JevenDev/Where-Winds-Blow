@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/tinted_cross",
+  "textures": {
+    "cross": "where_winds_blow:block/overgrown_grass_lower"
+  }
+}
