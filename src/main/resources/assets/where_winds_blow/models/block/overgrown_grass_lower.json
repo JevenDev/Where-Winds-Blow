@@ -1,5 +1,6 @@
 {
   "parent": "minecraft:block/tinted_cross",
+  "render_type": "minecraft:cutout_mipped",
   "textures": {
     "cross": "where_winds_blow:block/overgrown_grass_lower"
   }

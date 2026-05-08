@@ -59,12 +59,12 @@ public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock 
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
         BlockState state = this.defaultBlockState();
-        return state.canSurvive(level, pos) ? state : null;
+        return hasEmptyFluid(level, pos) && state.canSurvive(level, pos) ? state : null;
     }
 
     @Override
     protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
-        return level.getBlockState(pos.below()).is(this) || super.canSurvive(state, level, pos);
+        return hasEmptyFluid(level, pos) && (level.getBlockState(pos.below()).is(this) || super.canSurvive(state, level, pos));
     }
 
     @Override
@@ -94,7 +94,8 @@ public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock 
     public boolean isValidBonemealTarget(LevelReader level, BlockPos pos, BlockState state) {
         BlockPos bottomPos = findBottom(level, pos);
         int height = columnHeight(level, bottomPos);
-        return height < MAX_HEIGHT && canGrowInto(level.getBlockState(bottomPos.above(height)));
+        BlockPos nextPos = bottomPos.above(height);
+        return height < MAX_HEIGHT && canGrowInto(level, nextPos);
     }
 
     @Override
@@ -111,7 +112,7 @@ public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock 
         }
 
         BlockPos nextPos = bottomPos.above(height);
-        if (!canGrowInto(level.getBlockState(nextPos))) {
+        if (!canGrowInto(level, nextPos)) {
             return;
         }
 
@@ -152,10 +153,10 @@ public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock 
             BlockPos current = bottomPos.above(offset);
             BlockState currentState = level.getBlockState(current);
             if (offset == 0) {
-                if (!this.defaultBlockState().canSurvive(level, current) || (!currentState.isAir() && !currentState.canBeReplaced())) {
+                if (!this.defaultBlockState().canSurvive(level, current) || (!currentState.isAir() && !currentState.canBeReplaced()) || !hasEmptyFluid(level, current)) {
                     return false;
                 }
-            } else if (currentState.is(this) || !canGrowInto(currentState)) {
+            } else if (currentState.is(this) || !canGrowInto(level, current)) {
                 return false;
             }
         }
@@ -204,8 +205,13 @@ public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock 
         return height;
     }
 
-    private boolean canGrowInto(BlockState state) {
-        return state.isAir() || state.canBeReplaced();
+    private boolean canGrowInto(LevelReader level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return hasEmptyFluid(level, pos) && (state.isAir() || state.canBeReplaced());
+    }
+
+    private boolean hasEmptyFluid(LevelReader level, BlockPos pos) {
+        return level.getFluidState(pos).isEmpty();
     }
 
     private OvergrownGrassPart partFor(int offset, int height) {

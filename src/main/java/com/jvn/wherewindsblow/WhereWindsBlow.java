@@ -3,7 +3,6 @@ package com.jvn.wherewindsblow;
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.mojang.logging.LogUtils;
 import com.jvn.wherewindsblow.client.WhereWindsBlowClient;
-import com.jvn.wherewindsblow.config.ClientConfig;
 import com.jvn.wherewindsblow.config.CommonConfig;
 import com.jvn.wherewindsblow.worldgen.ModBiomeModifiers;
 import com.jvn.wherewindsblow.worldgen.ModFeatures;
@@ -29,7 +28,6 @@ public class WhereWindsBlow {
         ModBiomeModifiers.register(modEventBus);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, CommonConfig.SPEC);
-        modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             WhereWindsBlowClient.register(modEventBus, modContainer);
@@ -37,6 +35,6 @@ public class WhereWindsBlow {
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
-        LOGGER.info("Where Winds Blow is ready to stir the grass.");
+        LOGGER.info("Where Winds Blow is ready.");
     }
 }
