@@ -6,6 +6,7 @@ import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -53,24 +54,30 @@ public class WhereWindsBlowConfigScreen extends Screen {
     }
 
     private static Button booleanButton(int x, int y, ModConfigSpec.BooleanValue value, ModConfigSpec spec) {
-        Supplier<Component> label = () -> optionLabel(value.getPath().getLast(), value.getAsBoolean() ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
-        return Button.builder(label.get(), button -> {
+        String path = value.getPath().getLast();
+        Supplier<Component> label = () -> optionLabel(path, value.getAsBoolean() ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
+        Button button = Button.builder(label.get(), clickedButton -> {
                     value.set(!value.getAsBoolean());
                     spec.save();
-                    button.setMessage(label.get());
+                    clickedButton.setMessage(label.get());
                 })
                 .bounds(x, y, 150, 20)
                 .build();
+        button.setTooltip(optionTooltip(path));
+        return button;
     }
 
     private static Button doubleButton(int x, int y, String key, DoubleSupplier getter, Consumer<Double> setter, double[] values) {
-        Supplier<Component> label = () -> optionLabel(key.substring(key.lastIndexOf('.') + 1), Component.literal(format(getter.getAsDouble())));
-        return Button.builder(label.get(), button -> {
+        String path = key.substring(key.lastIndexOf('.') + 1);
+        Supplier<Component> label = () -> optionLabel(path, Component.literal(format(getter.getAsDouble())));
+        Button button = Button.builder(label.get(), clickedButton -> {
                     setter.accept(next(getter.getAsDouble(), values));
-                    button.setMessage(label.get());
+                    clickedButton.setMessage(label.get());
                 })
                 .bounds(x, y, 150, 20)
                 .build();
+        button.setTooltip(optionTooltip(path));
+        return button;
     }
 
     private static void set(ModConfigSpec.DoubleValue value, double newValue) {
@@ -80,6 +87,10 @@ public class WhereWindsBlowConfigScreen extends Screen {
 
     private static Component optionLabel(String path, Component value) {
         return Component.translatable("where_winds_blow.config." + path).append(": ").append(value);
+    }
+
+    private static Tooltip optionTooltip(String path) {
+        return Tooltip.create(Component.translatable("where_winds_blow.config." + path + ".tooltip"));
     }
 
     private static double next(double current, double[] values) {

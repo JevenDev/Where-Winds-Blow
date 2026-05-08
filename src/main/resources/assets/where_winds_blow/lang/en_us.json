@@ -3,10 +3,16 @@
   "where_winds_blow.config.title": "Where Winds Blow",
   "where_winds_blow.config.worldgen.note": "Worldgen changes require a world reload and only affect new chunks.",
   "where_winds_blow.config.enableDenseGrassWorldgen": "Grass Worldgen",
+  "where_winds_blow.config.enableDenseGrassWorldgen.tooltip": "Turns this mod's added grass world generation on or off. Requires a world reload and only affects newly generated chunks.",
   "where_winds_blow.config.denseGrassDensityMultiplier": "Dense Grass",
+  "where_winds_blow.config.denseGrassDensityMultiplier.tooltip": "Multiplies dense short grass generation passes. Values are rounded to whole passes when biome modifiers load.",
   "where_winds_blow.config.mediumGrassDensityMultiplier": "Medium Grass",
+  "where_winds_blow.config.mediumGrassDensityMultiplier.tooltip": "Multiplies medium short grass generation passes. Values are rounded to whole passes when biome modifiers load.",
   "where_winds_blow.config.sparseGrassDensityMultiplier": "Sparse Grass",
+  "where_winds_blow.config.sparseGrassDensityMultiplier.tooltip": "Multiplies sparse short grass generation passes. Values are rounded to whole passes when biome modifiers load.",
   "where_winds_blow.config.tallGrassPatchMultiplier": "Tall Grass",
+  "where_winds_blow.config.tallGrassPatchMultiplier.tooltip": "Multiplies tall grass patch generation passes. Values are rounded to whole passes when biome modifiers load.",
   "where_winds_blow.config.overgrownGrassPatchMultiplier": "Overgrown Grass",
+  "where_winds_blow.config.overgrownGrassPatchMultiplier.tooltip": "Multiplies overgrown grass patch generation passes. Values are rounded to whole passes when biome modifiers load.",
   "block.where_winds_blow.overgrown_grass": "Overgrown Grass"
 }

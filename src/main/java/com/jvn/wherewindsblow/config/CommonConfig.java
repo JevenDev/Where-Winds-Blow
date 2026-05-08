@@ -11,19 +11,19 @@ public final class CommonConfig {
 
     public static final ModConfigSpec.DoubleValue DENSE_GRASS_DENSITY_MULTIPLIER = BUILDER
             .comment("Multiplies dense short grass feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
-            .defineInRange("denseGrassDensityMultiplier", 1.0D, 0.0D, 8.0D);
+            .defineInRange("denseGrassDensityMultiplier", 8.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec.DoubleValue MEDIUM_GRASS_DENSITY_MULTIPLIER = BUILDER
             .comment("Multiplies medium short grass feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
-            .defineInRange("mediumGrassDensityMultiplier", 1.0D, 0.0D, 8.0D);
+            .defineInRange("mediumGrassDensityMultiplier", 8.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec.DoubleValue SPARSE_GRASS_DENSITY_MULTIPLIER = BUILDER
             .comment("Multiplies sparse short grass feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
-            .defineInRange("sparseGrassDensityMultiplier", 1.0D, 0.0D, 8.0D);
+            .defineInRange("sparseGrassDensityMultiplier", 8.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec.DoubleValue TALL_GRASS_PATCH_MULTIPLIER = BUILDER
             .comment("Multiplies tall grass patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
-            .defineInRange("tallGrassPatchMultiplier", 1.0D, 0.0D, 8.0D);
+            .defineInRange("tallGrassPatchMultiplier", 8.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec.DoubleValue OVERGROWN_GRASS_PATCH_MULTIPLIER = BUILDER
             .comment("Multiplies overgrown grass patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")

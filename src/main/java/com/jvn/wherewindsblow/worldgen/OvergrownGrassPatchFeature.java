@@ -18,6 +18,11 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
 
 public class OvergrownGrassPatchFeature extends Feature<NoneFeatureConfiguration> {
     private static final int TRIES = 48;
+    private static final int MIN_PATCH_SIZE = 2;
+    private static final int MAX_PATCH_SIZE = 6;
+    private static final int DENSE_PATCH_SIZE = 5;
+    private static final float DENSE_PATCH_TALL_CHANCE = 0.25F;
+    private static final float DENSE_PATCH_MAX_HEIGHT_CHANCE = 0.2F;
     private static final int XZ_SPREAD = 7;
     private static final int Y_SPREAD = 2;
     private static final int EDGE_SCAN_UP = 2;
@@ -33,10 +38,11 @@ public class OvergrownGrassPatchFeature extends Feature<NoneFeatureConfiguration
         RandomSource random = context.random();
         BlockPos origin = context.origin();
         OvergrownGrassBlock block = ModBlocks.OVERGROWN_GRASS.get();
+        int targetColumns = random.nextInt(MIN_PATCH_SIZE, MAX_PATCH_SIZE + 1);
         int placedColumns = 0;
         Set<BlockPos> placedBottoms = new HashSet<>();
 
-        for (int attempt = 0; attempt < TRIES; attempt++) {
+        for (int attempt = 0; attempt < TRIES && placedColumns < targetColumns; attempt++) {
             BlockPos candidate = origin.offset(
                     random.nextInt(XZ_SPREAD + 1) - random.nextInt(XZ_SPREAD + 1),
                     random.nextInt(Y_SPREAD + 1) - random.nextInt(Y_SPREAD + 1),
@@ -48,8 +54,7 @@ public class OvergrownGrassPatchFeature extends Feature<NoneFeatureConfiguration
                 continue;
             }
 
-            int height = OvergrownGrassBlock.MIN_WORLDGEN_HEIGHT
-                    + random.nextInt(Math.min(OvergrownGrassBlock.MAX_HEIGHT, maxHeight) - OvergrownGrassBlock.MIN_WORLDGEN_HEIGHT + 1);
+            int height = sampleColumnHeight(random, maxHeight, targetColumns);
             if (block.placeColumn(level, candidate, height)) {
                 placedColumns++;
                 placedBottoms.add(candidate.immutable());
@@ -70,6 +75,37 @@ public class OvergrownGrassPatchFeature extends Feature<NoneFeatureConfiguration
         }
 
         return maxHeight;
+    }
+
+    private int sampleColumnHeight(RandomSource random, int maxHeight, int targetColumns) {
+        int cappedHeight = Math.min(OvergrownGrassBlock.MAX_HEIGHT, maxHeight);
+        if (cappedHeight <= OvergrownGrassBlock.MIN_WORLDGEN_HEIGHT) {
+            return cappedHeight;
+        }
+
+        if (targetColumns >= DENSE_PATCH_SIZE && cappedHeight >= 5 && random.nextFloat() < DENSE_PATCH_TALL_CHANCE) {
+            if (cappedHeight >= 6 && random.nextFloat() < DENSE_PATCH_MAX_HEIGHT_CHANCE) {
+                return 6;
+            }
+
+            return 5;
+        }
+
+        if (cappedHeight == 3) {
+            return random.nextFloat() < 0.45F ? 2 : 3;
+        }
+
+        int preferredMaxHeight = Math.min(4, cappedHeight);
+        float roll = random.nextFloat();
+        if (roll < 0.35F) {
+            return 2;
+        }
+
+        if (roll < 0.75F || preferredMaxHeight == 3) {
+            return Math.min(3, preferredMaxHeight);
+        }
+
+        return preferredMaxHeight;
     }
 
     private void sprinkleEdgeTallGrass(WorldGenLevel level, RandomSource random, Set<BlockPos> placedBottoms) {

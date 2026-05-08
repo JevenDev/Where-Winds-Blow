@@ -22,7 +22,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock {
     public static final MapCodec<OvergrownGrassBlock> CODEC = simpleCodec(OvergrownGrassBlock::new);
     public static final EnumProperty<OvergrownGrassPart> PART = EnumProperty.create("part", OvergrownGrassPart.class);
-    public static final int MIN_WORLDGEN_HEIGHT = 3;
+    public static final int MIN_WORLDGEN_HEIGHT = 2;
     public static final int MAX_HEIGHT = 6;
 
     private static final VoxelShape SHAPE = Block.box(2.0D, 0.0D, 2.0D, 14.0D, 16.0D, 14.0D);
