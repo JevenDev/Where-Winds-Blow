@@ -27,7 +27,18 @@ public final class ModBlocks {
                     .sound(SoundType.GRASS)
     );
 
+                public static final DeferredBlock<WildWheatBlock> WILD_WHEAT = BLOCKS.registerBlock(
+                    "wild_wheat",
+                    WildWheatBlock::new,
+                    BlockBehaviour.Properties.ofFullCopy(Blocks.WHEAT)
+                        .replaceable()
+                        .noCollission()
+                        .instabreak()
+                        .sound(SoundType.GRASS)
+                );
+
     public static final DeferredItem<BlockItem> OVERGROWN_GRASS_ITEM = ITEMS.registerSimpleBlockItem(OVERGROWN_GRASS, new Item.Properties());
+                public static final DeferredItem<BlockItem> WILD_WHEAT_ITEM = ITEMS.registerSimpleBlockItem(WILD_WHEAT, new Item.Properties());
 
     private ModBlocks() {
     }
@@ -41,6 +52,7 @@ public final class ModBlocks {
     private static void addCreativeTabContents(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.NATURAL_BLOCKS) {
             event.accept(OVERGROWN_GRASS_ITEM);
+            event.accept(WILD_WHEAT_ITEM);
         }
     }
 }

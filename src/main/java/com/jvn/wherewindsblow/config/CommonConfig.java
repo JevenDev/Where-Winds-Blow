@@ -29,6 +29,10 @@ public final class CommonConfig {
             .comment("Multiplies overgrown grass patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
             .defineInRange("overgrownGrassPatchMultiplier", 1.0D, 0.0D, 8.0D);
 
+    public static final ModConfigSpec.DoubleValue WILD_WHEAT_PATCH_MULTIPLIER = BUILDER
+            .comment("Multiplies wild wheat patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
+            .defineInRange("wildWheatPatchMultiplier", 1.0D, 0.0D, 8.0D);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private CommonConfig() {

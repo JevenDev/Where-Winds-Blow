@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "age=0": {
+      "model": "where_winds_blow:block/wild_wheat_stage0"
+    },
+    "age=1": {
+      "model": "where_winds_blow:block/wild_wheat_stage1"
+    },
+    "age=2": {
+      "model": "where_winds_blow:block/wild_wheat_stage2"
+    },
+    "age=3": {
+      "model": "where_winds_blow:block/wild_wheat_stage3"
+    }
+  }
+}

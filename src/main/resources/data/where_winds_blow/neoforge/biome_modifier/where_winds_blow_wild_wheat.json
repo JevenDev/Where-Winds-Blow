@@ -1,0 +1,16 @@
+{
+  "type": "where_winds_blow:configurable_grass",
+  "biomes": "#where_winds_blow:has_wild_wheat_patches",
+  "features": [
+    "where_winds_blow:wild_wheat_patch",
+    "where_winds_blow:wild_wheat_patch_2",
+    "where_winds_blow:wild_wheat_patch_3",
+    "where_winds_blow:wild_wheat_patch_4",
+    "where_winds_blow:wild_wheat_patch_5",
+    "where_winds_blow:wild_wheat_patch_6",
+    "where_winds_blow:wild_wheat_patch_7",
+    "where_winds_blow:wild_wheat_patch_8"
+  ],
+  "density": "wild_wheat",
+  "step": "vegetal_decoration"
+}

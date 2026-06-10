@@ -14,5 +14,10 @@
   "where_winds_blow.config.tallGrassPatchMultiplier.tooltip": "Multiplies tall grass patch generation passes. Values are rounded to whole passes when biome modifiers load.",
   "where_winds_blow.config.overgrownGrassPatchMultiplier": "Overgrown Grass",
   "where_winds_blow.config.overgrownGrassPatchMultiplier.tooltip": "Multiplies overgrown grass patch generation passes. Values are rounded to whole passes when biome modifiers load.",
-  "block.where_winds_blow.overgrown_grass": "Overgrown Grass"
+  "where_winds_blow.config.wildWheatPatchMultiplier": "Wild Wheat",
+  "where_winds_blow.config.wildWheatPatchMultiplier.tooltip": "Multiplies wild wheat patch generation passes. Values are rounded to whole passes when biome modifiers load.",
+  "generator.where_winds_blow.golden_fields": "Golden Fields",
+  "block.where_winds_blow.overgrown_grass": "Overgrown Grass",
+  "block.where_winds_blow.wild_wheat": "Wild Wheat",
+  "biome.where_winds_blow.golden_fields": "Golden Fields"
 }
