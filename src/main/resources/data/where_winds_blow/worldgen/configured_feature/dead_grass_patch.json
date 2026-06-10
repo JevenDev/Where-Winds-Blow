@@ -1,7 +1,7 @@
 {
   "type": "minecraft:random_patch",
   "config": {
-    "tries": 64,
+    "tries": 72,
     "xz_spread": 3,
     "y_spread": 1,
     "feature": {
@@ -9,10 +9,21 @@
         "type": "minecraft:simple_block",
         "config": {
           "to_place": {
-            "type": "minecraft:simple_state_provider",
-            "state": {
-              "Name": "where_winds_blow:short_dry_grass"
-            }
+            "type": "minecraft:weighted_state_provider",
+            "entries": [
+              {
+                "data": {
+                  "Name": "where_winds_blow:short_dead_grass"
+                },
+                "weight": 5
+              },
+              {
+                "data": {
+                  "Name": "where_winds_blow:flat_dead_grass"
+                },
+                "weight": 3
+              }
+            ]
           }
         }
       },

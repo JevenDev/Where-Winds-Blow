@@ -23,15 +23,19 @@ public final class CommonConfig {
 
     public static final ModConfigSpec.DoubleValue TALL_GRASS_PATCH_MULTIPLIER = BUILDER
             .comment("Multiplies tall grass patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
-            .defineInRange("tallGrassPatchMultiplier", 8.0D, 0.0D, 8.0D);
+            .defineInRange("tallGrassPatchMultiplier", 4.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec.DoubleValue SHORT_DRY_GRASS_PATCH_MULTIPLIER = BUILDER
             .comment("Multiplies short dry grass patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
-            .defineInRange("shortDryGrassPatchMultiplier", 2.0D, 0.0D, 8.0D);
+            .defineInRange("shortDryGrassPatchMultiplier", 1.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec.DoubleValue TALL_DRY_GRASS_PATCH_MULTIPLIER = BUILDER
             .comment("Multiplies tall dry grass patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
             .defineInRange("tallDryGrassPatchMultiplier", 1.0D, 0.0D, 8.0D);
+
+    public static final ModConfigSpec.DoubleValue DEAD_GRASS_PATCH_MULTIPLIER = BUILDER
+            .comment("Multiplies dead grass patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
+            .defineInRange("deadGrassPatchMultiplier", 1.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec.DoubleValue OVERGROWN_GRASS_PATCH_MULTIPLIER = BUILDER
             .comment("Multiplies overgrown grass patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
@@ -39,7 +43,7 @@ public final class CommonConfig {
 
     public static final ModConfigSpec.DoubleValue WILD_WHEAT_PATCH_MULTIPLIER = BUILDER
             .comment("Multiplies wild wheat patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
-            .defineInRange("wildWheatPatchMultiplier", 1.0D, 0.0D, 8.0D);
+            .defineInRange("wildWheatPatchMultiplier", 0.0D, 0.0D, 8.0D);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 

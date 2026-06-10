@@ -38,9 +38,9 @@ public final class ModBlocks {
                     .sound(SoundType.GRASS)
     );
 
-    public static final DeferredBlock<TallGrassBlock> SHORT_DRY_GRASS = BLOCKS.registerBlock(
-            "short_dry_grass",
-            TallGrassBlock::new,
+    public static final DeferredBlock<DryGrassBlock> FLAT_DEAD_GRASS = BLOCKS.registerBlock(
+            "flat_dead_grass",
+            DryGrassBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.SHORT_GRASS)
                     .replaceable()
                     .noCollission()
@@ -48,9 +48,29 @@ public final class ModBlocks {
                     .sound(SoundType.GRASS)
     );
 
-    public static final DeferredBlock<TallGrassBlock> TALL_DRY_GRASS = BLOCKS.registerBlock(
+    public static final DeferredBlock<DryGrassBlock> SHORT_DEAD_GRASS = BLOCKS.registerBlock(
+            "short_dead_grass",
+            DryGrassBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SHORT_GRASS)
+                    .replaceable()
+                    .noCollission()
+                    .instabreak()
+                    .sound(SoundType.GRASS)
+    );
+
+    public static final DeferredBlock<DryGrassBlock> SHORT_DRY_GRASS = BLOCKS.registerBlock(
+            "short_dry_grass",
+            DryGrassBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SHORT_GRASS)
+                    .replaceable()
+                    .noCollission()
+                    .instabreak()
+                    .sound(SoundType.GRASS)
+    );
+
+    public static final DeferredBlock<DryGrassBlock> TALL_DRY_GRASS = BLOCKS.registerBlock(
             "tall_dry_grass",
-            TallGrassBlock::new,
+            DryGrassBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.SHORT_GRASS)
                     .replaceable()
                     .noCollission()
@@ -70,6 +90,8 @@ public final class ModBlocks {
 
     public static final DeferredItem<BlockItem> OVERGROWN_GRASS_ITEM = ITEMS.registerSimpleBlockItem(OVERGROWN_GRASS, new Item.Properties());
     public static final DeferredItem<BlockItem> FLAT_GRASS_ITEM = ITEMS.registerSimpleBlockItem(FLAT_GRASS, new Item.Properties());
+    public static final DeferredItem<BlockItem> FLAT_DEAD_GRASS_ITEM = ITEMS.registerSimpleBlockItem(FLAT_DEAD_GRASS, new Item.Properties());
+    public static final DeferredItem<BlockItem> SHORT_DEAD_GRASS_ITEM = ITEMS.registerSimpleBlockItem(SHORT_DEAD_GRASS, new Item.Properties());
     public static final DeferredItem<BlockItem> SHORT_DRY_GRASS_ITEM = ITEMS.registerSimpleBlockItem(SHORT_DRY_GRASS, new Item.Properties());
     public static final DeferredItem<BlockItem> TALL_DRY_GRASS_ITEM = ITEMS.registerSimpleBlockItem(TALL_DRY_GRASS, new Item.Properties());
     public static final DeferredItem<BlockItem> WILD_WHEAT_ITEM = ITEMS.registerSimpleBlockItem(WILD_WHEAT, new Item.Properties());
@@ -87,6 +109,8 @@ public final class ModBlocks {
         if (event.getTabKey() == CreativeModeTabs.NATURAL_BLOCKS) {
             event.accept(OVERGROWN_GRASS_ITEM);
             event.accept(FLAT_GRASS_ITEM);
+            event.accept(FLAT_DEAD_GRASS_ITEM);
+            event.accept(SHORT_DEAD_GRASS_ITEM);
             event.accept(SHORT_DRY_GRASS_ITEM);
             event.accept(TALL_DRY_GRASS_ITEM);
             event.accept(WILD_WHEAT_ITEM);

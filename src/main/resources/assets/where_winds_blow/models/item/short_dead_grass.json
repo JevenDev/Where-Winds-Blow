@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "where_winds_blow:block/short_dead_grass"
+  }
+}
