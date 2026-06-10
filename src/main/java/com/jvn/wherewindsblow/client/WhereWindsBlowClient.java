@@ -1,6 +1,8 @@
 package com.jvn.wherewindsblow.client;
 
 import com.jvn.wherewindsblow.block.ModBlocks;
+import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
+import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
 import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
@@ -8,7 +10,9 @@ import net.minecraft.world.level.GrassColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
 public final class WhereWindsBlowClient {
@@ -20,6 +24,9 @@ public final class WhereWindsBlowClient {
         modEventBus.addListener(WhereWindsBlowClient::onClientSetup);
         modEventBus.addListener(WhereWindsBlowClient::registerBlockColors);
         modEventBus.addListener(WhereWindsBlowClient::registerItemColors);
+        modEventBus.addListener(WhereWindsBlowClient::modifyBakedModels);
+        NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onRenderLevelStage);
+        NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onClientTick);
     }
 
     private static void onClientSetup(FMLClientSetupEvent event) {
@@ -40,5 +47,9 @@ public final class WhereWindsBlowClient {
 
     private static void registerItemColors(RegisterColorHandlersEvent.Item event) {
         event.register((stack, tintIndex) -> GrassColor.get(0.5D, 1.0D), ModBlocks.OVERGROWN_GRASS_ITEM.get());
+    }
+
+    private static void modifyBakedModels(ModelEvent.ModifyBakingResult event) {
+        ResponsiveFoliage.wrapModels(event);
     }
 }
