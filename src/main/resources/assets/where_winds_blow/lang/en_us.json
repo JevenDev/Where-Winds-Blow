@@ -40,13 +40,11 @@
   "where_winds_blow.config.enableWindFoliageSway.tooltip": "Enables wind-driven sway in the responsive foliage shader.",
   "where_winds_blow.config.windFoliageSwayStrength": "Sway Strength",
   "where_winds_blow.config.windFoliageSwayStrength.tooltip": "Scales the strength of wind-driven foliage motion.",
-  "generator.where_winds_blow.golden_fields": "Golden Fields",
   "block.where_winds_blow.overgrown_grass": "Overgrown Grass",
   "block.where_winds_blow.flat_grass": "Flat Grass",
   "block.where_winds_blow.flat_dead_grass": "Flat Dead Grass",
   "block.where_winds_blow.short_dead_grass": "Short Dead Grass",
   "block.where_winds_blow.short_dry_grass": "Short Dry Grass",
   "block.where_winds_blow.tall_dry_grass": "Tall Dry Grass",
-  "block.where_winds_blow.wild_wheat": "Wild Wheat",
-  "biome.where_winds_blow.golden_fields": "Golden Fields"
+  "block.where_winds_blow.wild_wheat": "Wild Wheat"
 }
