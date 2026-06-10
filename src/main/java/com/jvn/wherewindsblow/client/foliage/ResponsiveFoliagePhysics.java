@@ -292,10 +292,10 @@ public final class ResponsiveFoliagePhysics {
     private static void markColumnDirty(LevelRenderer levelRenderer, ClientLevel level, BlockPos pos) {
         markDirty(levelRenderer, level, pos);
 
-        BlockPos current = pos.above();
-        while (current.getY() - pos.getY() < 8 && ResponsiveFoliage.isInteractive(level.getBlockState(current))) {
-            markDirty(levelRenderer, level, current);
-            current = current.above();
+        BlockState rootState = level.getBlockState(pos);
+        FoliageModelData.ColumnSegment segment = ResponsiveFoliage.columnSegment(level, pos, rootState);
+        for (int offset = 1; offset < segment.height(); offset++) {
+            markDirty(levelRenderer, level, pos.above(offset));
         }
     }
 

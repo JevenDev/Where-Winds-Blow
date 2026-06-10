@@ -35,6 +35,9 @@ public final class WhereWindsBlowClient {
     private static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.OVERGROWN_GRASS.get(), RenderType.cutoutMipped());
+            ItemBlockRenderTypes.setRenderLayer(ModBlocks.FLAT_GRASS.get(), RenderType.cutoutMipped());
+            ItemBlockRenderTypes.setRenderLayer(ModBlocks.SHORT_DRY_GRASS.get(), RenderType.cutoutMipped());
+            ItemBlockRenderTypes.setRenderLayer(ModBlocks.TALL_DRY_GRASS.get(), RenderType.cutoutMipped());
             ItemBlockRenderTypes.setRenderLayer(ModBlocks.WILD_WHEAT.get(), RenderType.cutoutMipped());
         });
     }
@@ -44,12 +47,17 @@ public final class WhereWindsBlowClient {
                 (state, level, pos, tintIndex) -> level != null && pos != null
                         ? BiomeColors.getAverageGrassColor(level, pos)
                         : GrassColor.get(0.5D, 1.0D),
-                ModBlocks.OVERGROWN_GRASS.get()
+                ModBlocks.OVERGROWN_GRASS.get(),
+                ModBlocks.FLAT_GRASS.get()
         );
     }
 
     private static void registerItemColors(RegisterColorHandlersEvent.Item event) {
-        event.register((stack, tintIndex) -> GrassColor.get(0.5D, 1.0D), ModBlocks.OVERGROWN_GRASS_ITEM.get());
+        event.register(
+                (stack, tintIndex) -> GrassColor.get(0.5D, 1.0D),
+                ModBlocks.OVERGROWN_GRASS_ITEM.get(),
+                ModBlocks.FLAT_GRASS_ITEM.get()
+        );
     }
 
     private static void modifyBakedModels(ModelEvent.ModifyBakingResult event) {

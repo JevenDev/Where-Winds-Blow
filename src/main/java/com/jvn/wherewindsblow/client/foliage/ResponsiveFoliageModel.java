@@ -20,13 +20,19 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final float MAX_DISPLACEMENT = 0.34F;
     private static final int WIND_ALPHA_MIN = 96;
     private static final int WIND_ALPHA_MAX = 254;
+    private final boolean modelDetectedFoliage;
 
-    ResponsiveFoliageModel(BakedModel originalModel) {
+    ResponsiveFoliageModel(BakedModel originalModel, boolean modelDetectedFoliage) {
         super(originalModel);
+        this.modelDetectedFoliage = modelDetectedFoliage;
     }
 
     @Override
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
+        if (!isResponsiveState(state)) {
+            return originalModel.getModelData(level, pos, state, modelData);
+        }
+
         return originalModel.getModelData(level, pos, state, modelData)
                 .derive()
                 .with(FoliageModelData.COLUMN_SEGMENT, ResponsiveFoliage.columnSegment(level, pos, state))
@@ -36,7 +42,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     @Override
     public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, RandomSource rand, ModelData extraData, @Nullable RenderType renderType) {
         List<BakedQuad> quads = originalModel.getQuads(state, side, rand, extraData, renderType);
-        if (state == null || !ResponsiveFoliage.isInteractive(state) || !extraData.has(FoliageModelData.COLUMN_SEGMENT)) {
+        if (state == null || !isResponsiveState(state) || !extraData.has(FoliageModelData.COLUMN_SEGMENT)) {
             return quads;
         }
 
@@ -99,5 +105,9 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
 
     private static int encodeUnit(float value) {
         return Mth.clamp(Math.round(Mth.clamp(value, 0.0F, 1.0F) * 254.0F - 127.0F), -127, 127);
+    }
+
+    private boolean isResponsiveState(@Nullable BlockState state) {
+        return state != null && (modelDetectedFoliage || ResponsiveFoliage.isInteractive(state));
     }
 }

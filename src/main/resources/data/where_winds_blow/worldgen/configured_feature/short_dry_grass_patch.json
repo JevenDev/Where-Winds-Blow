@@ -9,21 +9,10 @@
         "type": "minecraft:simple_block",
         "config": {
           "to_place": {
-            "type": "minecraft:weighted_state_provider",
-            "entries": [
-              {
-                "data": {
-                  "Name": "minecraft:short_grass"
-                },
-                "weight": 5
-              },
-              {
-                "data": {
-                  "Name": "where_winds_blow:flat_grass"
-                },
-                "weight": 2
-              }
-            ]
+            "type": "minecraft:simple_state_provider",
+            "state": {
+              "Name": "where_winds_blow:short_dry_grass"
+            }
           }
         }
       },

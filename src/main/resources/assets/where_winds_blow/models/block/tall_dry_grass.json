@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "render_type": "minecraft:cutout_mipped",
+  "textures": {
+    "cross": "where_winds_blow:block/tall_dry_grass"
+  }
+}
