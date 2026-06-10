@@ -70,8 +70,9 @@ public final class ResponsiveFoliagePhysics {
             entities.add(player);
         }
 
+        Set<BlockPos> entityRoots = new HashSet<>();
         for (Entity entity : entities) {
-            collectEntityInfluence(level, frustum, entities, entity, targetLean);
+            collectEntityInfluence(level, frustum, entities, entity, entityRoots, targetLean);
         }
 
         Map<BlockPos, FoliageLeanState.LeanVector> nextLean = smoothLean(targetLean);
@@ -93,7 +94,7 @@ public final class ResponsiveFoliagePhysics {
         CURRENT_LEAN.putAll(nextLean);
     }
 
-    private static void collectEntityInfluence(ClientLevel level, Frustum frustum, List<Entity> entities, Entity source, Map<BlockPos, FoliageLeanState.LeanVector> nextLean) {
+    private static void collectEntityInfluence(ClientLevel level, Frustum frustum, List<Entity> entities, Entity source, Set<BlockPos> entityRoots, Map<BlockPos, FoliageLeanState.LeanVector> nextLean) {
         double radius = edgeInfluenceRadius(source);
         AABB searchBounds = source.getBoundingBox().inflate(radius, 1.0D, radius);
 
@@ -111,13 +112,13 @@ public final class ResponsiveFoliagePhysics {
                     }
 
                     FoliageModelData.ColumnSegment segment = ResponsiveFoliage.columnSegment(level, pos, state);
-                    if (nextLean.containsKey(segment.rootPos())) {
+                    if (!entityRoots.add(segment.rootPos())) {
                         continue;
                     }
 
                     FoliageLeanState.LeanVector lean = computeLean(segment.rootPos(), ResponsiveFoliage.columnSwayMultiplier(level, segment), entities);
                     if (lean != null) {
-                        nextLean.put(segment.rootPos(), lean);
+                        combineLean(nextLean, segment.rootPos(), lean);
                     }
                 }
             }
@@ -182,6 +183,24 @@ public final class ResponsiveFoliagePhysics {
                 (float) (strongestDirZ / length),
                 Math.min(strongestIntensity, 1.0F)
         );
+    }
+
+    private static void combineLean(Map<BlockPos, FoliageLeanState.LeanVector> leanMap, BlockPos pos, FoliageLeanState.LeanVector addition) {
+        FoliageLeanState.LeanVector existing = leanMap.get(pos);
+        if (existing == null) {
+            leanMap.put(pos, addition);
+            return;
+        }
+
+        float x = existing.dirX() * existing.intensity() + addition.dirX() * addition.intensity();
+        float z = existing.dirZ() * existing.intensity() + addition.dirZ() * addition.intensity();
+        float intensity = Math.min((float) Math.sqrt(x * x + z * z), 1.0F);
+        if (intensity < 0.001F) {
+            leanMap.remove(pos);
+            return;
+        }
+
+        leanMap.put(pos, new FoliageLeanState.LeanVector(x / intensity, z / intensity, intensity));
     }
 
     private static Map<BlockPos, FoliageLeanState.LeanVector> smoothLean(Map<BlockPos, FoliageLeanState.LeanVector> targetLean) {

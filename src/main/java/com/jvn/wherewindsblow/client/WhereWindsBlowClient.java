@@ -3,6 +3,7 @@ package com.jvn.wherewindsblow.client;
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
+import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
@@ -13,6 +14,7 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
 public final class WhereWindsBlowClient {
@@ -25,6 +27,7 @@ public final class WhereWindsBlowClient {
         modEventBus.addListener(WhereWindsBlowClient::registerBlockColors);
         modEventBus.addListener(WhereWindsBlowClient::registerItemColors);
         modEventBus.addListener(WhereWindsBlowClient::modifyBakedModels);
+        modEventBus.addListener(WhereWindsBlowClient::registerShaders);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onClientTick);
     }
@@ -51,5 +54,9 @@ public final class WhereWindsBlowClient {
 
     private static void modifyBakedModels(ModelEvent.ModifyBakingResult event) {
         ResponsiveFoliage.wrapModels(event);
+    }
+
+    private static void registerShaders(RegisterShadersEvent event) {
+        ResponsiveFoliageShaders.register(event);
     }
 }

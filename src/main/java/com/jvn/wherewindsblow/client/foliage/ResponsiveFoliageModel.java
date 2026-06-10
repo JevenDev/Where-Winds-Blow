@@ -18,7 +18,8 @@ import org.jetbrains.annotations.Nullable;
 final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final float BASE_THRESHOLD = 0.08F;
     private static final float MAX_DISPLACEMENT = 0.34F;
-    private static final float MIN_VISIBLE_INTENSITY = 0.01F;
+    private static final int WIND_ALPHA_MIN = 96;
+    private static final int WIND_ALPHA_MAX = 254;
 
     ResponsiveFoliageModel(BakedModel originalModel) {
         super(originalModel);
@@ -41,13 +42,9 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
 
         FoliageModelData.ColumnSegment segment = extraData.get(FoliageModelData.COLUMN_SEGMENT);
         FoliageLeanState.LeanVector lean = FoliageLeanState.get(segment.rootPos());
-        if (lean == null || lean.intensity() < MIN_VISIBLE_INTENSITY) {
-            return quads;
-        }
-
-        float displacement = Mth.clamp(lean.intensity(), 0.0F, 1.0F) * MAX_DISPLACEMENT;
-        float offsetX = lean.dirX() * displacement;
-        float offsetZ = lean.dirZ() * displacement;
+        float displacement = lean == null ? 0.0F : Mth.clamp(lean.intensity(), 0.0F, 1.0F) * MAX_DISPLACEMENT;
+        float offsetX = lean == null ? 0.0F : lean.dirX() * displacement;
+        float offsetZ = lean == null ? 0.0F : lean.dirZ() * displacement;
         List<BakedQuad> transformed = new ArrayList<>(quads.size());
         for (BakedQuad quad : quads) {
             transformed.add(transformQuad(quad, segment, offsetX, offsetZ));
@@ -69,13 +66,15 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             }
 
             float columnHeight = segment.height();
-            float weight = (columnY - BASE_THRESHOLD) / (columnHeight - BASE_THRESHOLD);
-            weight = Mth.clamp(weight, 0.0F, 1.0F);
+            float rawWeight = Mth.clamp((columnY - BASE_THRESHOLD) / (columnHeight - BASE_THRESHOLD), 0.0F, 1.0F);
+            float weight = rawWeight;
             weight *= weight * (3.0F - 2.0F * weight);
             float x = Float.intBitsToFloat(vertices[offset]);
             float z = Float.intBitsToFloat(vertices[offset + 2]);
             vertices[offset] = Float.floatToRawIntBits(x + offsetX * weight);
             vertices[offset + 2] = Float.floatToRawIntBits(z + offsetZ * weight);
+            vertices[offset + 3] = packWindAlpha(vertices[offset + 3], rawWeight);
+            vertices[offset + 7] = packWindData(rawWeight);
         }
 
         return new BakedQuad(
@@ -86,5 +85,19 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 quad.isShade(),
                 quad.hasAmbientOcclusion()
         );
+    }
+
+    private static int packWindData(float bendWeight) {
+        int encodedWeight = encodeUnit(bendWeight);
+        return (129 & 0xFF) | ((129 & 0xFF) << 8) | ((encodedWeight & 0xFF) << 16);
+    }
+
+    private static int packWindAlpha(int color, float bendWeight) {
+        int alpha = Mth.clamp(Math.round(WIND_ALPHA_MIN + Mth.clamp(bendWeight, 0.0F, 1.0F) * (WIND_ALPHA_MAX - WIND_ALPHA_MIN)), WIND_ALPHA_MIN, WIND_ALPHA_MAX);
+        return (color & 0x00FFFFFF) | (alpha << 24);
+    }
+
+    private static int encodeUnit(float value) {
+        return Mth.clamp(Math.round(Mth.clamp(value, 0.0F, 1.0F) * 254.0F - 127.0F), -127, 127);
     }
 }
