@@ -12,6 +12,7 @@ uniform vec4 FogColor;
 in float vertexDistance;
 in vec4 vertexColor;
 in vec2 texCoord0;
+in float windSheen;
 
 out vec4 fragColor;
 
@@ -20,5 +21,7 @@ void main() {
     if (color.a < 0.5) {
         discard;
     }
+
+    color.rgb = mix(color.rgb, vec3(1.0), clamp(windSheen, 0.0, 0.35));
     fragColor = linear_fog(color, vertexDistance, FogStart, FogEnd, FogColor);
 }

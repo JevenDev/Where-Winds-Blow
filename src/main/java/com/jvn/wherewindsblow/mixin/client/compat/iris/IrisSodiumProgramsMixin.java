@@ -13,6 +13,7 @@ public abstract class IrisSodiumProgramsMixin {
 
     private static final String WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION = """
             uniform float u_WwbTime;
+            uniform float u_WwbWeatherWindPower;
             float wwb_smooth_curve(float value) {
                 value = clamp(value, 0.0, 1.0);
                 return value * value * (3.0 - 2.0 * value);
@@ -26,6 +27,7 @@ public abstract class IrisSodiumProgramsMixin {
                 }
 
                 float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
+                float weatherStrength = 1.0 + u_WwbWeatherWindPower * 0.55;
                 float t = u_WwbTime;
                 vec2 windDir = normalize(vec2(0.82, 0.57));
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
@@ -36,7 +38,7 @@ public abstract class IrisSodiumProgramsMixin {
                 float ripple = sin(along * 1.08 - t * 3.6 + across * 0.18) * 0.5 + 0.5;
                 float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 + across * 0.04) * 0.5 + 0.5);
                 float shimmer = sin(position.x * 2.17 + position.z * 1.63 + t * 2.1) * 0.012;
-                float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend;
+                float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength;
                 float directionNoise = sin(across * 0.22 + t * 0.55) * 0.18;
                 vec2 dir = normalize(windDir + crossDir * directionNoise);
                 position.xz += dir * strength;

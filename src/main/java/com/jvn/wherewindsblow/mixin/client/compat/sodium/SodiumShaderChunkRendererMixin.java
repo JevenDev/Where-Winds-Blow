@@ -1,7 +1,7 @@
 package com.jvn.wherewindsblow.mixin.client.compat.sodium;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
-import net.minecraft.Util;
+import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.opengl.GL20C;
 import org.spongepowered.asm.mixin.Mixin;
@@ -42,7 +42,12 @@ public abstract class SodiumShaderChunkRendererMixin {
 
         int location = GL20C.glGetUniformLocation(program, "u_WwbTime");
         if (location >= 0) {
-            GL20C.glUniform1f(location, Util.getMillis() * 0.001F);
+            GL20C.glUniform1f(location, ResponsiveFoliageShaders.windTime());
+        }
+
+        location = GL20C.glGetUniformLocation(program, "u_WwbWeatherWindPower");
+        if (location >= 0) {
+            GL20C.glUniform1f(location, ResponsiveFoliageShaders.weatherWindPower());
         }
     }
 }

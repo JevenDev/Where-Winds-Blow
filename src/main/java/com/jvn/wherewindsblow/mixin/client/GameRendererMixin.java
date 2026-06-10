@@ -24,6 +24,7 @@ public abstract class GameRendererMixin {
     private static void setResponsiveFoliageShader(CallbackInfoReturnable<ShaderInstance> cir) {
         @Nullable ShaderInstance shader = ResponsiveFoliageShaders.getShader();
         if (shader != null) {
+            ResponsiveFoliageShaders.uploadWeatherUniforms(shader);
             cir.setReturnValue(shader);
         }
     }
