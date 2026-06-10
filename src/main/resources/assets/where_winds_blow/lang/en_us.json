@@ -36,6 +36,8 @@
   "where_winds_blow.config.enableWindSheen.tooltip": "Enables the bright moving sheen that travels across responsive foliage in the wind.",
   "where_winds_blow.config.windSheenStrength": "Sheen Strength",
   "where_winds_blow.config.windSheenStrength.tooltip": "Scales the visible intensity of the wind sheen highlight.",
+  "where_winds_blow.config.forceWwbWindWithShaderPacks": "Use WWB Wind With Shader Packs",
+  "where_winds_blow.config.forceWwbWindWithShaderPacks.tooltip": "Keeps Where Winds Blow sway and sheen active even when an Iris shader pack is currently rendering.",
   "where_winds_blow.config.enableWindFoliageSway": "Wind Foliage Sway",
   "where_winds_blow.config.enableWindFoliageSway.tooltip": "Enables wind-driven sway in the responsive foliage shader.",
   "where_winds_blow.config.windFoliageSwayStrength": "Sway Strength",

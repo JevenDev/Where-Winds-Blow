@@ -21,6 +21,10 @@ public final class ClientConfig {
             .comment("Scales the visible intensity of wind sheen highlights.")
             .defineInRange("windSheenStrength", 1.0D, 0.0D, 2.0D);
 
+    public static final ModConfigSpec.BooleanValue FORCE_WWB_WIND_WITH_SHADER_PACKS = BUILDER
+            .comment("Keeps Where Winds Blow wind sway and sheen active even while an Iris shader pack is in use.")
+            .define("forceWwbWindWithShaderPacks", false);
+
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_FOLIAGE_SWAY = BUILDER
             .comment("Enables wind-driven foliage sway in the responsive foliage shader.")
             .define("enableWindFoliageSway", true);

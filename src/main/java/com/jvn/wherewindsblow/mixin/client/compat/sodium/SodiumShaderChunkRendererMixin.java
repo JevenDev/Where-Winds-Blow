@@ -30,11 +30,15 @@ public abstract class SodiumShaderChunkRendererMixin {
             require = 0
     )
     private ResourceLocation wherewindsblow$useResponsiveFoliageWindShader(ResourceLocation original) {
-        return WHEREWINDSBLOW$SODIUM_WIND_SHADER;
+        return ResponsiveFoliageShaders.shouldUseCustomFoliageShaders() ? WHEREWINDSBLOW$SODIUM_WIND_SHADER : original;
     }
 
     @Inject(method = "begin", at = @At("TAIL"), require = 0)
     private void wherewindsblow$uploadResponsiveFoliageWindTime(CallbackInfo ci) {
+        if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()) {
+            return;
+        }
+
         int program = GL20C.glGetInteger(GL20C.GL_CURRENT_PROGRAM);
         if (program == 0) {
             return;

@@ -29,7 +29,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
 
     @Override
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
-        if (!isResponsiveState(state)) {
+        if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders() || !isResponsiveState(state)) {
             return originalModel.getModelData(level, pos, state, modelData);
         }
 
@@ -42,7 +42,10 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     @Override
     public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, RandomSource rand, ModelData extraData, @Nullable RenderType renderType) {
         List<BakedQuad> quads = originalModel.getQuads(state, side, rand, extraData, renderType);
-        if (state == null || !isResponsiveState(state) || !extraData.has(FoliageModelData.COLUMN_SEGMENT)) {
+        if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()
+                || state == null
+                || !isResponsiveState(state)
+                || !extraData.has(FoliageModelData.COLUMN_SEGMENT)) {
             return quads;
         }
 

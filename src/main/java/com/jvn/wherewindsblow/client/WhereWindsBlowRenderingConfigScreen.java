@@ -28,6 +28,8 @@ public class WhereWindsBlowRenderingConfigScreen extends Screen {
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_SHEEN, ClientConfig.SPEC));
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(right, y, 150, "windSheenStrength", ClientConfig.WIND_SHEEN_STRENGTH::getAsDouble, value -> WhereWindsBlowConfigWidgets.set(ClientConfig.WIND_SHEEN_STRENGTH, value), 0.0D, 2.0D));
         y += 24;
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.FORCE_WWB_WIND_WITH_SHADER_PACKS, ClientConfig.SPEC));
+        y += 24;
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_FOLIAGE_SWAY, ClientConfig.SPEC));
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(right, y, 150, "windFoliageSwayStrength", ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH::getAsDouble, value -> WhereWindsBlowConfigWidgets.set(ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH, value), 0.0D, 2.0D));
 

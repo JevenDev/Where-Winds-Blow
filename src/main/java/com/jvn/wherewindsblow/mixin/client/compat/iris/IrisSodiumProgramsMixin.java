@@ -1,6 +1,9 @@
 package com.jvn.wherewindsblow.mixin.client.compat.iris;
 
+import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -8,8 +11,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(targets = "net.irisshaders.iris.pipeline.programs.SodiumPrograms", remap = false)
 public abstract class IrisSodiumProgramsMixin {
-    private static final String WHEREWINDSBLOW$IRIS_GET_VERTEX_POSITION =
-            "vec4 getVertexPosition() { return vec4(_vert_position + u_RegionOffset + _get_draw_translation(_draw_id), 1.0); }";
+    private static final Pattern WHEREWINDSBLOW$IRIS_VERTEX_POSITION_PATTERN = Pattern.compile(
+            "vec4\\s+getVertexPosition\\s*\\(\\s*\\)\\s*\\{\\s*return\\s+vec4\\s*\\(\\s*_vert_position\\s*\\+\\s*u_RegionOffset\\s*\\+\\s*_get_draw_translation\\s*\\(\\s*_draw_id\\s*\\)\\s*,\\s*1\\.0\\s*\\)\\s*;\\s*\\}",
+            Pattern.MULTILINE
+    );
 
     private static final String WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION = """
             uniform float u_WwbTime;
@@ -55,6 +60,10 @@ public abstract class IrisSodiumProgramsMixin {
 
     @Inject(method = "transformShaders", at = @At("RETURN"), require = 0)
     private void wherewindsblow$patchIrisSodiumTerrainWind(CallbackInfoReturnable<Map<Object, String>> cir) {
+        if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()) {
+            return;
+        }
+
         Map<Object, String> sources = cir.getReturnValue();
         if (sources == null || sources.isEmpty()) {
             return;
@@ -66,8 +75,9 @@ public abstract class IrisSodiumProgramsMixin {
                 continue;
             }
 
-            if (source.contains(WHEREWINDSBLOW$IRIS_GET_VERTEX_POSITION)) {
-                entry.setValue(source.replace(WHEREWINDSBLOW$IRIS_GET_VERTEX_POSITION, WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION));
+            Matcher matcher = WHEREWINDSBLOW$IRIS_VERTEX_POSITION_PATTERN.matcher(source);
+            if (matcher.find()) {
+                entry.setValue(matcher.replaceFirst(Matcher.quoteReplacement(WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION)));
             }
         }
     }
