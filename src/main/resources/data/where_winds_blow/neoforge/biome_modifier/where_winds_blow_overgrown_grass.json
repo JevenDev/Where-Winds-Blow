@@ -1,6 +1,6 @@
 {
   "type": "where_winds_blow:configurable_grass",
-  "biomes": "#where_winds_blow:has_overgrown_grass_patches",
+  "biomes": "#where_winds_blow:has_overgrown_grass",
   "features": [
     "where_winds_blow:overgrown_grass_patch",
     "where_winds_blow:overgrown_grass_patch_2",

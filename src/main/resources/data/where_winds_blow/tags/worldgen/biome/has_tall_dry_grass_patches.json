@@ -1,9 +1,6 @@
 {
   "replace": false,
   "values": [
-    "minecraft:desert",
-    "minecraft:badlands",
-    "minecraft:eroded_badlands",
-    "minecraft:wooded_badlands"
+    "#where_winds_blow:has_tall_dry_grass"
   ]
 }

@@ -1,18 +1,6 @@
 {
   "replace": false,
   "values": [
-    "minecraft:plains",
-    "minecraft:sunflower_plains",
-    "minecraft:meadow",
-    "minecraft:flower_forest",
-    "minecraft:cherry_grove",
-    "minecraft:forest",
-    "minecraft:birch_forest",
-    "minecraft:old_growth_birch_forest",
-    "minecraft:dark_forest",
-    "minecraft:savanna",
-    "minecraft:savanna_plateau",
-    "minecraft:sparse_jungle",
-    "where_winds_blow:golden_fields"
+    "#where_winds_blow:has_tall_grass"
   ]
 }

@@ -1,8 +1,6 @@
 {
   "replace": false,
   "values": [
-    "minecraft:savanna",
-    "minecraft:savanna_plateau",
-    "minecraft:windswept_savanna"
+    "#where_winds_blow:has_dead_grass"
   ]
 }

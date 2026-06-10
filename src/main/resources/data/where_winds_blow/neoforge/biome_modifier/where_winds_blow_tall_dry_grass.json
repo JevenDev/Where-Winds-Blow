@@ -1,6 +1,6 @@
 {
   "type": "where_winds_blow:configurable_grass",
-  "biomes": "#where_winds_blow:has_tall_dry_grass_patches",
+  "biomes": "#where_winds_blow:has_tall_dry_grass",
   "features": [
     "where_winds_blow:tall_dry_grass_patch",
     "where_winds_blow:tall_dry_grass_patch_2",

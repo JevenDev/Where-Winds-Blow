@@ -1,8 +1,6 @@
 {
   "replace": false,
   "values": [
-    "minecraft:swamp",
-    "minecraft:mangrove_swamp",
-    "minecraft:river"
+    "#where_winds_blow:has_overgrown_grass"
   ]
 }

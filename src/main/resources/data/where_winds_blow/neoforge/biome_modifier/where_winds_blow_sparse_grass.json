@@ -1,6 +1,6 @@
 {
   "type": "where_winds_blow:configurable_grass",
-  "biomes": "#where_winds_blow:has_sparse_grass",
+  "biomes": "#where_winds_blow:has_sparse_short_grass",
   "features": [
     "where_winds_blow:sparse_short_grass_patch",
     "where_winds_blow:sparse_short_grass_patch_2",

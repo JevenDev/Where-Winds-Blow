@@ -1,11 +1,6 @@
 {
   "replace": false,
   "values": [
-    "minecraft:plains",
-    "minecraft:sunflower_plains",
-    "minecraft:meadow",
-    "minecraft:flower_forest",
-    "minecraft:cherry_grove",
-    "where_winds_blow:golden_fields"
+    "#where_winds_blow:has_dense_short_grass"
   ]
 }

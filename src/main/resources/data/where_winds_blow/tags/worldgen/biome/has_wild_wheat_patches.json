@@ -1,9 +1,6 @@
 {
   "replace": false,
   "values": [
-    "minecraft:plains",
-    "minecraft:sunflower_plains",
-    "minecraft:meadow",
-    "where_winds_blow:golden_fields"
+    "#where_winds_blow:has_wild_wheat"
   ]
 }

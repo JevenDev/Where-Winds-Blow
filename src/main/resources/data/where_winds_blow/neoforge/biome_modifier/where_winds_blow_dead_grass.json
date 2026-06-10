@@ -1,6 +1,6 @@
 {
   "type": "where_winds_blow:configurable_grass",
-  "biomes": "#where_winds_blow:has_dead_grass_transitions",
+  "biomes": "#where_winds_blow:has_dead_grass",
   "features": [
     "where_winds_blow:dead_grass_patch",
     "where_winds_blow:dead_grass_patch_2",

@@ -1,6 +1,6 @@
 {
   "type": "where_winds_blow:configurable_grass",
-  "biomes": "#where_winds_blow:has_wild_wheat_patches",
+  "biomes": "#where_winds_blow:has_wild_wheat",
   "features": [
     "where_winds_blow:wild_wheat_patch",
     "where_winds_blow:wild_wheat_patch_2",
