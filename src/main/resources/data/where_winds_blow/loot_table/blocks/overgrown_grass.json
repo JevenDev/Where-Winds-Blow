@@ -9,12 +9,42 @@
           "predicate": {
             "items": "minecraft:shears"
           }
+        },
+        {
+          "condition": "minecraft:survives_explosion"
         }
       ],
       "entries": [
         {
           "type": "minecraft:item",
           "name": "where_winds_blow:overgrown_grass"
+        }
+      ]
+    },
+    {
+      "rolls": 1.0,
+      "conditions": [
+        {
+          "condition": "minecraft:inverted",
+          "term": {
+            "condition": "minecraft:match_tool",
+            "predicate": {
+              "items": "minecraft:shears"
+            }
+          }
+        },
+        {
+          "condition": "minecraft:random_chance",
+          "chance": 0.125
+        },
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:wheat_seeds"
         }
       ]
     }

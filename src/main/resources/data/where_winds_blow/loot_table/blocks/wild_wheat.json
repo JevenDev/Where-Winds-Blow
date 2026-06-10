@@ -5,6 +5,35 @@
       "rolls": 1.0,
       "conditions": [
         {
+          "condition": "minecraft:match_tool",
+          "predicate": {
+            "items": "minecraft:shears"
+          }
+        },
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "where_winds_blow:wild_wheat"
+        }
+      ]
+    },
+    {
+      "rolls": 1.0,
+      "conditions": [
+        {
+          "condition": "minecraft:inverted",
+          "term": {
+            "condition": "minecraft:match_tool",
+            "predicate": {
+              "items": "minecraft:shears"
+            }
+          }
+        },
+        {
           "condition": "minecraft:block_state_property",
           "block": "where_winds_blow:wild_wheat",
           "properties": {
@@ -25,6 +54,15 @@
     {
       "rolls": 1.0,
       "conditions": [
+        {
+          "condition": "minecraft:inverted",
+          "term": {
+            "condition": "minecraft:match_tool",
+            "predicate": {
+              "items": "minecraft:shears"
+            }
+          }
+        },
         {
           "condition": "minecraft:block_state_property",
           "block": "where_winds_blow:wild_wheat",
@@ -64,6 +102,15 @@
     {
       "rolls": 1.0,
       "conditions": [
+        {
+          "condition": "minecraft:inverted",
+          "term": {
+            "condition": "minecraft:match_tool",
+            "predicate": {
+              "items": "minecraft:shears"
+            }
+          }
+        },
         {
           "condition": "minecraft:inverted",
           "term": {
