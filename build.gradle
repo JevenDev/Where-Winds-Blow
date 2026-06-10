@@ -144,6 +144,8 @@ dependencies {
 var replaceProperties = [
         minecraft_version      : minecraft_version,
         minecraft_version_range: minecraft_version_range,
+        sodium_version_range: sodium_version_range,
+        iris_version_range: iris_version_range,
         neo_version            : neo_version,
         loader_version_range   : loader_version_range,
         mod_id                 : mod_id,

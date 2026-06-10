@@ -27,12 +27,14 @@ side="BOTH"
 [[dependencies."${mod_id}"]]
 modId="sodium"
 type="optional"
+versionRange="${sodium_version_range}"
 ordering="AFTER"
 side="CLIENT"
 
 [[dependencies."${mod_id}"]]
 modId="iris"
 type="optional"
+versionRange="${iris_version_range}"
 ordering="AFTER"
 side="CLIENT"
 
