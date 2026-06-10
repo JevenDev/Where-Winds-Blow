@@ -1,0 +1,50 @@
+package com.jvn.wherewindsblow.client;
+
+import com.jvn.wherewindsblow.config.ClientConfig;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.network.chat.Component;
+
+public class WhereWindsBlowRenderingConfigScreen extends Screen {
+    private final Screen lastScreen;
+
+    public WhereWindsBlowRenderingConfigScreen(Screen lastScreen) {
+        super(Component.translatable("where_winds_blow.config.rendering.title"));
+        this.lastScreen = lastScreen;
+    }
+
+    @Override
+    protected void init() {
+        int center = this.width / 2;
+        int left = center - 155;
+        int right = center + 5;
+        int y = 52;
+
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY, ClientConfig.SPEC));
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(right, y, 150, "foliageInteractivityStrength", ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH::getAsDouble, value -> WhereWindsBlowConfigWidgets.set(ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH, value), 0.0D, 2.0D));
+        y += 24;
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_SHEEN, ClientConfig.SPEC));
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(right, y, 150, "windSheenStrength", ClientConfig.WIND_SHEEN_STRENGTH::getAsDouble, value -> WhereWindsBlowConfigWidgets.set(ClientConfig.WIND_SHEEN_STRENGTH, value), 0.0D, 2.0D));
+        y += 24;
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_FOLIAGE_SWAY, ClientConfig.SPEC));
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(right, y, 150, "windFoliageSwayStrength", ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH::getAsDouble, value -> WhereWindsBlowConfigWidgets.set(ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH, value), 0.0D, 2.0D));
+
+        this.addRenderableWidget(Button.builder(CommonComponents.GUI_BACK, button -> this.onClose())
+                .bounds(center - 100, this.height - 32, 200, 20)
+                .build());
+    }
+
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 14, 0xFFFFFF);
+        guiGraphics.drawCenteredString(this.font, Component.translatable("where_winds_blow.config.rendering.note"), this.width / 2, 32, 0xA0A0A0);
+    }
+
+    @Override
+    public void onClose() {
+        this.minecraft.setScreen(this.lastScreen);
+    }
+}

@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.foliage;
 
+import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
@@ -60,6 +61,11 @@ public final class ResponsiveFoliagePhysics {
         Entity player = minecraft.player;
         if (level == null || player == null) {
             reset();
+            return;
+        }
+
+        if (!ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY.getAsBoolean()) {
+            clearLean(levelRenderer, level);
             return;
         }
 
@@ -147,7 +153,8 @@ public final class ResponsiveFoliagePhysics {
 
             float intensity = (float) (1.0D - edgeDistance / radius)
                     * entitySizeStrength(entity)
-                    * swayMultiplier;
+                    * swayMultiplier
+                    * (float) ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH.getAsDouble();
             if (intensity > strongestIntensity) {
                 strongest = entity;
                 strongestDirX = dirX;
@@ -307,5 +314,18 @@ public final class ResponsiveFoliagePhysics {
     private static void reset() {
         FoliageLeanState.clear();
         CURRENT_LEAN.clear();
+    }
+
+    private static void clearLean(LevelRenderer levelRenderer, ClientLevel level) {
+        if (CURRENT_LEAN.isEmpty()) {
+            FoliageLeanState.clear();
+            return;
+        }
+
+        for (BlockPos pos : CURRENT_LEAN.keySet()) {
+            markColumnDirty(levelRenderer, level, pos);
+        }
+
+        reset();
     }
 }

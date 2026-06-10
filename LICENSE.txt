@@ -1,0 +1,14 @@
+All Rights Reserved
+
+Copyright (c) 2026 jvn
+
+Villager Retaliation! and its source code, assets, documentation, and related
+materials are the property of the copyright holder.
+
+No permission is granted to copy, modify, distribute, sublicense, sell, or create
+derivative works from this project except where explicitly permitted in writing
+by the copyright holder.
+
+Any permissions stated in this repository, on the official Modrinth or
+CurseForge pages, or in other official project materials are limited to the
+scope described there and do not transfer ownership or grant additional rights.

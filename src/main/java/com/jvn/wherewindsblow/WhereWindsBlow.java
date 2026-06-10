@@ -2,17 +2,14 @@ package com.jvn.wherewindsblow;
 
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.mojang.logging.LogUtils;
-import com.jvn.wherewindsblow.client.WhereWindsBlowClient;
 import com.jvn.wherewindsblow.config.CommonConfig;
 import com.jvn.wherewindsblow.worldgen.ModBiomeModifiers;
 import com.jvn.wherewindsblow.worldgen.ModFeatures;
-import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.neoforged.fml.loading.FMLEnvironment;
 import org.slf4j.Logger;
 
 @Mod(WhereWindsBlow.MOD_ID)
@@ -28,10 +25,6 @@ public class WhereWindsBlow {
         ModBiomeModifiers.register(modEventBus);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, CommonConfig.SPEC);
-
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            WhereWindsBlowClient.register(modEventBus, modContainer);
-        }
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

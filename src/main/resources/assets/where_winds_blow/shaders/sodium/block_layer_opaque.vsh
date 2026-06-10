@@ -22,6 +22,8 @@ uniform vec3 u_RegionOffset;
 uniform vec2 u_TexCoordShrink;
 uniform float u_WwbTime;
 uniform float u_WwbWeatherWindPower;
+uniform float u_WwbSwayStrength;
+uniform float u_WwbSheenStrength;
 
 uniform sampler2D u_LightTex;
 
@@ -65,7 +67,7 @@ float wwb_foliage_wind_sheen(vec3 position, float alpha) {
     float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47);
     float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
     float tipLift = wwb_smooth_curve(bend);
-    return clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift, 0.0, 0.35);
+    return clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * u_WwbSheenStrength, 0.0, 0.35);
 }
 
 vec3 wwb_apply_foliage_wind(vec3 position, float alpha) {
@@ -85,7 +87,7 @@ vec3 wwb_apply_foliage_wind(vec3 position, float alpha) {
     float ripple = sin(along * 1.08 - t * 3.6 + across * 0.18) * 0.5 + 0.5;
     float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 + across * 0.04) * 0.5 + 0.5);
     float shimmer = sin(position.x * 2.17 + position.z * 1.63 + t * 2.1) * 0.012;
-    float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength;
+    float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * u_WwbSwayStrength;
     float directionNoise = sin(across * 0.22 + t * 0.55) * 0.18;
     vec2 dir = normalize(windDir + crossDir * directionNoise);
     position.xz += dir * strength;

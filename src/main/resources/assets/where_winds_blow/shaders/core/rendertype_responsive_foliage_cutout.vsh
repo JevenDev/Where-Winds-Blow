@@ -18,6 +18,8 @@ uniform int FogShape;
 uniform float GameTime;
 uniform float WindTime;
 uniform float WeatherWindPower;
+uniform float WindSwayStrength;
+uniform float WindSheenStrength;
 
 out float vertexDistance;
 out vec4 vertexColor;
@@ -67,9 +69,9 @@ void main() {
         float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47);
         float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
         float tipLift = smoothCurve(bend);
-        windSheen = clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift, 0.0, 0.35);
+        windSheen = clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * WindSheenStrength, 0.0, 0.35);
         float shimmer = sin(pos.x * 2.17 + pos.z * 1.63 + t * 2.1) * 0.012;
-        float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength;
+        float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * WindSwayStrength;
         float directionNoise = sin(across * 0.22 + t * 0.55) * 0.18;
         vec2 dir = normalize(windDir + crossDir * directionNoise);
         pos.xz += dir * strength;

@@ -49,5 +49,15 @@ public abstract class SodiumShaderChunkRendererMixin {
         if (location >= 0) {
             GL20C.glUniform1f(location, ResponsiveFoliageShaders.weatherWindPower());
         }
+
+        location = GL20C.glGetUniformLocation(program, "u_WwbSwayStrength");
+        if (location >= 0) {
+            GL20C.glUniform1f(location, ResponsiveFoliageShaders.windSwayStrength());
+        }
+
+        location = GL20C.glGetUniformLocation(program, "u_WwbSheenStrength");
+        if (location >= 0) {
+            GL20C.glUniform1f(location, ResponsiveFoliageShaders.windSheenStrength());
+        }
     }
 }

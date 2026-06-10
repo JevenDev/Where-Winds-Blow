@@ -1,6 +1,7 @@
 package com.jvn.wherewindsblow.client.foliage;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
+import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import java.io.IOException;
 import net.minecraft.Util;
@@ -43,6 +44,8 @@ public final class ResponsiveFoliageShaders {
         updateWeatherWindState();
         shader.safeGetUniform("WindTime").set(windTimeSeconds);
         shader.safeGetUniform("WeatherWindPower").set(smoothedWeatherWindPower);
+        shader.safeGetUniform("WindSwayStrength").set(windSwayStrength());
+        shader.safeGetUniform("WindSheenStrength").set(windSheenStrength());
     }
 
     public static float windTime() {
@@ -53,6 +56,18 @@ public final class ResponsiveFoliageShaders {
     public static float weatherWindPower() {
         updateWeatherWindState();
         return smoothedWeatherWindPower;
+    }
+
+    public static float windSwayStrength() {
+        return ClientConfig.ENABLE_WIND_FOLIAGE_SWAY.getAsBoolean()
+                ? (float) ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH.getAsDouble()
+                : 0.0F;
+    }
+
+    public static float windSheenStrength() {
+        return ClientConfig.ENABLE_WIND_SHEEN.getAsBoolean()
+                ? (float) ClientConfig.WIND_SHEEN_STRENGTH.getAsDouble()
+                : 0.0F;
     }
 
     private static void updateWeatherWindState() {
