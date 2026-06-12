@@ -37,7 +37,9 @@ public final class WhereWindsBlowClient {
                         ? BiomeColors.getAverageGrassColor(level, pos)
                         : GrassColor.get(0.5D, 1.0D),
                 ModBlocks.OVERGROWN_GRASS.get(),
-                ModBlocks.FLAT_GRASS.get()
+                ModBlocks.FLAT_GRASS.get(),
+                ModBlocks.FLAT_DEAD_GRASS.get(),
+                ModBlocks.SHORT_DEAD_GRASS.get()
         );
     }
 
@@ -45,7 +47,9 @@ public final class WhereWindsBlowClient {
         event.register(
                 (stack, tintIndex) -> GrassColor.get(0.5D, 1.0D),
                 ModBlocks.OVERGROWN_GRASS_ITEM.get(),
-                ModBlocks.FLAT_GRASS_ITEM.get()
+                ModBlocks.FLAT_GRASS_ITEM.get(),
+                ModBlocks.FLAT_DEAD_GRASS_ITEM.get(),
+                ModBlocks.SHORT_DEAD_GRASS_ITEM.get()
         );
     }
 

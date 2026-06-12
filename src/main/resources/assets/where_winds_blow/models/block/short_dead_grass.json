@@ -1,5 +1,5 @@
 {
-  "parent": "minecraft:block/cross",
+  "parent": "minecraft:block/tinted_cross",
   "render_type": "minecraft:cutout_mipped",
   "textures": {
     "cross": "where_winds_blow:block/short_dead_grass"
