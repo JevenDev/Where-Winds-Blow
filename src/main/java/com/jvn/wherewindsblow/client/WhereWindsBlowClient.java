@@ -6,13 +6,10 @@ import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import net.minecraft.client.renderer.BiomeColors;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.level.GrassColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
@@ -26,25 +23,12 @@ public final class WhereWindsBlowClient {
     public static void register(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
         modContainer.registerExtensionPoint(IConfigScreenFactory.class, (container, screen) -> new WhereWindsBlowConfigScreen(screen));
-        modEventBus.addListener(WhereWindsBlowClient::onClientSetup);
         modEventBus.addListener(WhereWindsBlowClient::registerBlockColors);
         modEventBus.addListener(WhereWindsBlowClient::registerItemColors);
         modEventBus.addListener(WhereWindsBlowClient::modifyBakedModels);
         modEventBus.addListener(WhereWindsBlowClient::registerShaders);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onClientTick);
-    }
-
-    private static void onClientSetup(FMLClientSetupEvent event) {
-        event.enqueueWork(() -> {
-            ItemBlockRenderTypes.setRenderLayer(ModBlocks.OVERGROWN_GRASS.get(), RenderType.cutoutMipped());
-            ItemBlockRenderTypes.setRenderLayer(ModBlocks.FLAT_GRASS.get(), RenderType.cutoutMipped());
-            ItemBlockRenderTypes.setRenderLayer(ModBlocks.FLAT_DEAD_GRASS.get(), RenderType.cutoutMipped());
-            ItemBlockRenderTypes.setRenderLayer(ModBlocks.SHORT_DEAD_GRASS.get(), RenderType.cutoutMipped());
-            ItemBlockRenderTypes.setRenderLayer(ModBlocks.SHORT_DRY_GRASS.get(), RenderType.cutoutMipped());
-            ItemBlockRenderTypes.setRenderLayer(ModBlocks.TALL_DRY_GRASS.get(), RenderType.cutoutMipped());
-            ItemBlockRenderTypes.setRenderLayer(ModBlocks.WILD_WHEAT.get(), RenderType.cutoutMipped());
-        });
     }
 
     private static void registerBlockColors(RegisterColorHandlersEvent.Block event) {

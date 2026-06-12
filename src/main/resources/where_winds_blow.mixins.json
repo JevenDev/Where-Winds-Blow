@@ -1,5 +1,5 @@
 {
-  "required": true,
+  "required": false,
   "package": "com.jvn.wherewindsblow.mixin",
   "plugin": "com.jvn.wherewindsblow.mixin.WhereWindsBlowMixinPlugin",
   "compatibilityLevel": "JAVA_21",
@@ -10,6 +10,6 @@
     "client.compat.iris.IrisSodiumProgramsMixin"
   ],
   "injectors": {
-    "defaultRequire": 1
+    "defaultRequire": 0
   }
 }

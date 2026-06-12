@@ -14,10 +14,6 @@ public final class FoliageLeanState {
         return ACTIVE.get(pos);
     }
 
-    static Map<BlockPos, LeanVector> active() {
-        return ACTIVE;
-    }
-
     static void replaceWith(Map<BlockPos, LeanVector> next) {
         ACTIVE.clear();
         ACTIVE.putAll(next);

@@ -15,7 +15,6 @@ uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
 uniform vec3 ChunkOffset;
 uniform int FogShape;
-uniform float GameTime;
 uniform float WindTime;
 uniform float WeatherWindPower;
 uniform float WindSwayStrength;

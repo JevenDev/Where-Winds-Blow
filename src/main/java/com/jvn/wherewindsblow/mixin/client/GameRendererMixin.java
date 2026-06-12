@@ -11,12 +11,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
-    @Inject(method = "getRendertypeCutoutMippedShader", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getRendertypeCutoutMippedShader", at = @At("HEAD"), cancellable = true, require = 0)
     private static void wherewindsblow$useResponsiveFoliageCutoutMippedShader(CallbackInfoReturnable<ShaderInstance> cir) {
         setResponsiveFoliageShader(cir);
     }
 
-    @Inject(method = "getRendertypeCutoutShader", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getRendertypeCutoutShader", at = @At("HEAD"), cancellable = true, require = 0)
     private static void wherewindsblow$useResponsiveFoliageCutoutShader(CallbackInfoReturnable<ShaderInstance> cir) {
         setResponsiveFoliageShader(cir);
     }
@@ -24,8 +24,12 @@ public abstract class GameRendererMixin {
     private static void setResponsiveFoliageShader(CallbackInfoReturnable<ShaderInstance> cir) {
         @Nullable ShaderInstance shader = ResponsiveFoliageShaders.getShader();
         if (shader != null) {
-            ResponsiveFoliageShaders.uploadWeatherUniforms(shader);
-            cir.setReturnValue(shader);
+            try {
+                ResponsiveFoliageShaders.uploadWeatherUniforms(shader);
+                cir.setReturnValue(shader);
+            } catch (RuntimeException exception) {
+                ResponsiveFoliageShaders.disableCustomFoliageShader("Failed to upload responsive foliage shader uniforms.", exception);
+            }
         }
     }
 }

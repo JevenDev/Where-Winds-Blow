@@ -13,6 +13,14 @@ public final class ClientConfig {
             .comment("Scales how strongly foliage reacts to nearby entities.")
             .defineInRange("foliageInteractivityStrength", 1.0D, 0.0D, 2.0D);
 
+    public static final ModConfigSpec.BooleanValue ENABLE_AUTODETECTED_FOLIAGE_MODELS = BUILDER
+            .comment("Allows Where Winds Blow to animate compatible plant-like models from Minecraft and other mods.")
+            .define("enableAutodetectedFoliageModels", true);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_CUSTOM_FOLIAGE_SHADER = BUILDER
+            .comment("Enables Where Winds Blow's custom foliage shader. Disable this if a renderer mod makes terrain invisible.")
+            .define("enableCustomFoliageShader", true);
+
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_SHEEN = BUILDER
             .comment("Enables the bright wind sheen highlight on responsive foliage.")
             .define("enableWindSheen", true);
@@ -24,6 +32,10 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue FORCE_WWB_WIND_WITH_SHADER_PACKS = BUILDER
             .comment("Keeps Where Winds Blow wind sway and sheen active even while an Iris shader pack is in use.")
             .define("forceWwbWindWithShaderPacks", false);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_SODIUM_SHADER_PATCH = BUILDER
+            .comment("Enables the Sodium terrain shader patch used for wind sway and sheen. Disable this if Sodium terrain stops rendering.")
+            .define("enableSodiumShaderPatch", true);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_FOLIAGE_SWAY = BUILDER
             .comment("Enables wind-driven foliage sway in the responsive foliage shader.")

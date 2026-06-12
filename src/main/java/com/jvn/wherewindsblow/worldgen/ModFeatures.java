@@ -16,10 +16,10 @@ public final class ModFeatures {
             () -> new OvergrownGrassPatchFeature(NoneFeatureConfiguration.CODEC)
     );
 
-        public static final DeferredHolder<Feature<?>, WildWheatPatchFeature> WILD_WHEAT_PATCH = FEATURES.register(
+    public static final DeferredHolder<Feature<?>, WildWheatPatchFeature> WILD_WHEAT_PATCH = FEATURES.register(
             "wild_wheat_patch",
             () -> new WildWheatPatchFeature(NoneFeatureConfiguration.CODEC)
-        );
+    );
 
     private ModFeatures() {
     }

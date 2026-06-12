@@ -2,8 +2,9 @@ package com.jvn.wherewindsblow.client.foliage;
 
 import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -13,6 +14,7 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
+import net.minecraft.Util;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -34,8 +36,11 @@ public final class ResponsiveFoliagePhysics {
     private static final float CHANGE_THRESHOLD = 0.012F;
     private static final float MIN_ACTIVE_INTENSITY = 0.01F;
     private static final double ENTITY_VISIBILITY_RADIUS = 24.0D;
+    private static final int MAX_INTERACTIVE_ENTITIES = 48;
+    private static final long INTERACTION_UPDATE_INTERVAL_MILLIS = 50L;
 
     private static final Map<BlockPos, FoliageLeanState.LeanVector> CURRENT_LEAN = new HashMap<>();
+    private static long lastInteractionUpdateMillis;
 
     private ResponsiveFoliagePhysics() {
     }
@@ -45,6 +50,12 @@ public final class ResponsiveFoliagePhysics {
             return;
         }
 
+        long now = Util.getMillis();
+        if (now - lastInteractionUpdateMillis < INTERACTION_UPDATE_INTERVAL_MILLIS) {
+            return;
+        }
+
+        lastInteractionUpdateMillis = now;
         tick(event.getFrustum(), event.getLevelRenderer());
     }
 
@@ -75,6 +86,7 @@ public final class ResponsiveFoliagePhysics {
         if (!entities.contains(player)) {
             entities.add(player);
         }
+        trimEntities(player, entities);
 
         Set<BlockPos> entityRoots = new HashSet<>();
         for (Entity entity : entities) {
@@ -103,21 +115,22 @@ public final class ResponsiveFoliagePhysics {
     private static void collectEntityInfluence(ClientLevel level, Frustum frustum, List<Entity> entities, Entity source, Set<BlockPos> entityRoots, Map<BlockPos, FoliageLeanState.LeanVector> nextLean) {
         double radius = edgeInfluenceRadius(source);
         AABB searchBounds = source.getBoundingBox().inflate(radius, 1.0D, radius);
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
         for (int x = Mth.floor(searchBounds.minX); x <= Mth.floor(searchBounds.maxX); x++) {
             for (int z = Mth.floor(searchBounds.minZ); z <= Mth.floor(searchBounds.maxZ); z++) {
                 for (int y = Mth.floor(searchBounds.minY); y <= Mth.floor(searchBounds.maxY); y++) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    if (!isVisible(frustum, pos)) {
+                    cursor.set(x, y, z);
+                    if (!isVisible(frustum, cursor)) {
                         continue;
                     }
 
-                    BlockState state = level.getBlockState(pos);
+                    BlockState state = level.getBlockState(cursor);
                     if (!ResponsiveFoliage.isInteractive(state)) {
                         continue;
                     }
 
-                    FoliageModelData.ColumnSegment segment = ResponsiveFoliage.columnSegment(level, pos, state);
+                    FoliageModelData.ColumnSegment segment = ResponsiveFoliage.columnSegment(level, cursor, state);
                     if (!entityRoots.add(segment.rootPos())) {
                         continue;
                     }
@@ -129,6 +142,15 @@ public final class ResponsiveFoliagePhysics {
                 }
             }
         }
+    }
+
+    private static void trimEntities(Entity player, List<Entity> entities) {
+        if (entities.size() <= MAX_INTERACTIVE_ENTITIES) {
+            return;
+        }
+
+        entities.sort(Comparator.comparingDouble(entity -> entity == player ? -1.0D : entity.distanceToSqr(player)));
+        entities.subList(MAX_INTERACTIVE_ENTITIES, entities.size()).clear();
     }
 
     private static FoliageLeanState.LeanVector computeLean(BlockPos pos, float swayMultiplier, List<Entity> entities) {
@@ -314,6 +336,7 @@ public final class ResponsiveFoliagePhysics {
     private static void reset() {
         FoliageLeanState.clear();
         CURRENT_LEAN.clear();
+        lastInteractionUpdateMillis = 0L;
     }
 
     private static void clearLean(LevelRenderer levelRenderer, ClientLevel level) {

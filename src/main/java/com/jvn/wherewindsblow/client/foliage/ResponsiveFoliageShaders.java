@@ -10,14 +10,18 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
 import net.minecraft.resources.ResourceLocation;
+import net.neoforged.fml.loading.LoadingModList;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import org.jetbrains.annotations.Nullable;
 
 public final class ResponsiveFoliageShaders {
     private static final String IRIS_API_CLASS_NAME = "net.irisshaders.iris.api.v0.IrisApi";
+    private static final String[] SHADER_RENDERER_MOD_IDS = {"iris", "oculus"};
     private static final long SHADER_PACK_STATE_CACHE_MILLIS = 250L;
     private static final float RAIN_WIND_SHEEN_MIN = 1.5F;
     private static final float THUNDER_WIND_SHEEN_MIN = 2.0F;
+    private static final float RAIN_WIND_SWAY_MIN = 1.5F;
+    private static final float THUNDER_WIND_SWAY_MIN = 2.0F;
     private static final ResourceLocation WIND_SHADER = ResourceLocation.fromNamespaceAndPath(
             WhereWindsBlow.MOD_ID,
             "rendertype_responsive_foliage_cutout"
@@ -32,6 +36,8 @@ public final class ResponsiveFoliageShaders {
     private static ShaderInstance shader;
     private static long lastShaderPackStateCheckMillis = Long.MIN_VALUE;
     private static boolean externalShaderPackActive;
+    private static volatile boolean customShaderDisabled;
+    private static volatile boolean sodiumShaderPatchDisabled;
     private static long lastWeatherUpdateMillis;
     private static float smoothedWeatherWindPower;
     private static float windTimeSeconds;
@@ -42,8 +48,8 @@ public final class ResponsiveFoliageShaders {
     public static void register(RegisterShadersEvent event) {
         try {
             event.registerShader(new ShaderInstance(event.getResourceProvider(), WIND_SHADER, DefaultVertexFormat.BLOCK), loadedShader -> shader = loadedShader);
-        } catch (IOException exception) {
-            WhereWindsBlow.LOGGER.error("Failed to load responsive foliage wind shader.", exception);
+        } catch (IOException | RuntimeException exception) {
+            disableCustomFoliageShader("Failed to load responsive foliage wind shader.", exception);
         }
     }
 
@@ -53,7 +59,43 @@ public final class ResponsiveFoliageShaders {
     }
 
     public static boolean shouldUseCustomFoliageShaders() {
+        if (!ClientConfig.ENABLE_CUSTOM_FOLIAGE_SHADER.getAsBoolean() || customShaderDisabled) {
+            return false;
+        }
+
         return ClientConfig.FORCE_WWB_WIND_WITH_SHADER_PACKS.getAsBoolean() || !isExternalShaderPackActive();
+    }
+
+    public static boolean shouldPatchSodiumShaders() {
+        return shouldUseCustomFoliageShaders()
+                && ClientConfig.ENABLE_SODIUM_SHADER_PATCH.getAsBoolean()
+                && !sodiumShaderPatchDisabled;
+    }
+
+    public static void disableCustomFoliageShader(String reason, @Nullable Throwable throwable) {
+        if (customShaderDisabled) {
+            return;
+        }
+
+        customShaderDisabled = true;
+        if (throwable == null) {
+            WhereWindsBlow.LOGGER.warn("{} Custom foliage rendering has been disabled until restart.", reason);
+        } else {
+            WhereWindsBlow.LOGGER.warn(reason + " Custom foliage rendering has been disabled until restart.", throwable);
+        }
+    }
+
+    public static void disableSodiumShaderPatch(String reason, @Nullable Throwable throwable) {
+        if (sodiumShaderPatchDisabled) {
+            return;
+        }
+
+        sodiumShaderPatchDisabled = true;
+        if (throwable == null) {
+            WhereWindsBlow.LOGGER.warn("{} Sodium terrain shader patch has been disabled until restart.", reason);
+        } else {
+            WhereWindsBlow.LOGGER.warn(reason + " Sodium terrain shader patch has been disabled until restart.", throwable);
+        }
     }
 
     public static void uploadWeatherUniforms(ShaderInstance shader) {
@@ -131,11 +173,11 @@ public final class ResponsiveFoliageShaders {
 
         float thunder = minecraft.level.getThunderLevel(1.0F);
         if (thunder > 0.01F) {
-            return THUNDER_WIND_SHEEN_MIN;
+            return THUNDER_WIND_SWAY_MIN;
         }
 
         float rain = minecraft.level.getRainLevel(1.0F);
-        return rain > 0.01F ? RAIN_WIND_SHEEN_MIN : 0.0F;
+        return rain > 0.01F ? RAIN_WIND_SWAY_MIN : 0.0F;
     }
 
     private static float weatherDrivenSwayStrength() {
@@ -168,14 +210,14 @@ public final class ResponsiveFoliageShaders {
     private static boolean queryExternalShaderPackActive() {
         ensureIrisApiLookup();
         if (irisGetInstanceMethod == null || irisShaderPackInUseMethod == null) {
-            return false;
+            return isKnownShaderRendererLoaded();
         }
 
         try {
             Object irisApi = irisGetInstanceMethod.invoke(null);
             return Boolean.TRUE.equals(irisShaderPackInUseMethod.invoke(irisApi));
         } catch (ReflectiveOperationException | RuntimeException exception) {
-            return false;
+            return isKnownShaderRendererLoaded();
         }
     }
 
@@ -192,6 +234,25 @@ public final class ResponsiveFoliageShaders {
         } catch (ReflectiveOperationException | LinkageError exception) {
             irisGetInstanceMethod = null;
             irisShaderPackInUseMethod = null;
+        }
+    }
+
+    private static boolean isKnownShaderRendererLoaded() {
+        for (String modId : SHADER_RENDERER_MOD_IDS) {
+            if (isModLoaded(modId)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean isModLoaded(String modId) {
+        try {
+            LoadingModList loadingModList = LoadingModList.get();
+            return loadingModList != null && loadingModList.getModFileById(modId) != null;
+        } catch (RuntimeException exception) {
+            return false;
         }
     }
 }

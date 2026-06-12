@@ -77,7 +77,12 @@ public abstract class IrisSodiumProgramsMixin {
 
             Matcher matcher = WHEREWINDSBLOW$IRIS_VERTEX_POSITION_PATTERN.matcher(source);
             if (matcher.find()) {
-                entry.setValue(matcher.replaceFirst(Matcher.quoteReplacement(WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION)));
+                try {
+                    entry.setValue(matcher.replaceFirst(Matcher.quoteReplacement(WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION)));
+                } catch (RuntimeException exception) {
+                    ResponsiveFoliageShaders.disableCustomFoliageShader("Failed to patch Iris Sodium terrain shader source.", exception);
+                    return;
+                }
             }
         }
     }

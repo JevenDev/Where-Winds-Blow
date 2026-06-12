@@ -4,6 +4,7 @@ import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.block.OvergrownGrassBlock;
 import com.jvn.wherewindsblow.block.OvergrownGrassPart;
 import com.jvn.wherewindsblow.block.WildWheatBlock;
+import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.List;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.resources.model.BakedModel;
@@ -109,7 +110,8 @@ public final class ResponsiveFoliage {
 
     public static void wrapModels(ModelEvent.ModifyBakingResult event) {
         event.getModels().replaceAll((location, model) -> {
-            boolean modelDetectedFoliage = isPlantLikePlaneModel(location, model);
+            boolean modelDetectedFoliage = ClientConfig.ENABLE_AUTODETECTED_FOLIAGE_MODELS.getAsBoolean()
+                    && isPlantLikePlaneModel(location, model);
             return shouldWrap(location, model, modelDetectedFoliage) ? new ResponsiveFoliageModel(model, modelDetectedFoliage) : model;
         });
     }
