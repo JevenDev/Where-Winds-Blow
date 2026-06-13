@@ -5,9 +5,12 @@ import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.util.Mth;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.fml.loading.LoadingModList;
@@ -24,6 +27,7 @@ public final class ResponsiveFoliageShaders {
     private static final float RAIN_WIND_SWAY_MIN = 1.5F;
     private static final float THUNDER_WIND_SWAY_MIN = 2.0F;
     private static final float LEAF_WIND_SWAY_SCALE = 0.35F;
+    public static final int MAX_FOLIAGE_INTERACTORS = 16;
     private static final ResourceLocation WIND_SHADER = ResourceLocation.fromNamespaceAndPath(
             WhereWindsBlow.MOD_ID,
             "rendertype_responsive_foliage_cutout"
@@ -44,6 +48,9 @@ public final class ResponsiveFoliageShaders {
     private static long lastWeatherUpdateMillis;
     private static float smoothedWeatherWindPower;
     private static float windTimeSeconds;
+    private static int foliageInteractorCount;
+    private static final float[] foliageInteractors = new float[MAX_FOLIAGE_INTERACTORS * 4];
+    private static final float[] foliageInteractorStrengths = new float[MAX_FOLIAGE_INTERACTORS];
 
     private ResponsiveFoliageShaders() {
     }
@@ -77,6 +84,39 @@ public final class ResponsiveFoliageShaders {
                 && !sodiumShaderPatchDisabled;
     }
 
+    public static void setFoliageInteractors(List<Entity> entities, FoliageInteractorWriter writer) {
+        int count = Math.min(entities.size(), MAX_FOLIAGE_INTERACTORS);
+        Arrays.fill(foliageInteractors, 0.0F);
+        Arrays.fill(foliageInteractorStrengths, 0.0F);
+        for (int index = 0; index < count; index++) {
+            writer.write(entities.get(index), foliageInteractors, foliageInteractorStrengths, index);
+        }
+
+        foliageInteractorCount = count;
+    }
+
+    public static void clearFoliageInteractors() {
+        if (foliageInteractorCount == 0) {
+            return;
+        }
+
+        foliageInteractorCount = 0;
+        Arrays.fill(foliageInteractors, 0.0F);
+        Arrays.fill(foliageInteractorStrengths, 0.0F);
+    }
+
+    public static int foliageInteractorCount() {
+        return foliageInteractorCount;
+    }
+
+    public static float[] foliageInteractors() {
+        return foliageInteractors;
+    }
+
+    public static float[] foliageInteractorStrengths() {
+        return foliageInteractorStrengths;
+    }
+
     public static void disableCustomFoliageShader(String reason, @Nullable Throwable throwable) {
         if (customShaderDisabled) {
             return;
@@ -108,6 +148,7 @@ public final class ResponsiveFoliageShaders {
             return;
         }
 
+        ResponsiveFoliagePhysics.updateShaderInteractors();
         updateWeatherWindState();
         shader.safeGetUniform("WindTime").set(windTimeSeconds);
         shader.safeGetUniform("WeatherWindPower").set(smoothedWeatherWindPower);
@@ -115,6 +156,30 @@ public final class ResponsiveFoliageShaders {
         shader.safeGetUniform("LeafWindSwayStrength").set(leafWindSwayStrength());
         shader.safeGetUniform("PlantWindSheenStrength").set(plantWindSheenStrength());
         shader.safeGetUniform("LeafWindSheenStrength").set(leafWindSheenStrength());
+        shader.safeGetUniform("FoliageInteractorCount").set(foliageInteractorCount);
+        uploadFoliageInteractorUniforms(shader);
+    }
+
+    private static void uploadFoliageInteractorUniforms(ShaderInstance shader) {
+        for (int index = 0; index < MAX_FOLIAGE_INTERACTORS; index++) {
+            int offset = index * 4;
+            shader.safeGetUniform("FoliageInteractor" + index).set(
+                    foliageInteractors[offset],
+                    foliageInteractors[offset + 1],
+                    foliageInteractors[offset + 2],
+                    foliageInteractors[offset + 3]
+            );
+        }
+
+        for (int group = 0; group < 4; group++) {
+            int offset = group * 4;
+            shader.safeGetUniform("FoliageInteractorStrengths" + group).set(
+                    foliageInteractorStrengths[offset],
+                    foliageInteractorStrengths[offset + 1],
+                    foliageInteractorStrengths[offset + 2],
+                    foliageInteractorStrengths[offset + 3]
+            );
+        }
     }
 
     public static float windTime() {
@@ -294,5 +359,10 @@ public final class ResponsiveFoliageShaders {
         } catch (RuntimeException exception) {
             return false;
         }
+    }
+
+    @FunctionalInterface
+    public interface FoliageInteractorWriter {
+        void write(Entity entity, float[] interactors, float[] strengths, int index);
     }
 }

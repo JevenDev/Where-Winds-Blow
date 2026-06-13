@@ -19,6 +19,27 @@
     { "name": "PlantWindSwayStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "LeafWindSwayStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "PlantWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
-    { "name": "LeafWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] }
+    { "name": "LeafWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
+    { "name": "FoliageInteractorCount", "type": "int", "count": 1, "values": [ 0 ] },
+    { "name": "FoliageInteractor0", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor1", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor2", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor3", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor4", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor5", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor6", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor7", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor8", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor9", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor10", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor11", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor12", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor13", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor14", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractor15", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractorStrengths0", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractorStrengths1", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractorStrengths2", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+    { "name": "FoliageInteractorStrengths3", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] }
   ]
 }

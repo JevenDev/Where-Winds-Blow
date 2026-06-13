@@ -17,7 +17,6 @@ import org.jetbrains.annotations.Nullable;
 
 final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final float BASE_THRESHOLD = 0.08F;
-    private static final float MAX_DISPLACEMENT = 0.34F;
     private static final int PLANT_WIND_ALPHA_MIN = 17;
     private static final int PLANT_WIND_ALPHA_MAX = 44;
     private static final int LEAF_WIND_ALPHA_MIN = 45;
@@ -68,19 +67,15 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         }
 
         FoliageModelData.ColumnSegment segment = extraData.get(FoliageModelData.COLUMN_SEGMENT);
-        FoliageLeanState.LeanVector lean = FoliageLeanState.get(segment.rootPos());
-        float displacement = lean == null ? 0.0F : Mth.clamp(lean.intensity(), 0.0F, 1.0F) * MAX_DISPLACEMENT;
-        float offsetX = lean == null ? 0.0F : lean.dirX() * displacement;
-        float offsetZ = lean == null ? 0.0F : lean.dirZ() * displacement;
         List<BakedQuad> transformed = new ArrayList<>(quads.size());
         for (BakedQuad quad : quads) {
-            transformed.add(transformPlantQuad(quad, segment, offsetX, offsetZ));
+            transformed.add(transformPlantQuad(quad, segment));
         }
 
         return transformed;
     }
 
-    private static BakedQuad transformPlantQuad(BakedQuad quad, FoliageModelData.ColumnSegment segment, float offsetX, float offsetZ) {
+    private static BakedQuad transformPlantQuad(BakedQuad quad, FoliageModelData.ColumnSegment segment) {
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
         for (int vertex = 0; vertex < 4; vertex++) {
@@ -94,12 +89,6 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
 
             float columnHeight = segment.height();
             float rawWeight = Mth.clamp((columnY - BASE_THRESHOLD) / (columnHeight - BASE_THRESHOLD), 0.0F, 1.0F);
-            float weight = rawWeight;
-            weight *= weight * (3.0F - 2.0F * weight);
-            float x = Float.intBitsToFloat(vertices[offset]);
-            float z = Float.intBitsToFloat(vertices[offset + 2]);
-            vertices[offset] = Float.floatToRawIntBits(x + offsetX * weight);
-            vertices[offset + 2] = Float.floatToRawIntBits(z + offsetZ * weight);
             vertices[offset + 3] = packWindAlpha(vertices[offset + 3], ResponsiveFoliageType.PLANT, rawWeight);
             vertices[offset + 7] = packWindData(rawWeight);
         }

@@ -21,6 +21,27 @@ uniform float PlantWindSwayStrength;
 uniform float LeafWindSwayStrength;
 uniform float PlantWindSheenStrength;
 uniform float LeafWindSheenStrength;
+uniform int FoliageInteractorCount;
+uniform vec4 FoliageInteractor0;
+uniform vec4 FoliageInteractor1;
+uniform vec4 FoliageInteractor2;
+uniform vec4 FoliageInteractor3;
+uniform vec4 FoliageInteractor4;
+uniform vec4 FoliageInteractor5;
+uniform vec4 FoliageInteractor6;
+uniform vec4 FoliageInteractor7;
+uniform vec4 FoliageInteractor8;
+uniform vec4 FoliageInteractor9;
+uniform vec4 FoliageInteractor10;
+uniform vec4 FoliageInteractor11;
+uniform vec4 FoliageInteractor12;
+uniform vec4 FoliageInteractor13;
+uniform vec4 FoliageInteractor14;
+uniform vec4 FoliageInteractor15;
+uniform vec4 FoliageInteractorStrengths0;
+uniform vec4 FoliageInteractorStrengths1;
+uniform vec4 FoliageInteractorStrengths2;
+uniform vec4 FoliageInteractorStrengths3;
 
 out float vertexDistance;
 out vec4 vertexColor;
@@ -67,6 +88,70 @@ float smoothCurve(float value) {
     return value * value * (3.0 - 2.0 * value);
 }
 
+vec4 foliageInteractorAt(int index) {
+    if (index == 0) return FoliageInteractor0;
+    if (index == 1) return FoliageInteractor1;
+    if (index == 2) return FoliageInteractor2;
+    if (index == 3) return FoliageInteractor3;
+    if (index == 4) return FoliageInteractor4;
+    if (index == 5) return FoliageInteractor5;
+    if (index == 6) return FoliageInteractor6;
+    if (index == 7) return FoliageInteractor7;
+    if (index == 8) return FoliageInteractor8;
+    if (index == 9) return FoliageInteractor9;
+    if (index == 10) return FoliageInteractor10;
+    if (index == 11) return FoliageInteractor11;
+    if (index == 12) return FoliageInteractor12;
+    if (index == 13) return FoliageInteractor13;
+    if (index == 14) return FoliageInteractor14;
+    return FoliageInteractor15;
+}
+
+float foliageInteractorStrengthAt(int index) {
+    if (index < 4) return FoliageInteractorStrengths0[index];
+    if (index < 8) return FoliageInteractorStrengths1[index - 4];
+    if (index < 12) return FoliageInteractorStrengths2[index - 8];
+    return FoliageInteractorStrengths3[index - 12];
+}
+
+vec3 applyFoliageInteractors(vec3 pos, float bend, float alpha) {
+    if (!isPlantWindAlpha(alpha) || FoliageInteractorCount <= 0) {
+        return pos;
+    }
+
+    vec2 totalOffset = vec2(0.0);
+    for (int index = 0; index < 16; index++) {
+        if (index >= FoliageInteractorCount) {
+            break;
+        }
+
+        vec4 interactor = foliageInteractorAt(index);
+        if (pos.y < interactor.y - 0.15) {
+            continue;
+        }
+
+        float radius = max(interactor.w, 0.001);
+        vec2 delta = pos.xz - interactor.xz;
+        float horizontalDistance = length(delta);
+        float horizontalInfluence = smoothCurve(1.0 - horizontalDistance / radius);
+        if (horizontalInfluence <= 0.0) {
+            continue;
+        }
+
+        vec2 direction = horizontalDistance > 0.001 ? delta / horizontalDistance : vec2(1.0, 0.0);
+        float strength = horizontalInfluence * foliageInteractorStrengthAt(index);
+        totalOffset += direction * strength;
+    }
+
+    float offsetLength = length(totalOffset);
+    if (offsetLength > 1.0) {
+        totalOffset /= offsetLength;
+    }
+
+    pos.xz += totalOffset * bend * 0.34;
+    return pos;
+}
+
 void main() {
     vec3 pos = Position + ChunkOffset;
     windSheen = 0.0;
@@ -105,6 +190,7 @@ void main() {
         float directionNoise = sin(across * 0.22 + t * 0.55) * 0.18;
         vec2 dir = normalize(windDir + crossDir * directionNoise);
         pos.xz += dir * strength;
+        pos = applyFoliageInteractors(pos, bend, Color.a);
     }
 
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
