@@ -16,6 +16,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.BushBlock;
 import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.DoublePlantBlock;
@@ -37,6 +38,7 @@ public final class ResponsiveFoliage {
         return block instanceof BushBlock
                 || block instanceof CropBlock
                 || block instanceof DoublePlantBlock
+                || state.is(Blocks.SUGAR_CANE)
                 || state.is(ModBlocks.OVERGROWN_GRASS.get())
                 || state.is(ModBlocks.WILD_WHEAT.get());
     }
@@ -57,6 +59,10 @@ public final class ResponsiveFoliage {
 
         if (state.is(ModBlocks.WILD_WHEAT.get())) {
             return 0.55F + state.getValue(WildWheatBlock.AGE) * 0.15F;
+        }
+
+        if (state.is(Blocks.SUGAR_CANE)) {
+            return 0.9F;
         }
 
         if (state.getBlock() instanceof DoublePlantBlock) {
@@ -85,18 +91,23 @@ public final class ResponsiveFoliage {
             return 0.85F + Math.min(segment.height(), 6) * 0.08F;
         }
 
+        if (topState.is(Blocks.SUGAR_CANE)) {
+            return 0.75F + Math.min(segment.height(), 4) * 0.10F;
+        }
+
         return swayMultiplier(topState);
     }
 
     public static FoliageModelData.ColumnSegment columnSegment(BlockAndTintGetter level, BlockPos pos, BlockState state) {
-        if (state.is(ModBlocks.OVERGROWN_GRASS.get())) {
+        if (state.is(ModBlocks.OVERGROWN_GRASS.get()) || state.is(Blocks.SUGAR_CANE)) {
+            Block columnBlock = state.getBlock();
             BlockPos root = pos;
-            while (level.getBlockState(root.below()).is(ModBlocks.OVERGROWN_GRASS.get())) {
+            while (level.getBlockState(root.below()).is(columnBlock)) {
                 root = root.below();
             }
 
             int height = 0;
-            while (level.getBlockState(root.above(height)).is(ModBlocks.OVERGROWN_GRASS.get())) {
+            while (level.getBlockState(root.above(height)).is(columnBlock)) {
                 height++;
             }
 
@@ -176,6 +187,7 @@ public final class ResponsiveFoliage {
                 || path.contains("wheat")
                 || path.contains("plant")
                 || path.contains("foliage")
+                || path.contains("cane")
                 || path.contains("reed")
                 || path.contains("cattail")
                 || path.contains("clover")

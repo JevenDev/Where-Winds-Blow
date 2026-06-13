@@ -28,12 +28,12 @@ public abstract class IrisSodiumProgramsMixin {
 
             bool wwb_is_plant_wind_vertex(float alpha) {
                 float encoded = alpha * 255.0;
-                return encoded >= 199.5 && encoded <= 226.5;
+                return encoded >= 16.5 && encoded <= 44.5;
             }
 
             bool wwb_is_leaf_wind_vertex(float alpha) {
                 float encoded = alpha * 255.0;
-                return encoded >= 226.5 && encoded <= 254.5;
+                return encoded >= 44.5 && encoded <= 72.5;
             }
 
             bool wwb_is_foliage_wind_vertex(float alpha) {
@@ -47,10 +47,10 @@ public abstract class IrisSodiumProgramsMixin {
             float wwb_decode_wind_alpha(float alpha) {
                 float encoded = alpha * 255.0;
                 if (wwb_is_leaf_wind_vertex(alpha)) {
-                    return clamp((encoded - 227.0) / 27.0, 0.0, 1.0);
+                    return clamp((encoded - 45.0) / 27.0, 0.0, 1.0);
                 }
 
-                return clamp((encoded - 200.0) / 26.0, 0.0, 1.0);
+                return clamp((encoded - 17.0) / 27.0, 0.0, 1.0);
             }
             float wwb_sway_strength_for_alpha(float alpha) {
                 return wwb_is_leaf_wind_vertex(alpha) ? u_WwbLeafSwayStrength : u_WwbPlantSwayStrength;

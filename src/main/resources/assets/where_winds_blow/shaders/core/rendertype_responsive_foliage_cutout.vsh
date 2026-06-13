@@ -29,12 +29,12 @@ out float windSheen;
 
 bool isPlantWindAlpha(float alpha) {
     float encoded = alpha * 255.0;
-    return encoded >= 199.5 && encoded <= 226.5;
+    return encoded >= 16.5 && encoded <= 44.5;
 }
 
 bool isLeafWindAlpha(float alpha) {
     float encoded = alpha * 255.0;
-    return encoded >= 226.5 && encoded <= 254.5;
+    return encoded >= 44.5 && encoded <= 72.5;
 }
 
 bool isFoliageWindVertex(float alpha) {
@@ -48,10 +48,10 @@ float decodeUnit(float encoded) {
 float decodeWindAlpha(float alpha) {
     float encoded = alpha * 255.0;
     if (isLeafWindAlpha(alpha)) {
-        return clamp((encoded - 227.0) / 27.0, 0.0, 1.0);
+        return clamp((encoded - 45.0) / 27.0, 0.0, 1.0);
     }
 
-    return clamp((encoded - 200.0) / 26.0, 0.0, 1.0);
+    return clamp((encoded - 17.0) / 27.0, 0.0, 1.0);
 }
 
 float windSwayStrengthForAlpha(float alpha) {
@@ -74,8 +74,8 @@ void main() {
     bool alphaMarker = isFoliageWindVertex(Color.a);
     bool normalMarker = Normal.x < -0.98 && Normal.y < -0.98 && alphaMarker;
 
-    if (normalMarker || alphaMarker) {
-        float bend = normalMarker ? decodeUnit(Normal.z) : decodeWindAlpha(Color.a);
+    if (normalMarker) {
+        float bend = decodeUnit(Normal.z);
         bend = smoothCurve(bend);
         float swayStrength = windSwayStrengthForAlpha(Color.a);
         float sheenStrength = windSheenStrengthForAlpha(Color.a);

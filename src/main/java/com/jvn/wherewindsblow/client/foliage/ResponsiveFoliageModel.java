@@ -18,10 +18,10 @@ import org.jetbrains.annotations.Nullable;
 final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final float BASE_THRESHOLD = 0.08F;
     private static final float MAX_DISPLACEMENT = 0.34F;
-    private static final int PLANT_WIND_ALPHA_MIN = 200;
-    private static final int PLANT_WIND_ALPHA_MAX = 226;
-    private static final int LEAF_WIND_ALPHA_MIN = 227;
-    private static final int LEAF_WIND_ALPHA_MAX = 254;
+    private static final int PLANT_WIND_ALPHA_MIN = 17;
+    private static final int PLANT_WIND_ALPHA_MAX = 44;
+    private static final int LEAF_WIND_ALPHA_MIN = 45;
+    private static final int LEAF_WIND_ALPHA_MAX = 72;
     private static final float LEAF_BEND_MIN = 0.10F;
     private static final float LEAF_BEND_MAX = 0.36F;
     private final ResponsiveFoliageType foliageType;
