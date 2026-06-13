@@ -36,6 +36,9 @@ public class WhereWindsBlowRenderingConfigScreen extends Screen {
         y += 24;
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_FOLIAGE_SWAY, ClientConfig.SPEC));
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(right, y, 150, "windFoliageSwayStrength", ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH::getAsDouble, value -> WhereWindsBlowConfigWidgets.set(ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH, value), 0.0D, 2.0D));
+        y += 24;
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_PLANT_SWAY, ClientConfig.SPEC));
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(right, y, ClientConfig.ENABLE_WIND_LEAF_SWAY, ClientConfig.SPEC));
 
         this.addRenderableWidget(Button.builder(CommonComponents.GUI_BACK, button -> this.onClose())
                 .bounds(center - 100, this.height - 32, 200, 20)

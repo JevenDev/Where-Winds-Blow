@@ -23,6 +23,7 @@ public final class ResponsiveFoliageShaders {
     private static final float THUNDER_WIND_SHEEN_MIN = 2.0F;
     private static final float RAIN_WIND_SWAY_MIN = 1.5F;
     private static final float THUNDER_WIND_SWAY_MIN = 2.0F;
+    private static final float LEAF_WIND_SWAY_SCALE = 0.35F;
     private static final ResourceLocation WIND_SHADER = ResourceLocation.fromNamespaceAndPath(
             WhereWindsBlow.MOD_ID,
             "rendertype_responsive_foliage_cutout"
@@ -110,8 +111,10 @@ public final class ResponsiveFoliageShaders {
         updateWeatherWindState();
         shader.safeGetUniform("WindTime").set(windTimeSeconds);
         shader.safeGetUniform("WeatherWindPower").set(smoothedWeatherWindPower);
-        shader.safeGetUniform("WindSwayStrength").set(windSwayStrength());
-        shader.safeGetUniform("WindSheenStrength").set(windSheenStrength());
+        shader.safeGetUniform("PlantWindSwayStrength").set(plantWindSwayStrength());
+        shader.safeGetUniform("LeafWindSwayStrength").set(leafWindSwayStrength());
+        shader.safeGetUniform("PlantWindSheenStrength").set(plantWindSheenStrength());
+        shader.safeGetUniform("LeafWindSheenStrength").set(leafWindSheenStrength());
     }
 
     public static float windTime() {
@@ -130,10 +133,26 @@ public final class ResponsiveFoliageShaders {
                 : 0.0F;
     }
 
+    public static float plantWindSwayStrength() {
+        return ClientConfig.ENABLE_WIND_PLANT_SWAY.getAsBoolean() ? windSwayStrength() : 0.0F;
+    }
+
+    public static float leafWindSwayStrength() {
+        return ClientConfig.ENABLE_WIND_LEAF_SWAY.getAsBoolean() ? windSwayStrength() * LEAF_WIND_SWAY_SCALE : 0.0F;
+    }
+
     public static float windSheenStrength() {
         return shouldUseCustomFoliageShaders() && ClientConfig.ENABLE_WIND_SHEEN.getAsBoolean()
                 ? Math.max((float) ClientConfig.WIND_SHEEN_STRENGTH.getAsDouble(), weatherDrivenSheenStrength())
                 : 0.0F;
+    }
+
+    public static float plantWindSheenStrength() {
+        return ClientConfig.ENABLE_WIND_PLANT_SWAY.getAsBoolean() ? windSheenStrength() : 0.0F;
+    }
+
+    public static float leafWindSheenStrength() {
+        return 0.0F;
     }
 
     private static void updateWeatherWindState() {

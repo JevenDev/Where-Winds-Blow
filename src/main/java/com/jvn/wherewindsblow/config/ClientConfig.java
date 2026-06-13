@@ -41,6 +41,14 @@ public final class ClientConfig {
             .comment("Enables wind-driven foliage sway in the responsive foliage shader.")
             .define("enableWindFoliageSway", true);
 
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_PLANT_SWAY = BUILDER
+            .comment("Enables wind-driven sway for grass, crops, flowers, and other plant-like foliage.")
+            .define("enableWindPlantSway", true);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_LEAF_SWAY = BUILDER
+            .comment("Enables wind-driven sway for leaf blocks.")
+            .define("enableWindLeafSway", true);
+
     public static final ModConfigSpec.DoubleValue WIND_FOLIAGE_SWAY_STRENGTH = BUILDER
             .comment("Scales the strength of wind-driven foliage sway.")
             .defineInRange("windFoliageSwayStrength", 1.0D, 0.0D, 2.0D);

@@ -18,18 +18,24 @@ import org.jetbrains.annotations.Nullable;
 final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final float BASE_THRESHOLD = 0.08F;
     private static final float MAX_DISPLACEMENT = 0.34F;
-    private static final int WIND_ALPHA_MIN = 96;
-    private static final int WIND_ALPHA_MAX = 254;
-    private final boolean modelDetectedFoliage;
+    private static final int PLANT_WIND_ALPHA_MIN = 200;
+    private static final int PLANT_WIND_ALPHA_MAX = 226;
+    private static final int LEAF_WIND_ALPHA_MIN = 227;
+    private static final int LEAF_WIND_ALPHA_MAX = 254;
+    private static final float LEAF_BEND_MIN = 0.10F;
+    private static final float LEAF_BEND_MAX = 0.36F;
+    private final ResponsiveFoliageType foliageType;
 
-    ResponsiveFoliageModel(BakedModel originalModel, boolean modelDetectedFoliage) {
+    ResponsiveFoliageModel(BakedModel originalModel, ResponsiveFoliageType foliageType) {
         super(originalModel);
-        this.modelDetectedFoliage = modelDetectedFoliage;
+        this.foliageType = foliageType;
     }
 
     @Override
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
-        if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders() || !isResponsiveState(state)) {
+        if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()
+                || !isResponsiveState(state)
+                || foliageType != ResponsiveFoliageType.PLANT) {
             return originalModel.getModelData(level, pos, state, modelData);
         }
 
@@ -44,8 +50,20 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         List<BakedQuad> quads = originalModel.getQuads(state, side, rand, extraData, renderType);
         if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()
                 || state == null
-                || !isResponsiveState(state)
-                || !extraData.has(FoliageModelData.COLUMN_SEGMENT)) {
+                || !isResponsiveState(state)) {
+            return quads;
+        }
+
+        if (foliageType == ResponsiveFoliageType.LEAF) {
+            List<BakedQuad> transformed = new ArrayList<>(quads.size());
+            for (BakedQuad quad : quads) {
+                transformed.add(transformLeafQuad(quad));
+            }
+
+            return transformed;
+        }
+
+        if (!extraData.has(FoliageModelData.COLUMN_SEGMENT)) {
             return quads;
         }
 
@@ -56,13 +74,13 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         float offsetZ = lean == null ? 0.0F : lean.dirZ() * displacement;
         List<BakedQuad> transformed = new ArrayList<>(quads.size());
         for (BakedQuad quad : quads) {
-            transformed.add(transformQuad(quad, segment, offsetX, offsetZ));
+            transformed.add(transformPlantQuad(quad, segment, offsetX, offsetZ));
         }
 
         return transformed;
     }
 
-    private static BakedQuad transformQuad(BakedQuad quad, FoliageModelData.ColumnSegment segment, float offsetX, float offsetZ) {
+    private static BakedQuad transformPlantQuad(BakedQuad quad, FoliageModelData.ColumnSegment segment, float offsetX, float offsetZ) {
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
         for (int vertex = 0; vertex < 4; vertex++) {
@@ -82,7 +100,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             float z = Float.intBitsToFloat(vertices[offset + 2]);
             vertices[offset] = Float.floatToRawIntBits(x + offsetX * weight);
             vertices[offset + 2] = Float.floatToRawIntBits(z + offsetZ * weight);
-            vertices[offset + 3] = packWindAlpha(vertices[offset + 3], rawWeight);
+            vertices[offset + 3] = packWindAlpha(vertices[offset + 3], ResponsiveFoliageType.PLANT, rawWeight);
             vertices[offset + 7] = packWindData(rawWeight);
         }
 
@@ -96,13 +114,46 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         );
     }
 
+    private static BakedQuad transformLeafQuad(BakedQuad quad) {
+        int[] vertices = quad.getVertices().clone();
+        int stride = vertices.length / 4;
+        for (int vertex = 0; vertex < 4; vertex++) {
+            int offset = vertex * stride;
+            float x = Float.intBitsToFloat(vertices[offset]);
+            float y = Float.intBitsToFloat(vertices[offset + 1]);
+            float z = Float.intBitsToFloat(vertices[offset + 2]);
+            float bendWeight = leafBendWeight(x, y, z);
+            vertices[offset + 3] = packWindAlpha(vertices[offset + 3], ResponsiveFoliageType.LEAF, bendWeight);
+            vertices[offset + 7] = packWindData(bendWeight);
+        }
+
+        return new BakedQuad(
+                vertices,
+                quad.getTintIndex(),
+                quad.getDirection(),
+                quad.getSprite(),
+                quad.isShade(),
+                quad.hasAmbientOcclusion()
+        );
+    }
+
+    private static float leafBendWeight(float x, float y, float z) {
+        float localX = Mth.clamp(x, 0.0F, 1.0F);
+        float localY = Mth.clamp(y, 0.0F, 1.0F);
+        float localZ = Mth.clamp(z, 0.0F, 1.0F);
+        float edgeWeight = Math.max(Math.abs(localX - 0.5F), Math.abs(localZ - 0.5F)) * 2.0F;
+        return Mth.clamp(0.12F + localY * 0.12F + edgeWeight * 0.10F, LEAF_BEND_MIN, LEAF_BEND_MAX);
+    }
+
     private static int packWindData(float bendWeight) {
         int encodedWeight = encodeUnit(bendWeight);
         return (129 & 0xFF) | ((129 & 0xFF) << 8) | ((encodedWeight & 0xFF) << 16);
     }
 
-    private static int packWindAlpha(int color, float bendWeight) {
-        int alpha = Mth.clamp(Math.round(WIND_ALPHA_MIN + Mth.clamp(bendWeight, 0.0F, 1.0F) * (WIND_ALPHA_MAX - WIND_ALPHA_MIN)), WIND_ALPHA_MIN, WIND_ALPHA_MAX);
+    private static int packWindAlpha(int color, ResponsiveFoliageType foliageType, float bendWeight) {
+        int minAlpha = foliageType == ResponsiveFoliageType.LEAF ? LEAF_WIND_ALPHA_MIN : PLANT_WIND_ALPHA_MIN;
+        int maxAlpha = foliageType == ResponsiveFoliageType.LEAF ? LEAF_WIND_ALPHA_MAX : PLANT_WIND_ALPHA_MAX;
+        int alpha = Mth.clamp(Math.round(minAlpha + Mth.clamp(bendWeight, 0.0F, 1.0F) * (maxAlpha - minAlpha)), minAlpha, maxAlpha);
         return (color & 0x00FFFFFF) | (alpha << 24);
     }
 
@@ -111,6 +162,6 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     }
 
     private boolean isResponsiveState(@Nullable BlockState state) {
-        return state != null && (modelDetectedFoliage || ResponsiveFoliage.isInteractive(state));
+        return state != null && (foliageType == ResponsiveFoliageType.PLANT || ResponsiveFoliage.isLeaf(state));
     }
 }

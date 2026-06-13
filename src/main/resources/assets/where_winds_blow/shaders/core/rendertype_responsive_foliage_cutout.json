@@ -16,7 +16,9 @@
     { "name": "FogShape", "type": "int", "count": 1, "values": [ 0 ] },
     { "name": "WindTime", "type": "float", "count": 1, "values": [ 0.0 ] },
     { "name": "WeatherWindPower", "type": "float", "count": 1, "values": [ 0.0 ] },
-    { "name": "WindSwayStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
-    { "name": "WindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] }
+    { "name": "PlantWindSwayStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
+    { "name": "LeafWindSwayStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
+    { "name": "PlantWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
+    { "name": "LeafWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] }
   ]
 }

@@ -12,12 +12,14 @@ import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.BushBlock;
 import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.DoublePlantBlock;
+import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -37,6 +39,10 @@ public final class ResponsiveFoliage {
                 || block instanceof DoublePlantBlock
                 || state.is(ModBlocks.OVERGROWN_GRASS.get())
                 || state.is(ModBlocks.WILD_WHEAT.get());
+    }
+
+    public static boolean isLeaf(BlockState state) {
+        return state.is(BlockTags.LEAVES) || state.getBlock() instanceof LeavesBlock;
     }
 
     public static float swayMultiplier(BlockState state) {
@@ -110,17 +116,29 @@ public final class ResponsiveFoliage {
 
     public static void wrapModels(ModelEvent.ModifyBakingResult event) {
         event.getModels().replaceAll((location, model) -> {
-            boolean modelDetectedFoliage = ClientConfig.ENABLE_AUTODETECTED_FOLIAGE_MODELS.getAsBoolean()
-                    && isPlantLikePlaneModel(location, model);
-            return shouldWrap(location, model, modelDetectedFoliage) ? new ResponsiveFoliageModel(model, modelDetectedFoliage) : model;
+            ResponsiveFoliageType foliageType = foliageType(location, model);
+            return foliageType != null ? new ResponsiveFoliageModel(model, foliageType) : model;
         });
     }
 
-    private static boolean shouldWrap(ModelResourceLocation location, BakedModel model, boolean modelDetectedFoliage) {
+    private static ResponsiveFoliageType foliageType(ModelResourceLocation location, BakedModel model) {
         ResourceLocation id = location.id();
-        return !location.variant().equals(ModelResourceLocation.INVENTORY_VARIANT)
-                && (isInteractive(BuiltInRegistries.BLOCK.get(id).defaultBlockState()) || modelDetectedFoliage)
-                && !(model instanceof ResponsiveFoliageModel);
+        if (location.variant().equals(ModelResourceLocation.INVENTORY_VARIANT)
+                || model instanceof ResponsiveFoliageModel) {
+            return null;
+        }
+
+        BlockState defaultState = BuiltInRegistries.BLOCK.get(id).defaultBlockState();
+        if (isLeaf(defaultState)) {
+            return ResponsiveFoliageType.LEAF;
+        }
+
+        if (isInteractive(defaultState)
+                || (ClientConfig.ENABLE_AUTODETECTED_FOLIAGE_MODELS.getAsBoolean() && isPlantLikePlaneModel(location, model))) {
+            return ResponsiveFoliageType.PLANT;
+        }
+
+        return null;
     }
 
     private static boolean isPlantLikePlaneModel(ModelResourceLocation location, BakedModel model) {

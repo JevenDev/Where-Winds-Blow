@@ -16,14 +16,26 @@ public final class SodiumFoliageShaderSource {
 
             uniform float u_WwbTime;
             uniform float u_WwbWeatherWindPower;
-            uniform float u_WwbSwayStrength;
-            uniform float u_WwbSheenStrength;
+            uniform float u_WwbPlantSwayStrength;
+            uniform float u_WwbLeafSwayStrength;
+            uniform float u_WwbPlantSheenStrength;
+            uniform float u_WwbLeafSheenStrength;
             """;
 
     private static final String WIND_FUNCTIONS = """
 
+            bool wwb_is_plant_wind_vertex(float alpha) {
+                float encoded = alpha * 255.0;
+                return encoded >= 199.5 && encoded <= 226.5;
+            }
+
+            bool wwb_is_leaf_wind_vertex(float alpha) {
+                float encoded = alpha * 255.0;
+                return encoded >= 226.5 && encoded <= 254.5;
+            }
+
             bool wwb_is_foliage_wind_vertex(float alpha) {
-                return alpha < 0.999 && alpha > 0.32;
+                return wwb_is_plant_wind_vertex(alpha) || wwb_is_leaf_wind_vertex(alpha);
             }
 
             float wwb_smooth_curve(float value) {
@@ -32,7 +44,20 @@ public final class SodiumFoliageShaderSource {
             }
 
             float wwb_decode_wind_alpha(float alpha) {
-                return clamp((alpha * 255.0 - 96.0) / 158.0, 0.0, 1.0);
+                float encoded = alpha * 255.0;
+                if (wwb_is_leaf_wind_vertex(alpha)) {
+                    return clamp((encoded - 227.0) / 27.0, 0.0, 1.0);
+                }
+
+                return clamp((encoded - 200.0) / 26.0, 0.0, 1.0);
+            }
+
+            float wwb_sway_strength_for_alpha(float alpha) {
+                return wwb_is_leaf_wind_vertex(alpha) ? u_WwbLeafSwayStrength : u_WwbPlantSwayStrength;
+            }
+
+            float wwb_sheen_strength_for_alpha(float alpha) {
+                return wwb_is_leaf_wind_vertex(alpha) ? u_WwbLeafSheenStrength : u_WwbPlantSheenStrength;
             }
 
             float wwb_foliage_wind_sheen(vec3 position, float alpha) {
@@ -58,7 +83,7 @@ public final class SodiumFoliageShaderSource {
                 float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47);
                 float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
                 float tipLift = wwb_smooth_curve(bend);
-                return clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * u_WwbSheenStrength, 0.0, 0.35);
+                return clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * wwb_sheen_strength_for_alpha(alpha), 0.0, 0.35);
             }
 
             vec3 wwb_apply_foliage_wind(vec3 position, float alpha) {
@@ -78,7 +103,7 @@ public final class SodiumFoliageShaderSource {
                 float ripple = sin(along * 1.08 - t * 3.6 + across * 0.18) * 0.5 + 0.5;
                 float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 + across * 0.04) * 0.5 + 0.5);
                 float shimmer = sin(position.x * 2.17 + position.z * 1.63 + t * 2.1) * 0.012;
-                float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * u_WwbSwayStrength;
+                float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * wwb_sway_strength_for_alpha(alpha);
                 float directionNoise = sin(across * 0.22 + t * 0.55) * 0.18;
                 vec2 dir = normalize(windDir + crossDir * directionNoise);
                 position.xz += dir * strength;

@@ -23,10 +23,16 @@ public abstract class SodiumShaderChunkRendererMixin {
     private static int wherewindsblow$weatherWindPowerUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
 
     @Unique
-    private static int wherewindsblow$swayStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
+    private static int wherewindsblow$plantSwayStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
 
     @Unique
-    private static int wherewindsblow$sheenStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
+    private static int wherewindsblow$leafSwayStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
+
+    @Unique
+    private static int wherewindsblow$plantSheenStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
+
+    @Unique
+    private static int wherewindsblow$leafSheenStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
 
     @Inject(method = "begin", at = @At("TAIL"), require = 0)
     private void wherewindsblow$uploadResponsiveFoliageWindTime(CallbackInfo ci) {
@@ -43,8 +49,10 @@ public abstract class SodiumShaderChunkRendererMixin {
             wherewindsblow$refreshUniformLocations(program);
             wherewindsblow$uploadUniform(wherewindsblow$windTimeUniform, ResponsiveFoliageShaders.windTime());
             wherewindsblow$uploadUniform(wherewindsblow$weatherWindPowerUniform, ResponsiveFoliageShaders.weatherWindPower());
-            wherewindsblow$uploadUniform(wherewindsblow$swayStrengthUniform, ResponsiveFoliageShaders.windSwayStrength());
-            wherewindsblow$uploadUniform(wherewindsblow$sheenStrengthUniform, ResponsiveFoliageShaders.windSheenStrength());
+            wherewindsblow$uploadUniform(wherewindsblow$plantSwayStrengthUniform, ResponsiveFoliageShaders.plantWindSwayStrength());
+            wherewindsblow$uploadUniform(wherewindsblow$leafSwayStrengthUniform, ResponsiveFoliageShaders.leafWindSwayStrength());
+            wherewindsblow$uploadUniform(wherewindsblow$plantSheenStrengthUniform, ResponsiveFoliageShaders.plantWindSheenStrength());
+            wherewindsblow$uploadUniform(wherewindsblow$leafSheenStrengthUniform, ResponsiveFoliageShaders.leafWindSheenStrength());
         } catch (RuntimeException exception) {
             ResponsiveFoliageShaders.disableSodiumShaderPatch("Failed to upload Sodium foliage shader uniforms.", exception);
         }
@@ -59,8 +67,10 @@ public abstract class SodiumShaderChunkRendererMixin {
         wherewindsblow$lastProgram = program;
         wherewindsblow$windTimeUniform = GL20C.glGetUniformLocation(program, "u_WwbTime");
         wherewindsblow$weatherWindPowerUniform = GL20C.glGetUniformLocation(program, "u_WwbWeatherWindPower");
-        wherewindsblow$swayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbSwayStrength");
-        wherewindsblow$sheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbSheenStrength");
+        wherewindsblow$plantSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSwayStrength");
+        wherewindsblow$leafSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSwayStrength");
+        wherewindsblow$plantSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSheenStrength");
+        wherewindsblow$leafSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSheenStrength");
     }
 
     @Unique

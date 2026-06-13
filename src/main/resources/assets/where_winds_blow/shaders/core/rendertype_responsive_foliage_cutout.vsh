@@ -17,20 +17,49 @@ uniform vec3 ChunkOffset;
 uniform int FogShape;
 uniform float WindTime;
 uniform float WeatherWindPower;
-uniform float WindSwayStrength;
-uniform float WindSheenStrength;
+uniform float PlantWindSwayStrength;
+uniform float LeafWindSwayStrength;
+uniform float PlantWindSheenStrength;
+uniform float LeafWindSheenStrength;
 
 out float vertexDistance;
 out vec4 vertexColor;
 out vec2 texCoord0;
 out float windSheen;
 
+bool isPlantWindAlpha(float alpha) {
+    float encoded = alpha * 255.0;
+    return encoded >= 199.5 && encoded <= 226.5;
+}
+
+bool isLeafWindAlpha(float alpha) {
+    float encoded = alpha * 255.0;
+    return encoded >= 226.5 && encoded <= 254.5;
+}
+
+bool isFoliageWindVertex(float alpha) {
+    return isPlantWindAlpha(alpha) || isLeafWindAlpha(alpha);
+}
+
 float decodeUnit(float encoded) {
     return clamp(encoded * 0.5 + 0.5, 0.0, 1.0);
 }
 
 float decodeWindAlpha(float alpha) {
-    return clamp((alpha * 255.0 - 96.0) / 158.0, 0.0, 1.0);
+    float encoded = alpha * 255.0;
+    if (isLeafWindAlpha(alpha)) {
+        return clamp((encoded - 227.0) / 27.0, 0.0, 1.0);
+    }
+
+    return clamp((encoded - 200.0) / 26.0, 0.0, 1.0);
+}
+
+float windSwayStrengthForAlpha(float alpha) {
+    return isLeafWindAlpha(alpha) ? LeafWindSwayStrength : PlantWindSwayStrength;
+}
+
+float windSheenStrengthForAlpha(float alpha) {
+    return isLeafWindAlpha(alpha) ? LeafWindSheenStrength : PlantWindSheenStrength;
 }
 
 float smoothCurve(float value) {
@@ -42,12 +71,14 @@ void main() {
     vec3 pos = Position + ChunkOffset;
     windSheen = 0.0;
 
-    bool normalMarker = Normal.x < -0.98 && Normal.y < -0.98;
-    bool alphaMarker = Color.a < 0.999 && Color.a > 0.32;
+    bool alphaMarker = isFoliageWindVertex(Color.a);
+    bool normalMarker = Normal.x < -0.98 && Normal.y < -0.98 && alphaMarker;
 
     if (normalMarker || alphaMarker) {
         float bend = normalMarker ? decodeUnit(Normal.z) : decodeWindAlpha(Color.a);
         bend = smoothCurve(bend);
+        float swayStrength = windSwayStrengthForAlpha(Color.a);
+        float sheenStrength = windSheenStrengthForAlpha(Color.a);
         float weatherStrength = 1.0 + WeatherWindPower * 0.55;
         float t = WindTime;
         vec2 windDir = normalize(vec2(0.82, 0.57));
@@ -68,9 +99,9 @@ void main() {
         float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47);
         float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
         float tipLift = smoothCurve(bend);
-        windSheen = clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * WindSheenStrength, 0.0, 0.35);
+        windSheen = clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * sheenStrength, 0.0, 0.35);
         float shimmer = sin(pos.x * 2.17 + pos.z * 1.63 + t * 2.1) * 0.012;
-        float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * WindSwayStrength;
+        float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * swayStrength;
         float directionNoise = sin(across * 0.22 + t * 0.55) * 0.18;
         vec2 dir = normalize(windDir + crossDir * directionNoise);
         pos.xz += dir * strength;
