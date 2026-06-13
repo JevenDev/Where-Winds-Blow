@@ -18,7 +18,7 @@ public final class ClientConfig {
             .define("enableAutodetectedFoliageModels", true);
 
     public static final ModConfigSpec.BooleanValue ENABLE_CUSTOM_FOLIAGE_SHADER = BUILDER
-            .comment("Enables Where Winds Blow's custom foliage shader. Disable this if a renderer mod makes terrain invisible.")
+            .comment("Enables Where Winds Blow's custom foliage shader for vanilla cutout foliage render types.")
             .define("enableCustomFoliageShader", true);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_SHEEN = BUILDER
@@ -34,7 +34,7 @@ public final class ClientConfig {
             .define("forceWwbWindWithShaderPacks", false);
 
     public static final ModConfigSpec.BooleanValue ENABLE_SODIUM_SHADER_PATCH = BUILDER
-            .comment("Enables the Sodium terrain shader patch used for wind sway and sheen. Disable this if Sodium terrain stops rendering.")
+            .comment("Adds Where Winds Blow wind uniforms and source injections to Sodium's own terrain shader.")
             .define("enableSodiumShaderPatch", true);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_FOLIAGE_SWAY = BUILDER

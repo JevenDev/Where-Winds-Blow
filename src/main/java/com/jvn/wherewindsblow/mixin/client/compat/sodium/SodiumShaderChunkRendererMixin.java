@@ -1,14 +1,11 @@
 package com.jvn.wherewindsblow.mixin.client.compat.sodium;
 
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
-import com.jvn.wherewindsblow.client.foliage.SodiumFoliageShaderSource;
-import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.opengl.GL20C;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(targets = "net.caffeinemc.mods.sodium.client.render.chunk.ShaderChunkRenderer", remap = false)
@@ -31,23 +28,9 @@ public abstract class SodiumShaderChunkRendererMixin {
     @Unique
     private static int wherewindsblow$sheenStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
 
-    @ModifyArg(
-            method = "createShader",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/caffeinemc/mods/sodium/client/gl/shader/ShaderLoader;loadShader(Lnet/caffeinemc/mods/sodium/client/gl/shader/ShaderType;Lnet/minecraft/resources/ResourceLocation;Lnet/caffeinemc/mods/sodium/client/gl/shader/ShaderConstants;)Lnet/caffeinemc/mods/sodium/client/gl/shader/GlShader;",
-                    ordinal = 0
-            ),
-            index = 1,
-            require = 0
-    )
-    private ResourceLocation wherewindsblow$useResponsiveFoliageWindShader(ResourceLocation original) {
-        return SodiumFoliageShaderSource.shouldPatchSodiumShaders() ? SodiumFoliageShaderSource.SHADER_LOCATION : original;
-    }
-
     @Inject(method = "begin", at = @At("TAIL"), require = 0)
     private void wherewindsblow$uploadResponsiveFoliageWindTime(CallbackInfo ci) {
-        if (!SodiumFoliageShaderSource.shouldPatchSodiumShaders()) {
+        if (!ResponsiveFoliageShaders.shouldPatchSodiumShaders()) {
             return;
         }
 

@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 public final class ResponsiveFoliageShaders {
     private static final String IRIS_API_CLASS_NAME = "net.irisshaders.iris.api.v0.IrisApi";
     private static final String[] SHADER_RENDERER_MOD_IDS = {"iris", "oculus"};
+    private static final String[] INCOMPATIBLE_RENDERER_MOD_IDS = {"chunksfadein"};
     private static final long SHADER_PACK_STATE_CACHE_MILLIS = 250L;
     private static final float RAIN_WIND_SHEEN_MIN = 1.5F;
     private static final float THUNDER_WIND_SHEEN_MIN = 2.0F;
@@ -38,6 +39,7 @@ public final class ResponsiveFoliageShaders {
     private static boolean externalShaderPackActive;
     private static volatile boolean customShaderDisabled;
     private static volatile boolean sodiumShaderPatchDisabled;
+    private static boolean incompatibleRendererWarningLogged;
     private static long lastWeatherUpdateMillis;
     private static float smoothedWeatherWindPower;
     private static float windTimeSeconds;
@@ -59,7 +61,9 @@ public final class ResponsiveFoliageShaders {
     }
 
     public static boolean shouldUseCustomFoliageShaders() {
-        if (!ClientConfig.ENABLE_CUSTOM_FOLIAGE_SHADER.getAsBoolean() || customShaderDisabled) {
+        if (!ClientConfig.ENABLE_CUSTOM_FOLIAGE_SHADER.getAsBoolean()
+                || customShaderDisabled
+                || isIncompatibleRendererLoaded()) {
             return false;
         }
 
@@ -173,11 +177,11 @@ public final class ResponsiveFoliageShaders {
 
         float thunder = minecraft.level.getThunderLevel(1.0F);
         if (thunder > 0.01F) {
-            return THUNDER_WIND_SWAY_MIN;
+            return THUNDER_WIND_SHEEN_MIN;
         }
 
         float rain = minecraft.level.getRainLevel(1.0F);
-        return rain > 0.01F ? RAIN_WIND_SWAY_MIN : 0.0F;
+        return rain > 0.01F ? RAIN_WIND_SHEEN_MIN : 0.0F;
     }
 
     private static float weatherDrivenSwayStrength() {
@@ -188,11 +192,11 @@ public final class ResponsiveFoliageShaders {
 
         float thunder = minecraft.level.getThunderLevel(1.0F);
         if (thunder > 0.01F) {
-            return THUNDER_WIND_SHEEN_MIN;
+            return THUNDER_WIND_SWAY_MIN;
         }
 
         float rain = minecraft.level.getRainLevel(1.0F);
-        return rain > 0.01F ? RAIN_WIND_SHEEN_MIN : 0.0F;
+        return rain > 0.01F ? RAIN_WIND_SWAY_MIN : 0.0F;
     }
 
     private static boolean isExternalShaderPackActive() {
@@ -240,6 +244,23 @@ public final class ResponsiveFoliageShaders {
     private static boolean isKnownShaderRendererLoaded() {
         for (String modId : SHADER_RENDERER_MOD_IDS) {
             if (isModLoaded(modId)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean isIncompatibleRendererLoaded() {
+        for (String modId : INCOMPATIBLE_RENDERER_MOD_IDS) {
+            if (isModLoaded(modId)) {
+                if (!incompatibleRendererWarningLogged) {
+                    incompatibleRendererWarningLogged = true;
+                    WhereWindsBlow.LOGGER.warn(
+                            "Custom foliage shader rendering is disabled because incompatible renderer mod '{}' is loaded.",
+                            modId
+                    );
+                }
                 return true;
             }
         }

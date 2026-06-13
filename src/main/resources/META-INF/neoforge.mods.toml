@@ -39,6 +39,14 @@ ordering="AFTER"
 side="CLIENT"
 
 [[dependencies."${mod_id}"]]
+modId="chunksfadein"
+type="incompatible"
+reason="Where Winds Blow and Chunks Fade In both alter terrain shader rendering; using them together can make worlds render incorrectly."
+versionRange=""
+ordering="NONE"
+side="CLIENT"
+
+[[dependencies."${mod_id}"]]
 modId="minecraft"
 type="required"
 versionRange="${minecraft_version_range}"

@@ -11,15 +11,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(targets = "net.irisshaders.iris.pipeline.programs.SodiumPrograms", remap = false)
 public abstract class IrisSodiumProgramsMixin {
-    private static final Pattern WHEREWINDSBLOW$IRIS_VERTEX_POSITION_PATTERN = Pattern.compile(
-            "vec4\\s+getVertexPosition\\s*\\(\\s*\\)\\s*\\{\\s*return\\s+vec4\\s*\\(\\s*_vert_position\\s*\\+\\s*u_RegionOffset\\s*\\+\\s*_get_draw_translation\\s*\\(\\s*_draw_id\\s*\\)\\s*,\\s*1\\.0\\s*\\)\\s*;\\s*\\}",
+    private static final Pattern WHEREWINDSBLOW$IRIS_VERTEX_POSITION_FUNCTION_PATTERN = Pattern.compile(
+            "vec4\\s+getVertexPosition\\s*\\(\\s*\\)\\s*\\{",
+            Pattern.MULTILINE
+    );
+    private static final Pattern WHEREWINDSBLOW$IRIS_VERTEX_POSITION_RETURN_PATTERN = Pattern.compile(
+            "return\\s+vec4\\s*\\(\\s*_vert_position\\s*\\+\\s*u_RegionOffset\\s*\\+\\s*_get_draw_translation\\s*\\(\\s*_draw_id\\s*\\)\\s*,\\s*1\\.0\\s*\\)\\s*;",
             Pattern.MULTILINE
     );
 
-    private static final String WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION = """
+    private static final String WHEREWINDSBLOW$IRIS_WIND_HELPERS = """
             uniform float u_WwbTime;
             uniform float u_WwbWeatherWindPower;
             uniform float u_WwbSwayStrength;
+
+            bool wwb_is_foliage_wind_vertex(float alpha) {
+                return alpha < 0.999 && alpha > 0.32;
+            }
+
             float wwb_smooth_curve(float value) {
                 value = clamp(value, 0.0, 1.0);
                 return value * value * (3.0 - 2.0 * value);
@@ -28,7 +37,7 @@ public abstract class IrisSodiumProgramsMixin {
                 return clamp((alpha * 255.0 - 96.0) / 158.0, 0.0, 1.0);
             }
             vec3 wwb_apply_foliage_wind(vec3 position, float alpha) {
-                if (alpha >= 0.999 || alpha <= 0.32) {
+                if (!wwb_is_foliage_wind_vertex(alpha)) {
                     return position;
                 }
 
@@ -50,17 +59,19 @@ public abstract class IrisSodiumProgramsMixin {
                 position.xz += dir * strength;
                 return position;
             }
-            vec4 getVertexPosition() {
-                vec3 position = _vert_position + u_RegionOffset + _get_draw_translation(_draw_id);
-                float wwbWindAlpha = _vert_color.a;
-                _vert_color.a = 1.0;
-                return vec4(wwb_apply_foliage_wind(position, wwbWindAlpha), 1.0);
-            }
             """;
+
+    private static final String WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION_RETURN = """
+                vec3 wwbPosition = _vert_position + u_RegionOffset + _get_draw_translation(_draw_id);
+                float wwbWindAlpha = _vert_color.a;
+                if (wwb_is_foliage_wind_vertex(wwbWindAlpha)) {
+                    _vert_color.a = 1.0;
+                }
+                return vec4(wwb_apply_foliage_wind(wwbPosition, wwbWindAlpha), 1.0);""";
 
     @Inject(method = "transformShaders", at = @At("RETURN"), require = 0)
     private void wherewindsblow$patchIrisSodiumTerrainWind(CallbackInfoReturnable<Map<Object, String>> cir) {
-        if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()) {
+        if (!ResponsiveFoliageShaders.shouldPatchSodiumShaders()) {
             return;
         }
 
@@ -75,15 +86,30 @@ public abstract class IrisSodiumProgramsMixin {
                 continue;
             }
 
-            Matcher matcher = WHEREWINDSBLOW$IRIS_VERTEX_POSITION_PATTERN.matcher(source);
-            if (matcher.find()) {
-                try {
-                    entry.setValue(matcher.replaceFirst(Matcher.quoteReplacement(WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION)));
-                } catch (RuntimeException exception) {
-                    ResponsiveFoliageShaders.disableCustomFoliageShader("Failed to patch Iris Sodium terrain shader source.", exception);
-                    return;
+            try {
+                String patched = wherewindsblow$patchVertexPosition(source);
+                if (!patched.equals(source)) {
+                    entry.setValue(patched);
                 }
+            } catch (RuntimeException exception) {
+                ResponsiveFoliageShaders.disableSodiumShaderPatch("Failed to patch Iris Sodium terrain shader source.", exception);
+                return;
             }
         }
+    }
+
+    private static String wherewindsblow$patchVertexPosition(String source) {
+        Matcher returnMatcher = WHEREWINDSBLOW$IRIS_VERTEX_POSITION_RETURN_PATTERN.matcher(source);
+        if (!returnMatcher.find()) {
+            return source;
+        }
+
+        String patched = returnMatcher.replaceFirst(Matcher.quoteReplacement(WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION_RETURN));
+        Matcher functionMatcher = WHEREWINDSBLOW$IRIS_VERTEX_POSITION_FUNCTION_PATTERN.matcher(patched);
+        if (!functionMatcher.find()) {
+            return source;
+        }
+
+        return patched.substring(0, functionMatcher.start()) + WHEREWINDSBLOW$IRIS_WIND_HELPERS + patched.substring(functionMatcher.start());
     }
 }
