@@ -182,6 +182,10 @@ public final class SodiumFoliageShaderSource {
                 return position;
             }
 
+            float wwb_grass_variation_seed(vec2 cell, vec2 salt) {
+                return fract(sin(dot(cell, salt)) * 43758.5453);
+            }
+
             vec3 wwb_apply_foliage_wind(vec3 position, float alpha) {
                 if (!wwb_should_apply_foliage_wind(alpha)) {
                     return position;
@@ -196,17 +200,26 @@ public final class SodiumFoliageShaderSource {
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
                 float along = dot(position.xz, windDir);
                 float across = dot(position.xz, crossDir);
+                float plantWind = wwb_is_plant_wind_vertex(alpha) ? 1.0 : 0.0;
+                vec2 gustCell = floor(position.xz * 0.58);
+                vec2 bladeCell = floor(position.xz * 2.7);
+                float gustSeed = wwb_grass_variation_seed(gustCell, vec2(127.1, 311.7));
+                float bladeSeed = wwb_grass_variation_seed(bladeCell, vec2(269.5, 183.3));
+                float localPhase = plantWind * ((gustSeed - 0.5) * 3.2 + (bladeSeed - 0.5) * 0.7);
+                float localTempo = mix(1.0, 0.82 + gustSeed * 0.36, plantWind);
+                float localAmplitude = mix(1.0, 0.62 + gustSeed * 0.55 + bladeSeed * 0.18, plantWind);
                 float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
                         + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
-                float tempoDrift = 1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09) * 0.08;
-                float amplitudeDrift = 0.84 + 0.22 * wwb_smooth_curve(sin(along * 0.21 + across * 0.14 - t * 0.16) * 0.5 + 0.5);
-                float broad = sin(along * 0.35 - t * 1.28 * tempoDrift + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift);
+                phaseDrift += localPhase * 0.38;
+                float tempoDrift = (1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09 + localPhase * 0.2) * 0.08) * localTempo;
+                float amplitudeDrift = (0.84 + 0.22 * wwb_smooth_curve(sin(along * 0.21 + across * 0.14 - t * 0.16 + localPhase) * 0.5 + 0.5)) * localAmplitude;
+                float broad = sin(along * 0.35 - t * 1.28 * tempoDrift + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + localPhase);
                 float wave = pow(max(0.0, broad), 1.7);
-                float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7) * 0.5 + 0.5;
-                float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35) * 0.5 + 0.5);
-                float shimmer = sin(position.x * 2.17 + position.z * 1.63 + t * 2.1 + phaseDrift) * 0.012;
+                float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
+                float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
+                float shimmer = sin(position.x * 2.17 + position.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
                 float strength = (0.018 + wave * 0.145 * amplitudeDrift + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * wwb_sway_strength_for_alpha(alpha);
-                float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35) * 0.18;
+                float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase) * (0.18 + plantWind * 0.08);
                 vec2 dir = normalize(windDir + crossDir * directionNoise);
                 position.xz += dir * strength;
                 vec3 interactedPosition = wwb_apply_foliage_interactors(basePosition, interactionBend, alpha);
