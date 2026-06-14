@@ -28,8 +28,8 @@ public class WhereWindsBlowRenderingConfigScreen extends Screen {
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY, ClientConfig.SPEC));
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(right, y, 150, "foliageInteractivityStrength", ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH::getAsDouble, value -> WhereWindsBlowConfigWidgets.set(ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH, value), ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH_MIN, ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH_MAX));
         y += rowSpacing;
-        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_AUTODETECTED_FOLIAGE_MODELS, ClientConfig.SPEC));
-        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(right, y, ClientConfig.ENABLE_CUSTOM_FOLIAGE_SHADER, ClientConfig.SPEC));
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_AUTODETECTED_FOLIAGE_MODELS, ClientConfig.SPEC, WhereWindsBlowRenderingConfigScreen::rebuildFoliage));
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(right, y, ClientConfig.ENABLE_CUSTOM_FOLIAGE_SHADER, ClientConfig.SPEC, WhereWindsBlowRenderingConfigScreen::rebuildFoliage));
         y += rowSpacing;
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_SHEEN, ClientConfig.SPEC));
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(right, y, 150, "windSheenStrength", ClientConfig.WIND_SHEEN_STRENGTH::getAsDouble, value -> WhereWindsBlowConfigWidgets.set(ClientConfig.WIND_SHEEN_STRENGTH, value), ClientConfig.WIND_SHEEN_STRENGTH_MIN, ClientConfig.WIND_SHEEN_STRENGTH_MAX));
@@ -43,7 +43,7 @@ public class WhereWindsBlowRenderingConfigScreen extends Screen {
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_SMOKE, ClientConfig.SPEC));
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(right, y, 150, "windSmokeStrength", ClientConfig.WIND_SMOKE_STRENGTH::getAsDouble, value -> WhereWindsBlowConfigWidgets.set(ClientConfig.WIND_SMOKE_STRENGTH, value), ClientConfig.WIND_SMOKE_STRENGTH_MIN, ClientConfig.WIND_SMOKE_STRENGTH_MAX));
         y += rowSpacing;
-        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.FORCE_WWB_WIND_WITH_SHADER_PACKS, ClientConfig.SPEC));
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.FORCE_WWB_WIND_WITH_SHADER_PACKS, ClientConfig.SPEC, WhereWindsBlowRenderingConfigScreen::rebuildFoliage));
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(right, y, ClientConfig.ENABLE_SODIUM_SHADER_PATCH, ClientConfig.SPEC));
         y += rowSpacing;
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_FOLIAGE_SWAY, ClientConfig.SPEC));
@@ -73,6 +73,10 @@ public class WhereWindsBlowRenderingConfigScreen extends Screen {
 
     private static void setAndRebuildFoliage(ModConfigSpec.DoubleValue configValue, double value) {
         WhereWindsBlowConfigWidgets.set(configValue, value);
+        rebuildFoliage();
+    }
+
+    private static void rebuildFoliage() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level != null) {
             minecraft.levelRenderer.allChanged();

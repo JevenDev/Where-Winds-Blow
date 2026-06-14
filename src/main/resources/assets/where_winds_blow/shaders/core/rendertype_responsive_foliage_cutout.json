@@ -20,6 +20,7 @@
     { "name": "LeafWindSwayStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "PlantWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "LeafWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
+    { "name": "CameraPosition", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0 ] },
     { "name": "FoliageInteractorCount", "type": "int", "count": 1, "values": [ 0 ] },
     { "name": "FoliageInteractor0", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
     { "name": "FoliageInteractor1", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },

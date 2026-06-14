@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.loading.LoadingModList;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import org.jetbrains.annotations.Nullable;
@@ -154,6 +155,8 @@ public final class ResponsiveFoliageShaders {
         shader.safeGetUniform("LeafWindSwayStrength").set(leafWindSwayStrength());
         shader.safeGetUniform("PlantWindSheenStrength").set(plantWindSheenStrength());
         shader.safeGetUniform("LeafWindSheenStrength").set(leafWindSheenStrength());
+        Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        shader.safeGetUniform("CameraPosition").set((float) cameraPosition.x, (float) cameraPosition.y, (float) cameraPosition.z);
         shader.safeGetUniform("FoliageInteractorCount").set(foliageInteractorCount);
         uploadFoliageInteractorUniforms(shader);
     }

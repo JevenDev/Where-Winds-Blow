@@ -20,6 +20,7 @@ public final class SodiumFoliageShaderSource {
             uniform float u_WwbLeafSwayStrength;
             uniform float u_WwbPlantSheenStrength;
             uniform float u_WwbLeafSheenStrength;
+            uniform vec3 u_WwbCameraPosition;
             uniform int u_WwbInteractorCount;
             uniform vec4 u_WwbInteractor0;
             uniform vec4 u_WwbInteractor1;
@@ -108,10 +109,11 @@ public final class SodiumFoliageShaderSource {
 
                 float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
                 float t = u_WwbTime;
-                vec2 windDir = normalize(vec2(0.82, 0.57));
+                vec3 windPosition = position + u_WwbCameraPosition;
+                vec2 windDir = normalize(vec2(0.821188, 0.570658));
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
-                float along = dot(position.xz, windDir);
-                float across = dot(position.xz, crossDir);
+                float along = dot(windPosition.xz, windDir);
+                float across = dot(windPosition.xz, crossDir);
                 float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
                         + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
                 float tempoDrift = 1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09) * 0.08;
@@ -216,13 +218,14 @@ public final class SodiumFoliageShaderSource {
                 float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
                 float weatherStrength = 1.0 + u_WwbWeatherWindPower * 0.55;
                 float t = u_WwbTime;
-                vec2 windDir = normalize(vec2(0.82, 0.57));
+                vec3 windPosition = position + u_WwbCameraPosition;
+                vec2 windDir = normalize(vec2(0.821188, 0.570658));
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
-                float along = dot(position.xz, windDir);
-                float across = dot(position.xz, crossDir);
+                float along = dot(windPosition.xz, windDir);
+                float across = dot(windPosition.xz, crossDir);
                 float plantWind = wwb_is_plant_wind_vertex(alpha) ? 1.0 : 0.0;
-                vec2 gustCell = floor(position.xz * 0.58);
-                vec2 bladeCell = floor(position.xz * 2.7);
+                vec2 gustCell = floor(windPosition.xz * 0.58);
+                vec2 bladeCell = floor(windPosition.xz * 2.7);
                 float gustSeed = wwb_grass_variation_seed(gustCell, vec2(127.1, 311.7));
                 float bladeSeed = wwb_grass_variation_seed(bladeCell, vec2(269.5, 183.3));
                 float localPhase = plantWind * ((gustSeed - 0.5) * 3.2 + (bladeSeed - 0.5) * 0.7);
@@ -237,7 +240,7 @@ public final class SodiumFoliageShaderSource {
                 float wave = pow(max(0.0, broad), 1.7);
                 float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
                 float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
-                float shimmer = sin(position.x * 2.17 + position.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
+                float shimmer = sin(windPosition.x * 2.17 + windPosition.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
                 float strength = (0.018 + wave * 0.145 * amplitudeDrift + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * wwb_sway_strength_for_alpha(alpha);
                 float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase) * (0.18 + plantWind * 0.08);
                 vec2 dir = normalize(windDir + crossDir * directionNoise);

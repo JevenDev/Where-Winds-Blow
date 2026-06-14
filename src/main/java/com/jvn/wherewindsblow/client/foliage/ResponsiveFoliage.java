@@ -144,9 +144,12 @@ public final class ResponsiveFoliage {
             return ResponsiveFoliageType.LEAF;
         }
 
-        if (isInteractive(defaultState)
-                || (ClientConfig.ENABLE_AUTODETECTED_FOLIAGE_MODELS.getAsBoolean() && isPlantLikePlaneModel(location, model))) {
+        if (isInteractive(defaultState)) {
             return ResponsiveFoliageType.PLANT;
+        }
+
+        if (isPlantLikePlaneModel(location, model)) {
+            return ResponsiveFoliageType.AUTO_PLANT;
         }
 
         return null;

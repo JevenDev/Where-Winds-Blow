@@ -56,11 +56,11 @@ public final class ClientConfig {
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_OPACITY = BUILDER
             .comment("Scales wind streak opacity.")
-            .defineInRange("windStreakOpacity", 0.9D, WIND_STREAK_OPACITY_MIN, WIND_STREAK_OPACITY_MAX);
+            .defineInRange("windStreakOpacity", 0.8D, WIND_STREAK_OPACITY_MIN, WIND_STREAK_OPACITY_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_THICKNESS = BUILDER
             .comment("Sets wind streak line thickness in pixels.")
-            .defineInRange("windStreakThickness", 2.0D, WIND_STREAK_THICKNESS_MIN, WIND_STREAK_THICKNESS_MAX);
+            .defineInRange("windStreakThickness", 3.0D, WIND_STREAK_THICKNESS_MIN, WIND_STREAK_THICKNESS_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_SMOKE = BUILDER
             .comment("Lets campfire smoke naturally drift and curl with the wind.")
@@ -72,7 +72,7 @@ public final class ClientConfig {
 
     public static final ModConfigSpec.BooleanValue FORCE_WWB_WIND_WITH_SHADER_PACKS = BUILDER
             .comment("Keeps Where Winds Blow wind sway and sheen active even while an Iris shader pack is in use.")
-            .define("forceWwbWindWithShaderPacks", false);
+            .define("forceWwbWindWithShaderPacks", true);
 
     public static final ModConfigSpec.BooleanValue ENABLE_SODIUM_SHADER_PATCH = BUILDER
             .comment("Adds Where Winds Blow wind uniforms and source injections to Sodium's own terrain shader.")

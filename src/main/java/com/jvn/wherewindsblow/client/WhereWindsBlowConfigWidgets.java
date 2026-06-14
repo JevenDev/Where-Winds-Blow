@@ -17,11 +17,17 @@ final class WhereWindsBlowConfigWidgets {
     }
 
     static Button booleanButton(int x, int y, ModConfigSpec.BooleanValue value, ModConfigSpec spec) {
+        return booleanButton(x, y, value, spec, () -> {
+        });
+    }
+
+    static Button booleanButton(int x, int y, ModConfigSpec.BooleanValue value, ModConfigSpec spec, Runnable afterChange) {
         String path = value.getPath().getLast();
         Supplier<Component> label = () -> optionLabel(path, value.getAsBoolean() ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF);
         Button button = Button.builder(label.get(), clickedButton -> {
                     value.set(!value.getAsBoolean());
                     spec.save();
+                    afterChange.run();
                     clickedButton.setMessage(label.get());
                 })
                 .bounds(x, y, 150, 20)

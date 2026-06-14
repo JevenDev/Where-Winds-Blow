@@ -38,7 +38,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
         if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()
                 || !isResponsiveState(state)
-                || foliageType != ResponsiveFoliageType.PLANT) {
+                || !isPlantFoliage()) {
             return originalModel.getModelData(level, pos, state, modelData);
         }
 
@@ -172,7 +172,12 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return Mth.clamp((float) ClientConfig.WIND_PLANT_SWAY_START_HEIGHT.getAsDouble(), 0.0F, 1.0F);
     }
 
+    private boolean isPlantFoliage() {
+        return foliageType == ResponsiveFoliageType.PLANT
+                || (foliageType == ResponsiveFoliageType.AUTO_PLANT && ClientConfig.ENABLE_AUTODETECTED_FOLIAGE_MODELS.getAsBoolean());
+    }
+
     private boolean isResponsiveState(@Nullable BlockState state) {
-        return state != null && (foliageType == ResponsiveFoliageType.PLANT || ResponsiveFoliage.isLeaf(state));
+        return state != null && (isPlantFoliage() || ResponsiveFoliage.isLeaf(state));
     }
 }
