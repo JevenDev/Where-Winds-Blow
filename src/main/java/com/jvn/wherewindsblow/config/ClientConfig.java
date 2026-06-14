@@ -29,6 +29,22 @@ public final class ClientConfig {
             .comment("Scales the visible intensity of wind sheen highlights.")
             .defineInRange("windSheenStrength", 1.0D, 0.0D, 2.0D);
 
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_STREAKS = BUILDER
+            .comment("Enables subtle Wind Waker-inspired wind streaks in the air.")
+            .define("enableWindStreaks", true);
+
+    public static final ModConfigSpec.DoubleValue WIND_STREAK_VISIBILITY = BUILDER
+            .comment("Scales wind streak density.")
+            .defineInRange("windStreakVisibility", 1.0D, 0.0D, 4.0D);
+
+    public static final ModConfigSpec.DoubleValue WIND_STREAK_OPACITY = BUILDER
+            .comment("Scales wind streak opacity.")
+            .defineInRange("windStreakOpacity", 0.8D, 0.0D, 1.0D);
+
+    public static final ModConfigSpec.DoubleValue WIND_STREAK_THICKNESS = BUILDER
+            .comment("Sets wind streak line thickness in pixels.")
+            .defineInRange("windStreakThickness", 3.0D, 1.0D, 4.0D);
+
     public static final ModConfigSpec.BooleanValue FORCE_WWB_WIND_WITH_SHADER_PACKS = BUILDER
             .comment("Keeps Where Winds Blow wind sway and sheen active even while an Iris shader pack is in use.")
             .define("forceWwbWindWithShaderPacks", false);

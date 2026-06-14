@@ -4,6 +4,7 @@ import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
+import com.jvn.wherewindsblow.client.wind.WindStreakRenderer;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.world.level.GrassColor;
@@ -29,6 +30,8 @@ public final class WhereWindsBlowClient {
         modEventBus.addListener(WhereWindsBlowClient::registerShaders);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onClientTick);
+        NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onRenderLevelStage);
+        NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onClientTick);
     }
 
     private static void registerBlockColors(RegisterColorHandlersEvent.Block event) {
