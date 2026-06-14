@@ -160,6 +160,7 @@ void main() {
     bool normalMarker = Normal.x < -0.98 && Normal.y < -0.98 && alphaMarker;
 
     if (normalMarker) {
+        vec3 basePos = pos;
         float bend = decodeUnit(Normal.z);
         bend = smoothCurve(bend);
         float swayStrength = windSwayStrengthForAlpha(Color.a);
@@ -170,27 +171,32 @@ void main() {
         vec2 crossDir = vec2(-windDir.y, windDir.x);
         float along = dot(pos.xz, windDir);
         float across = dot(pos.xz, crossDir);
-        float broad = sin(along * 0.35 - t * 1.28 + sin(across * 0.075 + t * 0.18) * 1.35);
+        float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
+                + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
+        float tempoDrift = 1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09) * 0.08;
+        float amplitudeDrift = 0.84 + 0.22 * smoothCurve(sin(along * 0.21 + across * 0.14 - t * 0.16) * 0.5 + 0.5);
+        float broad = sin(along * 0.35 - t * 1.28 * tempoDrift + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift);
         float wave = pow(max(0.0, broad), 1.7);
-        float ripple = sin(along * 1.08 - t * 3.6 + across * 0.18) * 0.5 + 0.5;
-        float gust = smoothCurve(sin(along * 0.10 - t * 0.42 + across * 0.04) * 0.5 + 0.5);
+        float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7) * 0.5 + 0.5;
+        float gust = smoothCurve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35) * 0.5 + 0.5);
         float fieldWarp = sin(along * 0.075 + across * 0.115 + t * 0.21) * 0.75
                 + sin(along * 0.16 - across * 0.085 - t * 0.13) * 0.36;
-        float wavePhase = along * 0.34 - t * 1.52 + sin(across * 0.055 + t * 0.22) * 1.1 + fieldWarp;
+        float wavePhase = along * 0.34 - t * 1.52 * tempoDrift + sin(across * 0.055 + t * 0.22) * 1.1 + fieldWarp + phaseDrift * 0.55;
         float waveFace = sin(wavePhase) * 0.5 + 0.5;
         float leadingCrest = smoothCurve(smoothstep(0.46, 0.86, waveFace));
         float trailingWash = pow(max(0.0, sin(wavePhase - 0.62)), 2.6) * 0.35;
-        float patchBreakup = 0.58 + 0.42 * smoothCurve(sin(along * 0.23 + across * 0.31 - t * 0.34) * 0.5 + 0.5);
-        float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47);
+        float patchBreakup = 0.58 + 0.42 * smoothCurve(sin(along * 0.23 + across * 0.31 - t * 0.34 + phaseDrift * 0.45) * 0.5 + 0.5);
+        float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47 + phaseDrift * 0.5);
         float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
         float tipLift = smoothCurve(bend);
         windSheen = clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * sheenStrength, 0.0, 0.35);
-        float shimmer = sin(pos.x * 2.17 + pos.z * 1.63 + t * 2.1) * 0.012;
-        float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * swayStrength;
-        float directionNoise = sin(across * 0.22 + t * 0.55) * 0.18;
+        float shimmer = sin(pos.x * 2.17 + pos.z * 1.63 + t * 2.1 + phaseDrift) * 0.012;
+        float strength = (0.018 + wave * 0.145 * amplitudeDrift + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * swayStrength;
+        float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35) * 0.18;
         vec2 dir = normalize(windDir + crossDir * directionNoise);
         pos.xz += dir * strength;
-        pos = applyFoliageInteractors(pos, bend, Color.a);
+        vec3 interactedPos = applyFoliageInteractors(basePos, bend, Color.a);
+        pos.xz += interactedPos.xz - basePos.xz;
     }
 
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);

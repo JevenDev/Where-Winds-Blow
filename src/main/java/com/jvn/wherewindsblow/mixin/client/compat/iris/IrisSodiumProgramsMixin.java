@@ -153,20 +153,26 @@ public abstract class IrisSodiumProgramsMixin {
                 float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
                 float weatherStrength = 1.0 + u_WwbWeatherWindPower * 0.55;
                 float t = u_WwbTime;
+                vec3 basePosition = position;
                 vec2 windDir = normalize(vec2(0.82, 0.57));
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
                 float along = dot(position.xz, windDir);
                 float across = dot(position.xz, crossDir);
-                float broad = sin(along * 0.35 - t * 1.28 + sin(across * 0.075 + t * 0.18) * 1.35);
+                float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
+                        + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
+                float tempoDrift = 1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09) * 0.08;
+                float amplitudeDrift = 0.84 + 0.22 * wwb_smooth_curve(sin(along * 0.21 + across * 0.14 - t * 0.16) * 0.5 + 0.5);
+                float broad = sin(along * 0.35 - t * 1.28 * tempoDrift + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift);
                 float wave = pow(max(0.0, broad), 1.7);
-                float ripple = sin(along * 1.08 - t * 3.6 + across * 0.18) * 0.5 + 0.5;
-                float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 + across * 0.04) * 0.5 + 0.5);
-                float shimmer = sin(position.x * 2.17 + position.z * 1.63 + t * 2.1) * 0.012;
-                float strength = (0.018 + wave * 0.145 + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * wwb_sway_strength_for_alpha(alpha);
-                float directionNoise = sin(across * 0.22 + t * 0.55) * 0.18;
+                float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7) * 0.5 + 0.5;
+                float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35) * 0.5 + 0.5);
+                float shimmer = sin(position.x * 2.17 + position.z * 1.63 + t * 2.1 + phaseDrift) * 0.012;
+                float strength = (0.018 + wave * 0.145 * amplitudeDrift + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * wwb_sway_strength_for_alpha(alpha);
+                float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35) * 0.18;
                 vec2 dir = normalize(windDir + crossDir * directionNoise);
                 position.xz += dir * strength;
-                position = wwb_apply_foliage_interactors(position, bend, alpha);
+                vec3 interactedPosition = wwb_apply_foliage_interactors(basePosition, bend, alpha);
+                position.xz += interactedPosition.xz - basePosition.xz;
                 return position;
             }
             """;
