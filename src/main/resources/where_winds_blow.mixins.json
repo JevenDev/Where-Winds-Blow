@@ -4,6 +4,7 @@
   "plugin": "com.jvn.wherewindsblow.mixin.WhereWindsBlowMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "client.CampfireSmokeParticleMixin",
     "client.GameRendererMixin",
     "client.compat.sodium.SodiumShaderLoaderMixin",
     "client.compat.sodium.SodiumShaderChunkRendererMixin",

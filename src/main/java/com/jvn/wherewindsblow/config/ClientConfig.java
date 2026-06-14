@@ -3,6 +3,23 @@ package com.jvn.wherewindsblow.config;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 public final class ClientConfig {
+    public static final double FOLIAGE_INTERACTIVITY_STRENGTH_MIN = 0.0D;
+    public static final double FOLIAGE_INTERACTIVITY_STRENGTH_MAX = 2.0D;
+    public static final double WIND_SHEEN_STRENGTH_MIN = 0.0D;
+    public static final double WIND_SHEEN_STRENGTH_MAX = 2.0D;
+    public static final double WIND_STREAK_VISIBILITY_MIN = 0.0D;
+    public static final double WIND_STREAK_VISIBILITY_MAX = 4.0D;
+    public static final double WIND_STREAK_OPACITY_MIN = 0.0D;
+    public static final double WIND_STREAK_OPACITY_MAX = 1.0D;
+    public static final double WIND_STREAK_THICKNESS_MIN = 1.0D;
+    public static final double WIND_STREAK_THICKNESS_MAX = 4.0D;
+    public static final double WIND_SMOKE_STRENGTH_MIN = 0.0D;
+    public static final double WIND_SMOKE_STRENGTH_MAX = 4.0D;
+    public static final double WIND_FOLIAGE_SWAY_STRENGTH_MIN = 0.0D;
+    public static final double WIND_FOLIAGE_SWAY_STRENGTH_MAX = 2.0D;
+    public static final double WIND_PLANT_SWAY_START_HEIGHT_MIN = 0.0D;
+    public static final double WIND_PLANT_SWAY_START_HEIGHT_MAX = 1.0D;
+
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
     public static final ModConfigSpec.BooleanValue ENABLE_FOLIAGE_INTERACTIVITY = BUILDER
@@ -11,7 +28,7 @@ public final class ClientConfig {
 
     public static final ModConfigSpec.DoubleValue FOLIAGE_INTERACTIVITY_STRENGTH = BUILDER
             .comment("Scales how strongly foliage reacts to nearby entities.")
-            .defineInRange("foliageInteractivityStrength", 1.0D, 0.0D, 2.0D);
+            .defineInRange("foliageInteractivityStrength", 1.0D, FOLIAGE_INTERACTIVITY_STRENGTH_MIN, FOLIAGE_INTERACTIVITY_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_AUTODETECTED_FOLIAGE_MODELS = BUILDER
             .comment("Allows Where Winds Blow to animate compatible plant-like models from Minecraft and other mods.")
@@ -27,7 +44,7 @@ public final class ClientConfig {
 
     public static final ModConfigSpec.DoubleValue WIND_SHEEN_STRENGTH = BUILDER
             .comment("Scales the visible intensity of wind sheen highlights.")
-            .defineInRange("windSheenStrength", 1.0D, 0.0D, 2.0D);
+            .defineInRange("windSheenStrength", 1.0D, WIND_SHEEN_STRENGTH_MIN, WIND_SHEEN_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_STREAKS = BUILDER
             .comment("Enables subtle Wind Waker-inspired wind streaks in the air.")
@@ -35,15 +52,23 @@ public final class ClientConfig {
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_VISIBILITY = BUILDER
             .comment("Scales wind streak density.")
-            .defineInRange("windStreakVisibility", 1.0D, 0.0D, 4.0D);
+            .defineInRange("windStreakVisibility", 1.0D, WIND_STREAK_VISIBILITY_MIN, WIND_STREAK_VISIBILITY_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_OPACITY = BUILDER
             .comment("Scales wind streak opacity.")
-            .defineInRange("windStreakOpacity", 0.9D, 0.0D, 1.0D);
+            .defineInRange("windStreakOpacity", 0.9D, WIND_STREAK_OPACITY_MIN, WIND_STREAK_OPACITY_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_THICKNESS = BUILDER
             .comment("Sets wind streak line thickness in pixels.")
-            .defineInRange("windStreakThickness", 2.0D, 1.0D, 4.0D);
+            .defineInRange("windStreakThickness", 2.0D, WIND_STREAK_THICKNESS_MIN, WIND_STREAK_THICKNESS_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_SMOKE = BUILDER
+            .comment("Lets campfire smoke naturally drift and curl with the wind.")
+            .define("enableWindSmoke", true);
+
+    public static final ModConfigSpec.DoubleValue WIND_SMOKE_STRENGTH = BUILDER
+            .comment("Scales how strongly campfire smoke follows the wind.")
+            .defineInRange("windSmokeStrength", 3.0D, WIND_SMOKE_STRENGTH_MIN, WIND_SMOKE_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue FORCE_WWB_WIND_WITH_SHADER_PACKS = BUILDER
             .comment("Keeps Where Winds Blow wind sway and sheen active even while an Iris shader pack is in use.")
@@ -67,11 +92,11 @@ public final class ClientConfig {
 
     public static final ModConfigSpec.DoubleValue WIND_FOLIAGE_SWAY_STRENGTH = BUILDER
             .comment("Scales the strength of wind-driven foliage sway.")
-            .defineInRange("windFoliageSwayStrength", 1.0D, 0.0D, 2.0D);
+            .defineInRange("windFoliageSwayStrength", 1.0D, WIND_FOLIAGE_SWAY_STRENGTH_MIN, WIND_FOLIAGE_SWAY_STRENGTH_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_PLANT_SWAY_START_HEIGHT = BUILDER
             .comment("Sets how far above the bottom of plant-like foliage wind sway starts, in block units.")
-            .defineInRange("windPlantSwayStartHeight", 0.08D, 0.0D, 1.0D);
+            .defineInRange("windPlantSwayStartHeight", 0.6D, WIND_PLANT_SWAY_START_HEIGHT_MIN, WIND_PLANT_SWAY_START_HEIGHT_MAX);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 

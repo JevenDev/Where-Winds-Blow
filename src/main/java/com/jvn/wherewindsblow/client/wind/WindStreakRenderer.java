@@ -723,8 +723,8 @@ public final class WindStreakRenderer {
             float brushPosition,
             float alpha
     ) {
-        Point start = pointOnBody(level, streak, baseX, baseY, baseZ, t0, windTime);
-        Point end = pointOnBody(level, streak, baseX, baseY, baseZ, t1, windTime);
+        Point start = pointOnBody(streak, baseX, baseY, baseZ, t0, windTime);
+        Point end = pointOnBody(streak, baseX, baseY, baseZ, t1, windTime);
         if ((!streak.fadingOut && (!isOpenSkyAir(level, start.x(), start.y(), start.z())
                 || !isOpenSkyAir(level, end.x(), end.y(), end.z())))
                 || lineHitsCollision(level, start, end)) {
@@ -736,7 +736,7 @@ public final class WindStreakRenderer {
         emitLine(consumer, pose, cameraPos, start, end, alpha * taper0, alpha * taper1);
     }
 
-    private static Point pointOnBody(ClientLevel level, WindStreak streak, double baseX, double baseY, double baseZ, float t, float windTime) {
+    private static Point pointOnBody(WindStreak streak, double baseX, double baseY, double baseZ, float t, float windTime) {
         double along = t * streak.length;
         double flow = streak.seed;
         double pathEnvelope = Math.sin(t * Math.PI);
@@ -750,7 +750,7 @@ public final class WindStreakRenderer {
         double x = baseX + WIND_X * along + CROSS_X * crossOffset;
         double y = baseY + pathEnvelope * streak.lift + sCurve * 0.08D;
         double z = baseZ + WIND_Z * along + CROSS_Z * crossOffset;
-        return keepAboveTerrainAndCollision(level, x, y, z, STREAK_TERRAIN_CLEARANCE);
+        return new Point(x, y, z);
     }
 
     private static float motionTaper(WindStreak streak, float t, float windTime, float brushPosition) {
@@ -768,10 +768,10 @@ public final class WindStreakRenderer {
     }
 
     private static boolean streakBodyHitsCollision(ClientLevel level, WindStreak streak, double baseX, double baseY, double baseZ, float windTime) {
-        Point previous = pointOnBody(level, streak, baseX, baseY, baseZ, 0.0F, windTime);
+        Point previous = pointOnBody(streak, baseX, baseY, baseZ, 0.0F, windTime);
         for (int segment = 1; segment <= BODY_SEGMENTS; segment++) {
             float t = (float) segment / (float) BODY_SEGMENTS;
-            Point next = pointOnBody(level, streak, baseX, baseY, baseZ, t, windTime);
+            Point next = pointOnBody(streak, baseX, baseY, baseZ, t, windTime);
             if (!isOpenSkyAir(level, next.x(), next.y(), next.z()) || lineHitsCollision(level, previous, next)) {
                 return true;
             }
