@@ -19,8 +19,10 @@ import org.jetbrains.annotations.Nullable;
 final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final float INTERACTION_BASE_THRESHOLD = 0.08F;
     private static final float MIN_PLANT_SWAY_HEIGHT_RANGE = 0.001F;
-    private static final int PLANT_WIND_ALPHA_MIN = 17;
-    private static final int PLANT_WIND_ALPHA_MAX = 44;
+    private static final int PLANT_ALPHA_MIN = 17;
+    private static final int PLANT_ALPHA_MAX = 44;
+    private static final int PLANT_WIND_ALPHA_LEVELS = 7;
+    private static final int PLANT_INTERACTION_ALPHA_LEVELS = 4;
     private static final int LEAF_WIND_ALPHA_MIN = 45;
     private static final int LEAF_WIND_ALPHA_MAX = 72;
     private static final float LEAF_BEND_MIN = 0.10F;
@@ -85,16 +87,14 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             int offset = vertex * stride;
             float y = Float.intBitsToFloat(vertices[offset + 1]);
             float columnY = segment.offset() + y;
-            float baseThreshold = segment.offset() == 0 ? Math.min(swayStartHeight, INTERACTION_BASE_THRESHOLD) : 0.0F;
-            if (columnY <= baseThreshold) {
-                continue;
-            }
-
             float columnHeight = segment.height();
             float windWeight = plantSwayWeight(columnY, columnHeight, swayStartHeight);
             float interactionWeight = plantBendWeight(columnY, columnHeight, INTERACTION_BASE_THRESHOLD);
-            vertices[offset + 3] = packWindAlpha(vertices[offset + 3], ResponsiveFoliageType.PLANT, windWeight);
-            vertices[offset + 7] = packWindData(interactionWeight);
+            if (windWeight <= 0.0F && interactionWeight <= 0.0F) {
+                continue;
+            }
+
+            vertices[offset + 3] = packPlantAlpha(vertices[offset + 3], windWeight, interactionWeight);
         }
 
         return new BakedQuad(
@@ -116,8 +116,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             float y = Float.intBitsToFloat(vertices[offset + 1]);
             float z = Float.intBitsToFloat(vertices[offset + 2]);
             float bendWeight = leafBendWeight(x, y, z);
-            vertices[offset + 3] = packWindAlpha(vertices[offset + 3], ResponsiveFoliageType.LEAF, bendWeight);
-            vertices[offset + 7] = packWindData(bendWeight);
+            vertices[offset + 3] = packLeafWindAlpha(vertices[offset + 3], bendWeight);
         }
 
         return new BakedQuad(
@@ -149,20 +148,24 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return Mth.clamp(normalizedY - normalizedStart, 0.0F, 1.0F);
     }
 
-    private static int packWindData(float bendWeight) {
-        int encodedWeight = encodeUnit(bendWeight);
-        return (129 & 0xFF) | ((129 & 0xFF) << 8) | ((encodedWeight & 0xFF) << 16);
+    private static int packPlantAlpha(int color, float windWeight, float interactionWeight) {
+        int windLevel = encodeLevel(windWeight, PLANT_WIND_ALPHA_LEVELS);
+        int interactionLevel = encodeLevel(interactionWeight, PLANT_INTERACTION_ALPHA_LEVELS);
+        int alpha = PLANT_ALPHA_MIN + interactionLevel * PLANT_WIND_ALPHA_LEVELS + windLevel;
+        return (color & 0x00FFFFFF) | (Mth.clamp(alpha, PLANT_ALPHA_MIN, PLANT_ALPHA_MAX) << 24);
     }
 
-    private static int packWindAlpha(int color, ResponsiveFoliageType foliageType, float bendWeight) {
-        int minAlpha = foliageType == ResponsiveFoliageType.LEAF ? LEAF_WIND_ALPHA_MIN : PLANT_WIND_ALPHA_MIN;
-        int maxAlpha = foliageType == ResponsiveFoliageType.LEAF ? LEAF_WIND_ALPHA_MAX : PLANT_WIND_ALPHA_MAX;
-        int alpha = Mth.clamp(Math.round(minAlpha + Mth.clamp(bendWeight, 0.0F, 1.0F) * (maxAlpha - minAlpha)), minAlpha, maxAlpha);
+    private static int packLeafWindAlpha(int color, float bendWeight) {
+        int alpha = Mth.clamp(
+                Math.round(LEAF_WIND_ALPHA_MIN + Mth.clamp(bendWeight, 0.0F, 1.0F) * (LEAF_WIND_ALPHA_MAX - LEAF_WIND_ALPHA_MIN)),
+                LEAF_WIND_ALPHA_MIN,
+                LEAF_WIND_ALPHA_MAX
+        );
         return (color & 0x00FFFFFF) | (alpha << 24);
     }
 
-    private static int encodeUnit(float value) {
-        return Mth.clamp(Math.round(Mth.clamp(value, 0.0F, 1.0F) * 254.0F - 127.0F), -127, 127);
+    private static int encodeLevel(float value, int levels) {
+        return Mth.clamp(Math.round(Mth.clamp(value, 0.0F, 1.0F) * (levels - 1)), 0, levels - 1);
     }
 
     private static float plantSwayStartHeight() {

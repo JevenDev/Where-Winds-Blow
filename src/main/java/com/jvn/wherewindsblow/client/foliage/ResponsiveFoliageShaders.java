@@ -6,11 +6,9 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.List;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.util.Mth;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.fml.loading.LoadingModList;
@@ -84,12 +82,12 @@ public final class ResponsiveFoliageShaders {
                 && !sodiumShaderPatchDisabled;
     }
 
-    public static void setFoliageInteractors(List<Entity> entities, FoliageInteractorWriter writer) {
-        int count = Math.min(entities.size(), MAX_FOLIAGE_INTERACTORS);
+    public static void setFoliageInteractors(int interactorCount, FoliageInteractorWriter writer) {
+        int count = Math.min(interactorCount, MAX_FOLIAGE_INTERACTORS);
         Arrays.fill(foliageInteractors, 0.0F);
         Arrays.fill(foliageInteractorStrengths, 0.0F);
         for (int index = 0; index < count; index++) {
-            writer.write(entities.get(index), foliageInteractors, foliageInteractorStrengths, index);
+            writer.write(foliageInteractors, foliageInteractorStrengths, index);
         }
 
         foliageInteractorCount = count;
@@ -363,6 +361,6 @@ public final class ResponsiveFoliageShaders {
 
     @FunctionalInterface
     public interface FoliageInteractorWriter {
-        void write(Entity entity, float[] interactors, float[] strengths, int index);
+        void write(float[] interactors, float[] strengths, int index);
     }
 }

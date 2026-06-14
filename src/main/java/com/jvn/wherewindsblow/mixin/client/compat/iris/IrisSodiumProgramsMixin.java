@@ -61,6 +61,18 @@ public abstract class IrisSodiumProgramsMixin {
                 return wwb_is_plant_wind_vertex(alpha) || wwb_is_leaf_wind_vertex(alpha);
             }
 
+            float wwb_plant_alpha_code(float alpha) {
+                return clamp(floor(alpha * 255.0 + 0.5) - 17.0, 0.0, 27.0);
+            }
+
+            float wwb_decode_plant_wind_alpha(float alpha) {
+                return mod(wwb_plant_alpha_code(alpha), 7.0) / 6.0;
+            }
+
+            float wwb_decode_plant_interaction_alpha(float alpha) {
+                return floor(wwb_plant_alpha_code(alpha) / 7.0) / 3.0;
+            }
+
             bool wwb_has_foliage_material() {
                 return ((_material_params >> 1u) & 3u) != 0u;
             }
@@ -79,7 +91,7 @@ public abstract class IrisSodiumProgramsMixin {
                     return clamp((encoded - 45.0) / 27.0, 0.0, 1.0);
                 }
 
-                return clamp((encoded - 17.0) / 27.0, 0.0, 1.0);
+                return wwb_decode_plant_wind_alpha(alpha);
             }
             float wwb_sway_strength_for_alpha(float alpha) {
                 return wwb_is_leaf_wind_vertex(alpha) ? u_WwbLeafSwayStrength : u_WwbPlantSwayStrength;
@@ -108,8 +120,8 @@ public abstract class IrisSodiumProgramsMixin {
                 if (index < 12) return u_WwbInteractorStrengths2[index - 8];
                 return u_WwbInteractorStrengths3[index - 12];
             }
-            vec3 wwb_apply_foliage_interactors(vec3 position, float bend, float alpha) {
-                if (!wwb_is_plant_wind_vertex(alpha) || u_WwbInteractorCount <= 0) {
+            vec3 wwb_apply_foliage_interactors(vec3 position, vec2 anchor, float bend) {
+                if (u_WwbInteractorCount <= 0 || bend <= 0.0) {
                     return position;
                 }
 
@@ -125,7 +137,7 @@ public abstract class IrisSodiumProgramsMixin {
                     }
 
                     float radius = max(interactor.w, 0.001);
-                    vec2 delta = position.xz - interactor.xz;
+                    vec2 delta = anchor - interactor.xz;
                     float horizontalDistance = length(delta);
                     float horizontalInfluence = wwb_smooth_curve(1.0 - horizontalDistance / radius);
                     if (horizontalInfluence <= 0.0) {
@@ -133,8 +145,7 @@ public abstract class IrisSodiumProgramsMixin {
                     }
 
                     vec2 direction = horizontalDistance > 0.001 ? delta / horizontalDistance : vec2(1.0, 0.0);
-                    float strength = horizontalInfluence * wwb_foliage_interactor_strength_at(index);
-                    totalOffset += direction * strength;
+                    totalOffset += direction * horizontalInfluence * wwb_foliage_interactor_strength_at(index);
                 }
 
                 float offsetLength = length(totalOffset);
@@ -145,6 +156,16 @@ public abstract class IrisSodiumProgramsMixin {
                 position.xz += totalOffset * bend * 0.34;
                 return position;
             }
+            vec3 wwb_apply_foliage_interaction(vec3 currentPosition, vec3 basePosition, vec2 anchor, float alpha) {
+                if (!wwb_has_foliage_material() || !wwb_is_plant_wind_vertex(alpha)) {
+                    return currentPosition;
+                }
+
+                float bend = wwb_smooth_curve(wwb_decode_plant_interaction_alpha(alpha));
+                vec3 interactedPosition = wwb_apply_foliage_interactors(basePosition, anchor, bend);
+                currentPosition.xz += interactedPosition.xz - basePosition.xz;
+                return currentPosition;
+            }
             float wwb_grass_variation_seed(vec2 cell, vec2 salt) {
                 return fract(sin(dot(cell, salt)) * 43758.5453);
             }
@@ -154,10 +175,8 @@ public abstract class IrisSodiumProgramsMixin {
                 }
 
                 float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
-                float interactionBend = wwb_is_plant_wind_vertex(alpha) ? max(bend, 0.35) : bend;
                 float weatherStrength = 1.0 + u_WwbWeatherWindPower * 0.55;
                 float t = u_WwbTime;
-                vec3 basePosition = position;
                 vec2 windDir = normalize(vec2(0.82, 0.57));
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
                 float along = dot(position.xz, windDir);
@@ -184,19 +203,21 @@ public abstract class IrisSodiumProgramsMixin {
                 float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase) * (0.18 + plantWind * 0.08);
                 vec2 dir = normalize(windDir + crossDir * directionNoise);
                 position.xz += dir * strength;
-                vec3 interactedPosition = wwb_apply_foliage_interactors(basePosition, interactionBend, alpha);
-                position.xz += interactedPosition.xz - basePosition.xz;
                 return position;
             }
             """;
 
     private static final String WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION_RETURN = """
                 vec3 wwbPosition = _vert_position + u_RegionOffset + _get_draw_translation(_draw_id);
-                float wwbWindAlpha = _vert_color.a;
-                if (wwb_should_apply_foliage_wind(wwbWindAlpha)) {
+                float wwbFoliageAlpha = _vert_color.a;
+                vec2 wwbPlantAnchor = floor(_vert_position.xz) + vec2(0.5) + u_RegionOffset.xz + _get_draw_translation(_draw_id).xz;
+                vec3 wwbFoliageBase = wwbPosition;
+                if (wwb_should_apply_foliage_wind(wwbFoliageAlpha)) {
                     _vert_color.a = 1.0;
                 }
-                return vec4(wwb_apply_foliage_wind(wwbPosition, wwbWindAlpha), 1.0);""";
+                wwbPosition = wwb_apply_foliage_wind(wwbPosition, wwbFoliageAlpha);
+                wwbPosition = wwb_apply_foliage_interaction(wwbPosition, wwbFoliageBase, wwbPlantAnchor, wwbFoliageAlpha);
+                return vec4(wwbPosition, 1.0);""";
 
     @Inject(method = "transformShaders", at = @At("RETURN"), require = 0)
     private void wherewindsblow$patchIrisSodiumTerrainWind(CallbackInfoReturnable<Map<Object, String>> cir) {
