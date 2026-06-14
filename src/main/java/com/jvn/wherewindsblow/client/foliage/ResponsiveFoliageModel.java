@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.foliage;
 
+import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.renderer.RenderType;
@@ -16,7 +17,8 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 import org.jetbrains.annotations.Nullable;
 
 final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
-    private static final float BASE_THRESHOLD = 0.08F;
+    private static final float INTERACTION_BASE_THRESHOLD = 0.08F;
+    private static final float MIN_PLANT_SWAY_HEIGHT_RANGE = 0.001F;
     private static final int PLANT_WIND_ALPHA_MIN = 17;
     private static final int PLANT_WIND_ALPHA_MAX = 44;
     private static final int LEAF_WIND_ALPHA_MIN = 45;
@@ -78,19 +80,21 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static BakedQuad transformPlantQuad(BakedQuad quad, FoliageModelData.ColumnSegment segment) {
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
+        float swayStartHeight = plantSwayStartHeight();
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * stride;
             float y = Float.intBitsToFloat(vertices[offset + 1]);
             float columnY = segment.offset() + y;
-            float baseThreshold = segment.offset() == 0 ? BASE_THRESHOLD : 0.0F;
+            float baseThreshold = segment.offset() == 0 ? Math.min(swayStartHeight, INTERACTION_BASE_THRESHOLD) : 0.0F;
             if (columnY <= baseThreshold) {
                 continue;
             }
 
             float columnHeight = segment.height();
-            float rawWeight = Mth.clamp((columnY - BASE_THRESHOLD) / (columnHeight - BASE_THRESHOLD), 0.0F, 1.0F);
-            vertices[offset + 3] = packWindAlpha(vertices[offset + 3], ResponsiveFoliageType.PLANT, rawWeight);
-            vertices[offset + 7] = packWindData(rawWeight);
+            float windWeight = plantSwayWeight(columnY, columnHeight, swayStartHeight);
+            float interactionWeight = plantBendWeight(columnY, columnHeight, INTERACTION_BASE_THRESHOLD);
+            vertices[offset + 3] = packWindAlpha(vertices[offset + 3], ResponsiveFoliageType.PLANT, windWeight);
+            vertices[offset + 7] = packWindData(interactionWeight);
         }
 
         return new BakedQuad(
@@ -134,6 +138,17 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return Mth.clamp(0.12F + localY * 0.12F + edgeWeight * 0.10F, LEAF_BEND_MIN, LEAF_BEND_MAX);
     }
 
+    private static float plantBendWeight(float columnY, float columnHeight, float startHeight) {
+        float bendHeightRange = Math.max(columnHeight - startHeight, MIN_PLANT_SWAY_HEIGHT_RANGE);
+        return Mth.clamp((columnY - startHeight) / bendHeightRange, 0.0F, 1.0F);
+    }
+
+    private static float plantSwayWeight(float columnY, float columnHeight, float startHeight) {
+        float normalizedStart = Mth.clamp(startHeight / Math.max(columnHeight, MIN_PLANT_SWAY_HEIGHT_RANGE), 0.0F, 1.0F);
+        float normalizedY = Mth.clamp(columnY / Math.max(columnHeight, MIN_PLANT_SWAY_HEIGHT_RANGE), 0.0F, 1.0F);
+        return Mth.clamp(normalizedY - normalizedStart, 0.0F, 1.0F);
+    }
+
     private static int packWindData(float bendWeight) {
         int encodedWeight = encodeUnit(bendWeight);
         return (129 & 0xFF) | ((129 & 0xFF) << 8) | ((encodedWeight & 0xFF) << 16);
@@ -148,6 +163,10 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
 
     private static int encodeUnit(float value) {
         return Mth.clamp(Math.round(Mth.clamp(value, 0.0F, 1.0F) * 254.0F - 127.0F), -127, 127);
+    }
+
+    private static float plantSwayStartHeight() {
+        return Mth.clamp((float) ClientConfig.WIND_PLANT_SWAY_START_HEIGHT.getAsDouble(), 0.0F, 1.0F);
     }
 
     private boolean isResponsiveState(@Nullable BlockState state) {

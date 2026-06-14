@@ -1,11 +1,13 @@
 package com.jvn.wherewindsblow.client;
 
 import com.jvn.wherewindsblow.config.ClientConfig;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
 public class WhereWindsBlowRenderingConfigScreen extends Screen {
     private final Screen lastScreen;
@@ -44,6 +46,8 @@ public class WhereWindsBlowRenderingConfigScreen extends Screen {
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_FOLIAGE_SWAY, ClientConfig.SPEC));
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(right, y, 150, "windFoliageSwayStrength", ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH::getAsDouble, value -> WhereWindsBlowConfigWidgets.set(ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH, value), 0.0D, 2.0D));
         y += rowSpacing;
+        this.addRenderableWidget(WhereWindsBlowConfigWidgets.slider(left, y, 150, "windPlantSwayStartHeight", ClientConfig.WIND_PLANT_SWAY_START_HEIGHT::getAsDouble, value -> setAndRebuildFoliage(ClientConfig.WIND_PLANT_SWAY_START_HEIGHT, value), 0.0D, 1.0D));
+        y += rowSpacing;
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(left, y, ClientConfig.ENABLE_WIND_PLANT_SWAY, ClientConfig.SPEC));
         this.addRenderableWidget(WhereWindsBlowConfigWidgets.booleanButton(right, y, ClientConfig.ENABLE_WIND_LEAF_SWAY, ClientConfig.SPEC));
 
@@ -62,5 +66,13 @@ public class WhereWindsBlowRenderingConfigScreen extends Screen {
     @Override
     public void onClose() {
         this.minecraft.setScreen(this.lastScreen);
+    }
+
+    private static void setAndRebuildFoliage(ModConfigSpec.DoubleValue configValue, double value) {
+        WhereWindsBlowConfigWidgets.set(configValue, value);
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null) {
+            minecraft.levelRenderer.allChanged();
+        }
     }
 }

@@ -188,6 +188,7 @@ public final class SodiumFoliageShaderSource {
                 }
 
                 float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
+                float interactionBend = wwb_is_plant_wind_vertex(alpha) ? max(bend, 0.35) : bend;
                 float weatherStrength = 1.0 + u_WwbWeatherWindPower * 0.55;
                 float t = u_WwbTime;
                 vec3 basePosition = position;
@@ -208,7 +209,7 @@ public final class SodiumFoliageShaderSource {
                 float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35) * 0.18;
                 vec2 dir = normalize(windDir + crossDir * directionNoise);
                 position.xz += dir * strength;
-                vec3 interactedPosition = wwb_apply_foliage_interactors(basePosition, bend, alpha);
+                vec3 interactedPosition = wwb_apply_foliage_interactors(basePosition, interactionBend, alpha);
                 position.xz += interactedPosition.xz - basePosition.xz;
                 return position;
             }

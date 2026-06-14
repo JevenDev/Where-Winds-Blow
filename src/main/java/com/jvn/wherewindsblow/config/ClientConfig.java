@@ -69,6 +69,10 @@ public final class ClientConfig {
             .comment("Scales the strength of wind-driven foliage sway.")
             .defineInRange("windFoliageSwayStrength", 1.0D, 0.0D, 2.0D);
 
+    public static final ModConfigSpec.DoubleValue WIND_PLANT_SWAY_START_HEIGHT = BUILDER
+            .comment("Sets how far above the bottom of plant-like foliage wind sway starts, in block units.")
+            .defineInRange("windPlantSwayStartHeight", 0.08D, 0.0D, 1.0D);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private ClientConfig() {

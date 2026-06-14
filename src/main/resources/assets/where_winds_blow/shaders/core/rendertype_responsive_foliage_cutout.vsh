@@ -161,8 +161,8 @@ void main() {
 
     if (normalMarker) {
         vec3 basePos = pos;
-        float bend = decodeUnit(Normal.z);
-        bend = smoothCurve(bend);
+        float windBend = smoothCurve(decodeWindAlpha(Color.a));
+        float interactionBend = smoothCurve(decodeUnit(Normal.z));
         float swayStrength = windSwayStrengthForAlpha(Color.a);
         float sheenStrength = windSheenStrengthForAlpha(Color.a);
         float weatherStrength = 1.0 + WeatherWindPower * 0.55;
@@ -188,14 +188,14 @@ void main() {
         float patchBreakup = 0.58 + 0.42 * smoothCurve(sin(along * 0.23 + across * 0.31 - t * 0.34 + phaseDrift * 0.45) * 0.5 + 0.5);
         float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47 + phaseDrift * 0.5);
         float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
-        float tipLift = smoothCurve(bend);
+        float tipLift = smoothCurve(windBend);
         windSheen = clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * sheenStrength, 0.0, 0.35);
         float shimmer = sin(pos.x * 2.17 + pos.z * 1.63 + t * 2.1 + phaseDrift) * 0.012;
-        float strength = (0.018 + wave * 0.145 * amplitudeDrift + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * swayStrength;
+        float strength = (0.018 + wave * 0.145 * amplitudeDrift + ripple * gust * 0.055 + shimmer) * windBend * weatherStrength * swayStrength;
         float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35) * 0.18;
         vec2 dir = normalize(windDir + crossDir * directionNoise);
         pos.xz += dir * strength;
-        vec3 interactedPos = applyFoliageInteractors(basePos, bend, Color.a);
+        vec3 interactedPos = applyFoliageInteractors(basePos, interactionBend, Color.a);
         pos.xz += interactedPos.xz - basePos.xz;
     }
 
