@@ -59,6 +59,8 @@ public final class WindStreakRenderer {
     private static final double MAX_TERRAIN_SIDE_FLOW = 0.18D;
     private static final int SPAWN_ATTEMPTS = 12;
     private static final int FADE_OUT_TICKS = 18;
+    private static final int MIN_OPEN_SKY_LIGHT = 14;
+    private static final double SURFACE_TOLERANCE = 0.08D;
     private static final int RED = 232;
     private static final int GREEN = 246;
     private static final int BLUE = 255;
@@ -205,9 +207,9 @@ public final class WindStreakRenderer {
     }
 
     private static boolean shouldRenderAround(ClientLevel level, LocalPlayer player) {
-        return !player.isUnderWater()
-                && level.getBrightness(LightLayer.SKY, player.blockPosition()) > 0
-                && hasSkyAccess(level, player.getX(), player.getEyeY(), player.getZ());
+        return level.dimensionType().hasSkyLight()
+                && !player.isUnderWater()
+                && isValidWindSpace(level, player.getX(), player.getEyeY(), player.getZ(), 0.0D);
     }
 
     private static int desiredStreakCount() {
@@ -312,46 +314,53 @@ public final class WindStreakRenderer {
 
     private static void spawn(WindStreak streak, LocalPlayer player, ClientLevel level, float weatherWindPower, boolean scatterAge) {
         double weatherBoost = weatherBoost(weatherWindPower);
-        Point spawn = randomOpenAirPosition(
-                player,
-                level,
-                -27.0D,
-                19.0D,
-                -29.0D,
-                29.0D,
-                -1.8D,
-                8.6D,
-                0.35D,
-                2.2D,
-                STREAK_TERRAIN_CLEARANCE,
-                0.1D,
-                1.8D
-        );
-        if (spawn == null) {
-            streak.active = false;
-            return;
+        for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
+            Point spawn = randomOpenAirPosition(
+                    player,
+                    level,
+                    -27.0D,
+                    19.0D,
+                    -29.0D,
+                    29.0D,
+                    -1.8D,
+                    8.6D,
+                    0.35D,
+                    2.2D,
+                    STREAK_TERRAIN_CLEARANCE,
+                    0.1D,
+                    1.8D
+            );
+            if (spawn == null) {
+                break;
+            }
+
+            streak.x = spawn.x();
+            streak.y = spawn.y();
+            streak.z = spawn.z();
+            streak.xOld = streak.x;
+            streak.yOld = streak.y;
+            streak.zOld = streak.z;
+            streak.length = randomBetween(6.2D, 12.4D) * (1.0D + weatherBoost * 0.36D);
+            streak.arc = randomBetween(-0.42D, 0.42D) * (1.0D + weatherBoost * 0.34D);
+            streak.lift = randomBetween(0.04D, 0.22D) * (1.0D + weatherBoost * 0.2D);
+            streak.speed = randomBetween(0.029D, 0.045D) * (1.0D + weatherBoost * 0.22D);
+            streak.curveStrength = randomBetween(0.08D, 0.44D) * (1.0D + weatherBoost * 0.12D);
+            streak.curvePhase = RANDOM.nextDouble() * Math.PI * 2.0D;
+            streak.curveFrequency = randomBetween(0.72D, 1.35D);
+            streak.curveSign = RANDOM.nextBoolean() ? 1.0D : -1.0D;
+            streak.seed = RANDOM.nextDouble() * Math.PI * 2.0D;
+            streak.lifetime = Math.max(38, Math.round((48 + RANDOM.nextInt(30)) / (float) (1.0D + weatherBoost * 0.18D)));
+            streak.age = scatterAge ? RANDOM.nextInt(Math.max(1, streak.lifetime / 2)) : 0;
+            streak.fadingOut = false;
+            streak.fadeOutAge = 0;
+            streak.active = true;
+            if (!streakBodyHitsCollision(level, streak, ResponsiveFoliageShaders.windTime())) {
+                return;
+            }
         }
 
-        streak.x = spawn.x();
-        streak.y = spawn.y();
-        streak.z = spawn.z();
-        streak.xOld = streak.x;
-        streak.yOld = streak.y;
-        streak.zOld = streak.z;
-        streak.length = randomBetween(6.2D, 12.4D) * (1.0D + weatherBoost * 0.36D);
-        streak.arc = randomBetween(-0.42D, 0.42D) * (1.0D + weatherBoost * 0.34D);
-        streak.lift = randomBetween(0.04D, 0.22D) * (1.0D + weatherBoost * 0.2D);
-        streak.speed = randomBetween(0.029D, 0.045D) * (1.0D + weatherBoost * 0.22D);
-        streak.curveStrength = randomBetween(0.08D, 0.44D) * (1.0D + weatherBoost * 0.12D);
-        streak.curvePhase = RANDOM.nextDouble() * Math.PI * 2.0D;
-        streak.curveFrequency = randomBetween(0.72D, 1.35D);
-        streak.curveSign = RANDOM.nextBoolean() ? 1.0D : -1.0D;
-        streak.seed = RANDOM.nextDouble() * Math.PI * 2.0D;
-        streak.lifetime = Math.max(38, Math.round((48 + RANDOM.nextInt(30)) / (float) (1.0D + weatherBoost * 0.18D)));
-        streak.age = scatterAge ? RANDOM.nextInt(Math.max(1, streak.lifetime / 2)) : 0;
+        streak.active = false;
         streak.fadingOut = false;
-        streak.fadeOutAge = 0;
-        streak.active = true;
     }
 
     private static void tick(WindLeaf leaf, LocalPlayer player, ClientLevel level, float weatherWindPower) {
@@ -568,8 +577,7 @@ public final class WindStreakRenderer {
                     terrainHeight(level, x, z) + terrainClearance + randomBetween(minTerrainExtraClearance, maxTerrainExtraClearance)
             );
             Point spawn = keepAboveTerrainAndCollision(level, x, y, z, terrainClearance);
-            if (hasSkyAccess(level, spawn.x(), spawn.y(), spawn.z())
-                    && !pointInsideCollision(level, spawn.x(), spawn.y(), spawn.z())) {
+            if (isValidWindSpace(level, spawn.x(), spawn.y(), spawn.z(), terrainClearance)) {
                 return spawn;
             }
         }
@@ -982,12 +990,25 @@ public final class WindStreakRenderer {
     private static boolean windPathBlocked(ClientLevel level, double x, double y, double z, Point destination) {
         Vec3 start = new Vec3(x, y, z);
         Vec3 end = new Vec3(destination.x(), destination.y(), destination.z());
-        return !isOpenSkyAir(level, destination.x(), destination.y(), destination.z())
+        return !isValidWindSpace(level, destination.x(), destination.y(), destination.z(), LEAF_TERRAIN_CLEARANCE)
                 || lineHitsCollision(level, start, end);
     }
 
     private static boolean isOpenSkyAir(ClientLevel level, double x, double y, double z) {
-        return hasSkyAccess(level, x, y, z) && !pointInsideCollision(level, x, y, z);
+        return isValidWindSpace(level, x, y, z, 0.0D);
+    }
+
+    private static boolean isValidWindSpace(ClientLevel level, double x, double y, double z, double terrainClearance) {
+        BlockPos pos = BlockPos.containing(x, y, z);
+        if (!level.hasChunkAt(pos)
+                || !level.getFluidState(pos).isEmpty()
+                || level.getBrightness(LightLayer.SKY, pos) < MIN_OPEN_SKY_LIGHT
+                || !hasSkyAccess(level, x, y, z)
+                || pointInsideCollision(level, x, y, z)) {
+            return false;
+        }
+
+        return y + SURFACE_TOLERANCE >= terrainHeight(level, x, z) + terrainClearance;
     }
 
     private static boolean lineHitsCollision(ClientLevel level, Point start, Point end) {
