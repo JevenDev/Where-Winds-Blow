@@ -29,6 +29,9 @@ bin/
 ### VS Code ###
 .vscode/
 
+### Local tooling ###
+.github/java-upgrade/
+
 ### Mac OS ###
 .DS_Store
 

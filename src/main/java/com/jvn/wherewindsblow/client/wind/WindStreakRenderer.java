@@ -20,6 +20,7 @@ import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.GrassColor;
@@ -1000,7 +1001,7 @@ public final class WindStreakRenderer {
 
     private static boolean isValidWindSpace(ClientLevel level, double x, double y, double z, double terrainClearance) {
         BlockPos pos = BlockPos.containing(x, y, z);
-        if (!level.hasChunkAt(pos)
+        if (!level.hasChunk(SectionPos.blockToSectionCoord(pos.getX()), SectionPos.blockToSectionCoord(pos.getZ()))
                 || !level.getFluidState(pos).isEmpty()
                 || level.getBrightness(LightLayer.SKY, pos) < MIN_OPEN_SKY_LIGHT
                 || !hasSkyAccess(level, x, y, z)

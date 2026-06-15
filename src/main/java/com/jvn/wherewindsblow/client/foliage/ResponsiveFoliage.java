@@ -1,10 +1,6 @@
 package com.jvn.wherewindsblow.client.foliage;
 
 import com.jvn.wherewindsblow.block.ModBlocks;
-import com.jvn.wherewindsblow.block.OvergrownGrassBlock;
-import com.jvn.wherewindsblow.block.OvergrownGrassPart;
-import com.jvn.wherewindsblow.block.WildWheatBlock;
-import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.List;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.resources.model.BakedModel;
@@ -45,57 +41,6 @@ public final class ResponsiveFoliage {
 
     public static boolean isLeaf(BlockState state) {
         return state.is(BlockTags.LEAVES) || state.getBlock() instanceof LeavesBlock;
-    }
-
-    public static float swayMultiplier(BlockState state) {
-        if (state.is(ModBlocks.OVERGROWN_GRASS.get())) {
-            OvergrownGrassPart part = state.getValue(OvergrownGrassBlock.PART);
-            return switch (part) {
-                case LOWER -> 0.8F;
-                case MIDDLE -> 1.0F;
-                case UPPER -> 1.15F;
-            };
-        }
-
-        if (state.is(ModBlocks.WILD_WHEAT.get())) {
-            return 0.55F + state.getValue(WildWheatBlock.AGE) * 0.15F;
-        }
-
-        if (state.is(Blocks.SUGAR_CANE)) {
-            return 0.9F;
-        }
-
-        if (state.getBlock() instanceof DoublePlantBlock) {
-            return state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF)
-                    && state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF) == DoubleBlockHalf.UPPER ? 1.15F : 0.85F;
-        }
-
-        if (state.getBlock() instanceof BushBlock) {
-            return 0.85F;
-        }
-
-        if (state.getBlock() instanceof CropBlock && state.hasProperty(BlockStateProperties.AGE_7)) {
-            return 0.45F + state.getValue(BlockStateProperties.AGE_7) * 0.08F;
-        }
-
-        if (state.getBlock() instanceof CropBlock) {
-            return 0.65F;
-        }
-
-        return 1.0F;
-    }
-
-    public static float columnSwayMultiplier(BlockAndTintGetter level, FoliageModelData.ColumnSegment segment) {
-        BlockState topState = level.getBlockState(segment.rootPos().above(segment.height() - 1));
-        if (topState.is(ModBlocks.OVERGROWN_GRASS.get())) {
-            return 0.85F + Math.min(segment.height(), 6) * 0.08F;
-        }
-
-        if (topState.is(Blocks.SUGAR_CANE)) {
-            return 0.75F + Math.min(segment.height(), 4) * 0.10F;
-        }
-
-        return swayMultiplier(topState);
     }
 
     public static FoliageModelData.ColumnSegment columnSegment(BlockAndTintGetter level, BlockPos pos, BlockState state) {

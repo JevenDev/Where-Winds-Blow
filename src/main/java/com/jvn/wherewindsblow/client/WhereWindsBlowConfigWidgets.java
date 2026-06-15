@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client;
 
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
@@ -8,6 +9,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 final class WhereWindsBlowConfigWidgets {
@@ -77,7 +79,7 @@ final class WhereWindsBlowConfigWidgets {
     }
 
     static String format(double value) {
-        return value == Math.rint(value) ? Integer.toString((int) value) : String.format("%.2f", value);
+        return value == Math.rint(value) ? Integer.toString((int) value) : String.format(Locale.ROOT, "%.2f", value);
     }
 
     private static final class ConfigSliderButton extends AbstractSliderButton {
@@ -121,7 +123,7 @@ final class WhereWindsBlowConfigWidgets {
                 return 0.0D;
             }
 
-            return (value - min) / (max - min);
+            return Mth.clamp((value - min) / (max - min), 0.0D, 1.0D);
         }
     }
 }

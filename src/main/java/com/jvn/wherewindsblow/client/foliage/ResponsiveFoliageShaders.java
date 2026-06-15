@@ -84,7 +84,7 @@ public final class ResponsiveFoliageShaders {
     }
 
     public static void setFoliageInteractors(int interactorCount, FoliageInteractorWriter writer) {
-        int count = Math.min(interactorCount, MAX_FOLIAGE_INTERACTORS);
+        int count = Mth.clamp(interactorCount, 0, MAX_FOLIAGE_INTERACTORS);
         Arrays.fill(foliageInteractors, 0.0F);
         Arrays.fill(foliageInteractorStrengths, 0.0F);
         for (int index = 0; index < count; index++) {

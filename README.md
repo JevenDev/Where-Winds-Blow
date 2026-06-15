@@ -14,7 +14,7 @@
 
 </div>
 
-Where Winds Blow is a Vanilla+ NeoForge mod for Minecraft focused on making  biomes feel denser, softer, and more atmospheric without replacing vanilla terrain generation.
+Where Winds Blow is a Vanilla+ NeoForge mod for Minecraft focused on making biomes feel denser, softer, and more atmospheric without replacing vanilla terrain generation.
 
 Instead of turning the overworld into a completely different biome set, the mod builds on top of vanilla with data-driven grass placement, new foliage variants, dry-grass transitions, and optional responsive foliage rendering on the client.
 
@@ -23,7 +23,7 @@ Instead of turning the overworld into a completely different biome set, the mod 
 - Thickens grassy biomes with configurable biome modifier worldgen
 - Supports dry, dead, sparse, medium, dense, and overgrown grass families
 - Exposes biome placement through datapack JSON for easy pack customization
-- Adds a client config screen for tuning foliage density behavior & client side effects
+- Adds a client config screen for tuning foliage density behavior and client-side effects
 - Includes responsive foliage rendering and shader hooks, with Sodium and Iris compatibility support
 
 ![features](https://cdn.modrinth.com/data/cached_images/ec0e4dc78ec1a652eb11b233dd2926f7461fe770.png)
@@ -91,7 +91,7 @@ Biome membership, biome modifiers, and placed/configured features all live in re
 
 Pack-facing documentation lives here:
 
-- [Datapack notes](C:/Users/jeven/Documents/GitHub/Where-Winds-Blow/DATAPACKS.md)
+- [Datapack notes](DATAPACKS.md)
 
 Key resource areas:
 
@@ -99,7 +99,6 @@ Key resource areas:
 - `data/where_winds_blow/neoforge/biome_modifier/`
 - `data/where_winds_blow/worldgen/configured_feature/`
 - `data/where_winds_blow/worldgen/placed_feature/`
-- 
 ![compatibility](https://cdn.modrinth.com/data/cached_images/1252c11050b7daf8b8621712b58dd1005e7ba982.png)
 
 ## Compatibility

@@ -143,9 +143,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     }
 
     private static float plantSwayWeight(float columnY, float columnHeight, float startHeight) {
-        float normalizedStart = Mth.clamp(startHeight / Math.max(columnHeight, MIN_PLANT_SWAY_HEIGHT_RANGE), 0.0F, 1.0F);
-        float normalizedY = Mth.clamp(columnY / Math.max(columnHeight, MIN_PLANT_SWAY_HEIGHT_RANGE), 0.0F, 1.0F);
-        return Mth.clamp(normalizedY - normalizedStart, 0.0F, 1.0F);
+        float bendHeightRange = Math.max(columnHeight - startHeight, MIN_PLANT_SWAY_HEIGHT_RANGE);
+        return Mth.clamp((columnY - startHeight) / bendHeightRange, 0.0F, 1.0F);
     }
 
     private static int packPlantAlpha(int color, float windWeight, float interactionWeight) {
