@@ -34,6 +34,7 @@ public final class ResponsiveFoliagePhysics {
     private static final float MIN_VISIBLE_CONTACT_DECAY = 0.08F;
     private static final int MAX_INTERACTIVE_ENTITIES = ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS;
     private static final Map<Long, FoliageContact> ACTIVE_CONTACTS = new HashMap<>();
+    private static long lastInteractorUpdateGameTime = Long.MIN_VALUE;
 
     private ResponsiveFoliagePhysics() {
     }
@@ -49,8 +50,7 @@ public final class ResponsiveFoliagePhysics {
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || minecraft.player == null) {
-            ResponsiveFoliageShaders.clearFoliageInteractors();
-            ACTIVE_CONTACTS.clear();
+            clearInteractorState();
         }
     }
 
@@ -59,10 +59,15 @@ public final class ResponsiveFoliagePhysics {
         ClientLevel level = minecraft.level;
         Entity player = minecraft.player;
         if (level == null || player == null || !ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY.getAsBoolean()) {
-            ResponsiveFoliageShaders.clearFoliageInteractors();
-            ACTIVE_CONTACTS.clear();
+            clearInteractorState();
             return;
         }
+
+        long gameTime = level.getGameTime();
+        if (lastInteractorUpdateGameTime == gameTime) {
+            return;
+        }
+        lastInteractorUpdateGameTime = gameTime;
 
         long nowMillis = Util.getMillis();
         expireContacts(nowMillis);
@@ -84,6 +89,12 @@ public final class ResponsiveFoliagePhysics {
                 .limit(ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS)
                 .toList();
         ResponsiveFoliageShaders.setFoliageInteractors(contacts.size(), (interactors, strengths, index) -> fillInteractor(contacts.get(index), nowMillis, interactors, strengths, index));
+    }
+
+    private static void clearInteractorState() {
+        lastInteractorUpdateGameTime = Long.MIN_VALUE;
+        ResponsiveFoliageShaders.clearFoliageInteractors();
+        ACTIVE_CONTACTS.clear();
     }
 
     private static void trimEntities(Entity player, List<Entity> entities) {

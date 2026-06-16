@@ -162,7 +162,7 @@ public final class ResponsiveFoliageShaders {
     }
 
     private static void uploadFoliageInteractorUniforms(ShaderInstance shader) {
-        for (int index = 0; index < MAX_FOLIAGE_INTERACTORS; index++) {
+        for (int index = 0; index < foliageInteractorCount; index++) {
             int offset = index * 4;
             shader.safeGetUniform("FoliageInteractor" + index).set(
                     foliageInteractors[offset],
@@ -172,7 +172,7 @@ public final class ResponsiveFoliageShaders {
             );
         }
 
-        for (int group = 0; group < 4; group++) {
+        for (int group = 0; group < interactorStrengthGroupCount(foliageInteractorCount); group++) {
             int offset = group * 4;
             shader.safeGetUniform("FoliageInteractorStrengths" + group).set(
                     foliageInteractorStrengths[offset],
@@ -181,6 +181,10 @@ public final class ResponsiveFoliageShaders {
                     foliageInteractorStrengths[offset + 3]
             );
         }
+    }
+
+    public static int interactorStrengthGroupCount(int interactorCount) {
+        return (Mth.clamp(interactorCount, 0, MAX_FOLIAGE_INTERACTORS) + 3) / 4;
     }
 
     public static float windTime() {

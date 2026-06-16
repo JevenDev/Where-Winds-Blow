@@ -48,7 +48,7 @@ public abstract class SodiumShaderChunkRendererMixin {
     private static final int[] wherewindsblow$interactorUniforms = new int[ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS];
 
     @Unique
-    private static final int[] wherewindsblow$interactorStrengthUniforms = new int[4];
+    private static final int[] wherewindsblow$interactorStrengthUniforms = new int[(ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS + 3) / 4];
 
     @Inject(method = "begin", at = @At("TAIL"), require = 0)
     private void wherewindsblow$uploadResponsiveFoliageWindTime(CallbackInfo ci) {
@@ -70,9 +70,11 @@ public abstract class SodiumShaderChunkRendererMixin {
             wherewindsblow$uploadUniform(wherewindsblow$leafSwayStrengthUniform, ResponsiveFoliageShaders.leafWindSwayStrength());
             wherewindsblow$uploadUniform(wherewindsblow$plantSheenStrengthUniform, ResponsiveFoliageShaders.plantWindSheenStrength());
             wherewindsblow$uploadUniform(wherewindsblow$leafSheenStrengthUniform, ResponsiveFoliageShaders.leafWindSheenStrength());
-            wherewindsblow$uploadCameraPositionUniform(wherewindsblow$cameraPositionUniform);
-            wherewindsblow$uploadIntUniform(wherewindsblow$interactorCountUniform, ResponsiveFoliageShaders.foliageInteractorCount());
-            wherewindsblow$uploadInteractorUniforms(ResponsiveFoliageShaders.foliageInteractors(), ResponsiveFoliageShaders.foliageInteractorStrengths());
+            Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+            wherewindsblow$uploadCameraPositionUniform(wherewindsblow$cameraPositionUniform, cameraPosition);
+            int interactorCount = ResponsiveFoliageShaders.foliageInteractorCount();
+            wherewindsblow$uploadIntUniform(wherewindsblow$interactorCountUniform, interactorCount);
+            wherewindsblow$uploadInteractorUniforms(ResponsiveFoliageShaders.foliageInteractors(), ResponsiveFoliageShaders.foliageInteractorStrengths(), interactorCount, cameraPosition);
         } catch (RuntimeException exception) {
             ResponsiveFoliageShaders.disableSodiumShaderPatch("Failed to upload Sodium foliage shader uniforms.", exception);
         }
@@ -117,17 +119,15 @@ public abstract class SodiumShaderChunkRendererMixin {
     }
 
     @Unique
-    private static void wherewindsblow$uploadCameraPositionUniform(int location) {
+    private static void wherewindsblow$uploadCameraPositionUniform(int location, Vec3 cameraPosition) {
         if (location >= 0) {
-            Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
             GL20C.glUniform3f(location, (float) cameraPosition.x, (float) cameraPosition.y, (float) cameraPosition.z);
         }
     }
 
     @Unique
-    private static void wherewindsblow$uploadInteractorUniforms(float[] interactors, float[] strengths) {
-        Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-        for (int index = 0; index < wherewindsblow$interactorUniforms.length; index++) {
+    private static void wherewindsblow$uploadInteractorUniforms(float[] interactors, float[] strengths, int interactorCount, Vec3 cameraPosition) {
+        for (int index = 0; index < interactorCount; index++) {
             int location = wherewindsblow$interactorUniforms[index];
             if (location >= 0) {
                 int offset = index * 4;
@@ -141,7 +141,7 @@ public abstract class SodiumShaderChunkRendererMixin {
             }
         }
 
-        for (int group = 0; group < wherewindsblow$interactorStrengthUniforms.length; group++) {
+        for (int group = 0; group < ResponsiveFoliageShaders.interactorStrengthGroupCount(interactorCount); group++) {
             int location = wherewindsblow$interactorStrengthUniforms[group];
             if (location >= 0) {
                 int offset = group * 4;

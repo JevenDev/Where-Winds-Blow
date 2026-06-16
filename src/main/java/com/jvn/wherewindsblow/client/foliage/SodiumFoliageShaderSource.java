@@ -1,16 +1,18 @@
 package com.jvn.wherewindsblow.client.foliage;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.minecraft.resources.ResourceLocation;
 
 public final class SodiumFoliageShaderSource {
     private static final String SODIUM_NAMESPACE = "sodium";
     private static final String SODIUM_TERRAIN_VERTEX_SHADER = "blocks/block_layer_opaque.vsh";
-    private static final String MAIN_METHOD = "void main() {";
-    private static final String LIGHT_SAMPLER = "uniform sampler2D u_LightTex;";
-    private static final String POSITION_LINE = "    vec3 position = _vert_position + translation;";
-    private static final String COLOR_LINE = "    v_Color = _vert_color * texture(u_LightTex, _vert_tex_light_coord);";
-    private static final String SHINE_BASE_COLOR_LINE = "    v_Color = _vert_color * texture(u_LightTex, shineLightCoord);";
-    private static final String SHINE_COLORED_LIGHT_LINE = "    v_Color = shine_apply_colored_light(position, v_Color, shineLightCoord);";
+    private static final Pattern MAIN_METHOD_PATTERN = Pattern.compile("(?m)^\\s*void\\s+main\\s*\\(\\s*\\)\\s*\\{.*$");
+    private static final Pattern LIGHT_SAMPLER_PATTERN = Pattern.compile("(?m)^\\s*uniform\\s+sampler2D\\s+u_LightTex\\s*;.*$");
+    private static final Pattern POSITION_LINE_PATTERN = Pattern.compile("(?m)^\\s*vec3\\s+position\\s*=\\s*_vert_position\\s*\\+\\s*translation\\s*;.*$");
+    private static final Pattern COLOR_LINE_PATTERN = Pattern.compile("(?m)^\\s*v_Color\\s*=\\s*_vert_color\\s*\\*\\s*texture\\s*\\(\\s*u_LightTex\\s*,\\s*_vert_tex_light_coord\\s*\\)\\s*;.*$");
+    private static final Pattern SHINE_BASE_COLOR_LINE_PATTERN = Pattern.compile("(?m)^\\s*v_Color\\s*=\\s*_vert_color\\s*\\*\\s*texture\\s*\\(\\s*u_LightTex\\s*,\\s*shineLightCoord\\s*\\)\\s*;.*$");
+    private static final Pattern SHINE_COLORED_LIGHT_LINE_PATTERN = Pattern.compile("(?m)^\\s*v_Color\\s*=\\s*shine_apply_colored_light\\s*\\(\\s*position\\s*,\\s*v_Color\\s*,\\s*shineLightCoord\\s*\\)\\s*;.*$");
 
     private static final String WIND_UNIFORMS = """
 
@@ -275,22 +277,22 @@ public final class SodiumFoliageShaderSource {
             return source;
         }
 
-        String colorAnchor = findColorAnchor(source);
+        Pattern colorAnchor = findColorAnchor(source);
         if (!containsRequiredMarkers(source, colorAnchor, name)) {
             return source;
         }
 
-        String patched = insertAfter(source, LIGHT_SAMPLER, WIND_UNIFORMS);
-        patched = insertBefore(patched, MAIN_METHOD, WIND_FUNCTIONS);
-        patched = insertAfter(patched, POSITION_LINE, WIND_POSITION_INJECTION);
+        String patched = insertAfter(source, LIGHT_SAMPLER_PATTERN, WIND_UNIFORMS);
+        patched = insertBefore(patched, MAIN_METHOD_PATTERN, WIND_FUNCTIONS);
+        patched = insertAfter(patched, POSITION_LINE_PATTERN, WIND_POSITION_INJECTION);
         patched = insertAfter(patched, colorAnchor, WIND_COLOR_INJECTION);
         return patched;
     }
 
-    private static boolean containsRequiredMarkers(String source, String colorAnchor, ResourceLocation name) {
-        if (source.contains(LIGHT_SAMPLER)
-                && source.contains(MAIN_METHOD)
-                && source.contains(POSITION_LINE)
+    private static boolean containsRequiredMarkers(String source, Pattern colorAnchor, ResourceLocation name) {
+        if (matches(source, LIGHT_SAMPLER_PATTERN)
+                && matches(source, MAIN_METHOD_PATTERN)
+                && matches(source, POSITION_LINE_PATTERN)
                 && colorAnchor != null) {
             return true;
         }
@@ -302,38 +304,42 @@ public final class SodiumFoliageShaderSource {
         return false;
     }
 
-    private static String findColorAnchor(String source) {
-        if (source.contains(SHINE_COLORED_LIGHT_LINE)) {
-            return SHINE_COLORED_LIGHT_LINE;
+    private static Pattern findColorAnchor(String source) {
+        if (matches(source, SHINE_COLORED_LIGHT_LINE_PATTERN)) {
+            return SHINE_COLORED_LIGHT_LINE_PATTERN;
         }
-        if (source.contains(SHINE_BASE_COLOR_LINE)) {
-            return SHINE_BASE_COLOR_LINE;
+        if (matches(source, SHINE_BASE_COLOR_LINE_PATTERN)) {
+            return SHINE_BASE_COLOR_LINE_PATTERN;
         }
-        if (source.contains(COLOR_LINE)) {
-            return COLOR_LINE;
+        if (matches(source, COLOR_LINE_PATTERN)) {
+            return COLOR_LINE_PATTERN;
         }
 
         return null;
     }
 
-    private static String insertAfter(String source, String marker, String addition) {
-        int index = source.indexOf(marker);
-        if (index < 0) {
+    private static boolean matches(String source, Pattern pattern) {
+        return pattern.matcher(source).find();
+    }
+
+    private static String insertAfter(String source, Pattern marker, String addition) {
+        Matcher matcher = marker.matcher(source);
+        if (!matcher.find()) {
             return source;
         }
 
-        int lineEnd = source.indexOf('\n', index);
-        int insertion = lineEnd < 0 ? index + marker.length() : lineEnd;
+        int lineEnd = source.indexOf('\n', matcher.end());
+        int insertion = lineEnd < 0 ? matcher.end() : lineEnd;
         return source.substring(0, insertion) + addition + source.substring(insertion);
     }
 
-    private static String insertBefore(String source, String marker, String addition) {
-        int index = source.indexOf(marker);
-        if (index < 0) {
+    private static String insertBefore(String source, Pattern marker, String addition) {
+        Matcher matcher = marker.matcher(source);
+        if (!matcher.find()) {
             return source;
         }
 
-        return source.substring(0, index) + addition + source.substring(index);
+        return source.substring(0, matcher.start()) + addition + source.substring(matcher.start());
     }
 
 }

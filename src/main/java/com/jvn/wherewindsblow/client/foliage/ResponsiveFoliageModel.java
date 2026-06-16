@@ -3,6 +3,8 @@ package com.jvn.wherewindsblow.client.foliage;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.resources.model.BakedModel;
@@ -28,6 +30,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final float LEAF_BEND_MIN = 0.10F;
     private static final float LEAF_BEND_MAX = 0.36F;
     private final ResponsiveFoliageType foliageType;
+    private final Map<BakedQuad, BakedQuad> leafQuadCache = new ConcurrentHashMap<>();
+    private final Map<PlantQuadKey, BakedQuad> plantQuadCache = new ConcurrentHashMap<>();
 
     ResponsiveFoliageModel(BakedModel originalModel, ResponsiveFoliageType foliageType) {
         super(originalModel);
@@ -60,7 +64,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         if (foliageType == ResponsiveFoliageType.LEAF) {
             List<BakedQuad> transformed = new ArrayList<>(quads.size());
             for (BakedQuad quad : quads) {
-                transformed.add(transformLeafQuad(quad));
+                transformed.add(leafQuadCache.computeIfAbsent(quad, ResponsiveFoliageModel::transformLeafQuad));
             }
 
             return transformed;
@@ -71,25 +75,29 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         }
 
         FoliageModelData.ColumnSegment segment = extraData.get(FoliageModelData.COLUMN_SEGMENT);
+        int swayStartHeightBits = Float.floatToIntBits(plantSwayStartHeight());
         List<BakedQuad> transformed = new ArrayList<>(quads.size());
         for (BakedQuad quad : quads) {
-            transformed.add(transformPlantQuad(quad, segment));
+            PlantQuadKey key = new PlantQuadKey(quad, segment.offset(), segment.height(), swayStartHeightBits);
+            transformed.add(plantQuadCache.computeIfAbsent(key, ResponsiveFoliageModel::transformPlantQuad));
         }
 
         return transformed;
     }
 
-    private static BakedQuad transformPlantQuad(BakedQuad quad, FoliageModelData.ColumnSegment segment) {
+    private static BakedQuad transformPlantQuad(PlantQuadKey key) {
+        return transformPlantQuad(key.quad(), key.segmentOffset(), key.segmentHeight(), Float.intBitsToFloat(key.swayStartHeightBits()));
+    }
+
+    private static BakedQuad transformPlantQuad(BakedQuad quad, int segmentOffset, int segmentHeight, float swayStartHeight) {
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
-        float swayStartHeight = plantSwayStartHeight();
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * stride;
             float y = Float.intBitsToFloat(vertices[offset + 1]);
-            float columnY = segment.offset() + y;
-            float columnHeight = segment.height();
-            float windWeight = plantSwayWeight(columnY, columnHeight, swayStartHeight);
-            float interactionWeight = plantBendWeight(columnY, columnHeight, INTERACTION_BASE_THRESHOLD);
+            float columnY = segmentOffset + y;
+            float windWeight = plantBendWeight(columnY, segmentHeight, swayStartHeight);
+            float interactionWeight = plantBendWeight(columnY, segmentHeight, INTERACTION_BASE_THRESHOLD);
             if (windWeight <= 0.0F && interactionWeight <= 0.0F) {
                 continue;
             }
@@ -142,11 +150,6 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return Mth.clamp((columnY - startHeight) / bendHeightRange, 0.0F, 1.0F);
     }
 
-    private static float plantSwayWeight(float columnY, float columnHeight, float startHeight) {
-        float bendHeightRange = Math.max(columnHeight - startHeight, MIN_PLANT_SWAY_HEIGHT_RANGE);
-        return Mth.clamp((columnY - startHeight) / bendHeightRange, 0.0F, 1.0F);
-    }
-
     private static int packPlantAlpha(int color, float windWeight, float interactionWeight) {
         int windLevel = encodeLevel(windWeight, PLANT_WIND_ALPHA_LEVELS);
         int interactionLevel = encodeLevel(interactionWeight, PLANT_INTERACTION_ALPHA_LEVELS);
@@ -178,5 +181,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
 
     private boolean isResponsiveState(@Nullable BlockState state) {
         return state != null && (isPlantFoliage() || ResponsiveFoliage.isLeaf(state));
+    }
+
+    private record PlantQuadKey(BakedQuad quad, int segmentOffset, int segmentHeight, int swayStartHeightBits) {
     }
 }
