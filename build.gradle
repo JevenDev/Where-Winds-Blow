@@ -25,6 +25,13 @@ base {
     archivesName = archives_base_name
 }
 
+repositories {
+    maven {
+        name = 'Xander Maven'
+        url = 'https://maven.isxander.dev/releases'
+    }
+}
+
 // Mojang ships Java 21 to end users in 1.21, so mods should target Java 21.
 java.toolchain.languageVersion = JavaLanguageVersion.of(java_version as int)
 
@@ -78,9 +85,14 @@ configurations {
     runtimeClasspath.extendsFrom localRuntime
 }
 
+dependencies {
+    implementation "dev.isxander:yet-another-config-lib:${yacl_version}"
+}
+
 var replaceProperties = [
         minecraft_version      : minecraft_version,
         minecraft_version_range: minecraft_version_range,
+        yacl_version           : yacl_version,
         sodium_version_range: sodium_version_range,
         iris_version_range: iris_version_range,
         neo_version            : neo_version,

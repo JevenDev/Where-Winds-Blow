@@ -23,7 +23,7 @@ public final class WhereWindsBlowClient {
 
     public static void register(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
-        modContainer.registerExtensionPoint(IConfigScreenFactory.class, (container, screen) -> new WhereWindsBlowConfigScreen(screen));
+        modContainer.registerExtensionPoint(IConfigScreenFactory.class, (container, screen) -> WhereWindsBlowConfigScreen.create(screen));
         modEventBus.addListener(WhereWindsBlowClient::registerBlockColors);
         modEventBus.addListener(WhereWindsBlowClient::registerItemColors);
         modEventBus.addListener(WhereWindsBlowClient::modifyBakedModels);

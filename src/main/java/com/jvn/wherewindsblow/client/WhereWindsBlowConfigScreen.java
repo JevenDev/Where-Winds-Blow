@@ -1,45 +1,228 @@
 package com.jvn.wherewindsblow.client;
 
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
+import com.jvn.wherewindsblow.config.ClientConfig;
+import com.jvn.wherewindsblow.config.CommonConfig;
+import dev.isxander.yacl3.api.ConfigCategory;
+import dev.isxander.yacl3.api.Option;
+import dev.isxander.yacl3.api.OptionDescription;
+import dev.isxander.yacl3.api.OptionGroup;
+import dev.isxander.yacl3.api.StateManager;
+import dev.isxander.yacl3.api.YetAnotherConfigLib;
+import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
+import dev.isxander.yacl3.api.controller.DoubleSliderControllerBuilder;
+import java.util.Locale;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.neoforged.neoforge.common.ModConfigSpec;
 
-public class WhereWindsBlowConfigScreen extends Screen {
-    private final Screen lastScreen;
+public final class WhereWindsBlowConfigScreen {
+    private static final double WORLDGEN_MIN = 0.0D;
+    private static final double WORLDGEN_MAX = 8.0D;
+    private static final double WORLDGEN_STEP = 1.0D;
+    private static final double SMALL_STEP = 0.05D;
 
-    public WhereWindsBlowConfigScreen(Screen lastScreen) {
-        super(Component.translatable("where_winds_blow.config.title"));
-        this.lastScreen = lastScreen;
+    private WhereWindsBlowConfigScreen() {
     }
 
-    @Override
-    protected void init() {
-        int center = this.width / 2;
-        int y = this.height / 2 - 28;
-
-        this.addRenderableWidget(Button.builder(Component.translatable("where_winds_blow.config.terrain"), button -> this.minecraft.setScreen(new WhereWindsBlowTerrainConfigScreen(this)))
-                .bounds(center - 100, y, 200, 20)
-                .build());
-        this.addRenderableWidget(Button.builder(Component.translatable("where_winds_blow.config.rendering"), button -> this.minecraft.setScreen(new WhereWindsBlowRenderingConfigScreen(this)))
-                .bounds(center - 100, y + 24, 200, 20)
-                .build());
-
-        this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, button -> this.onClose())
-                .bounds(center - 100, this.height - 32, 200, 20)
-                .build());
+    public static Screen create(Screen parent) {
+        return YetAnotherConfigLib.createBuilder()
+                .title(translatable("title"))
+                .category(terrainCategory())
+                .category(renderingCategory())
+                .save(WhereWindsBlowConfigScreen::saveAll)
+                .build()
+                .generateScreen(parent);
     }
 
-    @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
-        guiGraphics.drawCenteredString(this.font, this.title, this.width / 2, 14, 0xFFFFFF);
-        guiGraphics.drawCenteredString(this.font, Component.translatable("where_winds_blow.config.subtitle"), this.width / 2, 30, 0xA0A0A0);
+    private static ConfigCategory terrainCategory() {
+        return ConfigCategory.createBuilder()
+                .name(translatable("terrain"))
+                .tooltip(translatable("terrain.tooltip"))
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.worldgen"))
+                        .description(description("group.worldgen.description"))
+                        .option(booleanOption(CommonConfig.ENABLE_DENSE_GRASS_WORLDGEN, true))
+                        .option(worldgenOption(CommonConfig.DENSE_GRASS_DENSITY_MULTIPLIER, 8.0D))
+                        .option(worldgenOption(CommonConfig.MEDIUM_GRASS_DENSITY_MULTIPLIER, 8.0D))
+                        .option(worldgenOption(CommonConfig.SPARSE_GRASS_DENSITY_MULTIPLIER, 8.0D))
+                        .option(worldgenOption(CommonConfig.TALL_GRASS_PATCH_MULTIPLIER, 4.0D))
+                        .option(worldgenOption(CommonConfig.SHORT_DRY_GRASS_PATCH_MULTIPLIER, 1.0D))
+                        .option(worldgenOption(CommonConfig.TALL_DRY_GRASS_PATCH_MULTIPLIER, 1.0D))
+                        .option(worldgenOption(CommonConfig.DEAD_GRASS_PATCH_MULTIPLIER, 1.0D))
+                        .option(worldgenOption(CommonConfig.OVERGROWN_GRASS_PATCH_MULTIPLIER, 1.0D))
+                        .option(worldgenOption(CommonConfig.WILD_WHEAT_PATCH_MULTIPLIER, 0.0D))
+                        .build())
+                .build();
     }
 
-    @Override
-    public void onClose() {
-        this.minecraft.setScreen(this.lastScreen);
+    private static ConfigCategory renderingCategory() {
+        return ConfigCategory.createBuilder()
+                .name(translatable("rendering"))
+                .tooltip(translatable("rendering.tooltip"))
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.interactivity"))
+                        .description(description("group.interactivity.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY, true))
+                        .option(doubleOption(
+                                ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH,
+                                1.0D,
+                                ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH_MIN,
+                                ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.foliage"))
+                        .description(description("group.foliage.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_AUTODETECTED_FOLIAGE_MODELS, true, WhereWindsBlowConfigScreen::rebuildFoliage))
+                        .option(booleanOption(ClientConfig.ENABLE_CUSTOM_FOLIAGE_SHADER, true, WhereWindsBlowConfigScreen::rebuildFoliage))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_SHEEN, true))
+                        .option(doubleOption(
+                                ClientConfig.WIND_SHEEN_STRENGTH,
+                                1.0D,
+                                ClientConfig.WIND_SHEEN_STRENGTH_MIN,
+                                ClientConfig.WIND_SHEEN_STRENGTH_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.windMotion"))
+                        .description(description("group.windMotion.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_FOLIAGE_SWAY, true))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_PLANT_SWAY, true))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_LEAF_SWAY, true))
+                        .option(doubleOption(
+                                ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH,
+                                1.0D,
+                                ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH_MIN,
+                                ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.WIND_PLANT_SWAY_START_HEIGHT,
+                                0.6D,
+                                ClientConfig.WIND_PLANT_SWAY_START_HEIGHT_MIN,
+                                ClientConfig.WIND_PLANT_SWAY_START_HEIGHT_MAX,
+                                SMALL_STEP,
+                                WhereWindsBlowConfigScreen::rebuildFoliage
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.ambientWind"))
+                        .description(description("group.ambientWind.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_STREAKS, true))
+                        .option(doubleOption(
+                                ClientConfig.WIND_STREAK_VISIBILITY,
+                                1.0D,
+                                ClientConfig.WIND_STREAK_VISIBILITY_MIN,
+                                ClientConfig.WIND_STREAK_VISIBILITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.WIND_STREAK_OPACITY,
+                                0.8D,
+                                ClientConfig.WIND_STREAK_OPACITY_MIN,
+                                ClientConfig.WIND_STREAK_OPACITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.WIND_STREAK_THICKNESS,
+                                3.0D,
+                                ClientConfig.WIND_STREAK_THICKNESS_MIN,
+                                ClientConfig.WIND_STREAK_THICKNESS_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_SMOKE, true))
+                        .option(doubleOption(
+                                ClientConfig.WIND_SMOKE_STRENGTH,
+                                3.0D,
+                                ClientConfig.WIND_SMOKE_STRENGTH_MIN,
+                                ClientConfig.WIND_SMOKE_STRENGTH_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.compatibility"))
+                        .description(description("group.compatibility.description"))
+                        .option(booleanOption(ClientConfig.FORCE_WWB_WIND_WITH_SHADER_PACKS, true, WhereWindsBlowConfigScreen::rebuildFoliage))
+                        .option(booleanOption(ClientConfig.ENABLE_SODIUM_SHADER_PATCH, true))
+                        .build())
+                .build();
+    }
+
+    private static Option<Boolean> booleanOption(ModConfigSpec.BooleanValue value, boolean defaultValue) {
+        return booleanOption(value, defaultValue, () -> {
+        });
+    }
+
+    private static Option<Boolean> booleanOption(ModConfigSpec.BooleanValue value, boolean defaultValue, Runnable afterChange) {
+        String path = path(value);
+        return Option.<Boolean>createBuilder()
+                .name(translatable(path))
+                .description(description(path + ".tooltip"))
+                .stateManager(StateManager.createInstant(defaultValue, value::getAsBoolean, newValue -> {
+                    value.set(newValue);
+                    value.save();
+                    afterChange.run();
+                }))
+                .controller(option -> BooleanControllerBuilder.create(option).onOffFormatter().coloured(true))
+                .build();
+    }
+
+    private static Option<Double> worldgenOption(ModConfigSpec.DoubleValue value, double defaultValue) {
+        return doubleOption(value, defaultValue, WORLDGEN_MIN, WORLDGEN_MAX, WORLDGEN_STEP);
+    }
+
+    private static Option<Double> doubleOption(ModConfigSpec.DoubleValue value, double defaultValue, double min, double max, double step) {
+        return doubleOption(value, defaultValue, min, max, step, () -> {
+        });
+    }
+
+    private static Option<Double> doubleOption(ModConfigSpec.DoubleValue value, double defaultValue, double min, double max, double step, Runnable afterChange) {
+        String path = path(value);
+        return Option.<Double>createBuilder()
+                .name(translatable(path))
+                .description(description(path + ".tooltip"))
+                .stateManager(StateManager.createInstant(defaultValue, value::getAsDouble, newValue -> {
+                    value.set(newValue);
+                    value.save();
+                    afterChange.run();
+                }))
+                .controller(option -> DoubleSliderControllerBuilder.create(option)
+                        .range(min, max)
+                        .step(step)
+                        .formatValue(WhereWindsBlowConfigScreen::formattedValue))
+                .build();
+    }
+
+    private static Component formattedValue(double value) {
+        return Component.literal(value == Math.rint(value)
+                ? Integer.toString((int) value)
+                : String.format(Locale.ROOT, "%.2f", value));
+    }
+
+    private static OptionDescription description(String path) {
+        return OptionDescription.of(translatable(path));
+    }
+
+    private static Component translatable(String path) {
+        return Component.translatable("where_winds_blow.config." + path);
+    }
+
+    private static String path(ModConfigSpec.ConfigValue<?> value) {
+        return value.getPath().getLast();
+    }
+
+    private static void saveAll() {
+        CommonConfig.SPEC.save();
+        ClientConfig.SPEC.save();
+    }
+
+    private static void rebuildFoliage() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null) {
+            minecraft.levelRenderer.allChanged();
+        }
     }
 }
