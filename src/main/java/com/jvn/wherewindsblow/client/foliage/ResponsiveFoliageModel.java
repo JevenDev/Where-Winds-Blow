@@ -41,15 +41,18 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     @Override
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
         if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()
-                || !isResponsiveState(state)
-                || !isPlantFoliage()) {
+                || !isResponsiveState(state)) {
             return originalModel.getModelData(level, pos, state, modelData);
         }
 
-        return originalModel.getModelData(level, pos, state, modelData)
+        var builder = originalModel.getModelData(level, pos, state, modelData)
                 .derive()
-                .with(FoliageModelData.COLUMN_SEGMENT, ResponsiveFoliage.columnSegment(level, pos, state))
-                .build();
+                .with(FoliageModelData.WIND_EXPOSED, ResponsiveFoliage.isWindExposed(level, pos));
+        if (isPlantFoliage()) {
+            builder.with(FoliageModelData.COLUMN_SEGMENT, ResponsiveFoliage.columnSegment(level, pos, state));
+        }
+
+        return builder.build();
     }
 
     @Override
@@ -61,7 +64,12 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             return quads;
         }
 
+        boolean windExposed = windExposed(extraData);
         if (foliageType == ResponsiveFoliageType.LEAF) {
+            if (!windExposed) {
+                return quads;
+            }
+
             List<BakedQuad> transformed = new ArrayList<>(quads.size());
             for (BakedQuad quad : quads) {
                 transformed.add(leafQuadCache.computeIfAbsent(quad, ResponsiveFoliageModel::transformLeafQuad));
@@ -78,7 +86,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         int swayStartHeightBits = Float.floatToIntBits(plantSwayStartHeight());
         List<BakedQuad> transformed = new ArrayList<>(quads.size());
         for (BakedQuad quad : quads) {
-            PlantQuadKey key = new PlantQuadKey(quad, segment.offset(), segment.height(), swayStartHeightBits);
+            PlantQuadKey key = new PlantQuadKey(quad, segment.offset(), segment.height(), swayStartHeightBits, windExposed);
             transformed.add(plantQuadCache.computeIfAbsent(key, ResponsiveFoliageModel::transformPlantQuad));
         }
 
@@ -86,17 +94,17 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     }
 
     private static BakedQuad transformPlantQuad(PlantQuadKey key) {
-        return transformPlantQuad(key.quad(), key.segmentOffset(), key.segmentHeight(), Float.intBitsToFloat(key.swayStartHeightBits()));
+        return transformPlantQuad(key.quad(), key.segmentOffset(), key.segmentHeight(), Float.intBitsToFloat(key.swayStartHeightBits()), key.windExposed());
     }
 
-    private static BakedQuad transformPlantQuad(BakedQuad quad, int segmentOffset, int segmentHeight, float swayStartHeight) {
+    private static BakedQuad transformPlantQuad(BakedQuad quad, int segmentOffset, int segmentHeight, float swayStartHeight, boolean windExposed) {
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * stride;
             float y = Float.intBitsToFloat(vertices[offset + 1]);
             float columnY = segmentOffset + y;
-            float windWeight = plantBendWeight(columnY, segmentHeight, swayStartHeight);
+            float windWeight = windExposed ? plantBendWeight(columnY, segmentHeight, swayStartHeight) : 0.0F;
             float interactionWeight = plantBendWeight(columnY, segmentHeight, INTERACTION_BASE_THRESHOLD);
             if (windWeight <= 0.0F && interactionWeight <= 0.0F) {
                 continue;
@@ -183,6 +191,10 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return state != null && (isPlantFoliage() || ResponsiveFoliage.isLeaf(state));
     }
 
-    private record PlantQuadKey(BakedQuad quad, int segmentOffset, int segmentHeight, int swayStartHeightBits) {
+    private static boolean windExposed(ModelData extraData) {
+        return !extraData.has(FoliageModelData.WIND_EXPOSED) || Boolean.TRUE.equals(extraData.get(FoliageModelData.WIND_EXPOSED));
+    }
+
+    private record PlantQuadKey(BakedQuad quad, int segmentOffset, int segmentHeight, int swayStartHeightBits, boolean windExposed) {
     }
 }

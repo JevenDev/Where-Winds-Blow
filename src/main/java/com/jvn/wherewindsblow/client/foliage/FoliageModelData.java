@@ -5,6 +5,7 @@ import net.neoforged.neoforge.client.model.data.ModelProperty;
 
 public final class FoliageModelData {
     public static final ModelProperty<ColumnSegment> COLUMN_SEGMENT = new ModelProperty<>(ColumnSegment.class::isInstance);
+    public static final ModelProperty<Boolean> WIND_EXPOSED = new ModelProperty<>(Boolean.class::isInstance);
 
     private FoliageModelData() {
     }

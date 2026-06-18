@@ -11,6 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.BushBlock;
@@ -25,6 +26,7 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 
 public final class ResponsiveFoliage {
     private static final float PLANE_EPSILON = 0.01F;
+    private static final int MIN_WIND_EXPOSED_SKY_LIGHT = 14;
 
     private ResponsiveFoliage() {
     }
@@ -68,6 +70,10 @@ public final class ResponsiveFoliage {
         }
 
         return new FoliageModelData.ColumnSegment(pos, 0, 1);
+    }
+
+    public static boolean isWindExposed(BlockAndTintGetter level, BlockPos pos) {
+        return level.getBrightness(LightLayer.SKY, pos) >= MIN_WIND_EXPOSED_SKY_LIGHT;
     }
 
     public static void wrapModels(ModelEvent.ModifyBakingResult event) {
