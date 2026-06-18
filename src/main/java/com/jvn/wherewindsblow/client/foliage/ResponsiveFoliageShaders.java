@@ -21,10 +21,6 @@ public final class ResponsiveFoliageShaders {
     private static final String[] SHADER_RENDERER_MOD_IDS = {"iris", "oculus"};
     private static final String[] INCOMPATIBLE_RENDERER_MOD_IDS = {"chunksfadein"};
     private static final long SHADER_PACK_STATE_CACHE_MILLIS = 250L;
-    private static final float RAIN_WIND_SHEEN_MIN = 1.5F;
-    private static final float THUNDER_WIND_SHEEN_MIN = 2.0F;
-    private static final float RAIN_WIND_SWAY_MIN = 1.5F;
-    private static final float THUNDER_WIND_SWAY_MIN = 2.0F;
     private static final float LEAF_WIND_SWAY_SCALE = 0.35F;
     public static final int MAX_FOLIAGE_INTERACTORS = 16;
     private static final ResourceLocation WIND_SHADER = ResourceLocation.fromNamespaceAndPath(
@@ -253,9 +249,11 @@ public final class ResponsiveFoliageShaders {
             return 0.0F;
         }
 
-        float rain = minecraft.level.getRainLevel(1.0F);
-        float thunder = minecraft.level.getThunderLevel(1.0F);
-        return Math.min(rain * 0.75F + thunder * 1.25F, 2.0F);
+        return currentWeatherValue(
+                ClientConfig.CLEAR_WEATHER_WIND_POWER.getAsDouble(),
+                ClientConfig.RAIN_WEATHER_WIND_POWER.getAsDouble(),
+                ClientConfig.THUNDER_WEATHER_WIND_POWER.getAsDouble()
+        );
     }
 
     private static float weatherDrivenSheenStrength() {
@@ -264,13 +262,11 @@ public final class ResponsiveFoliageShaders {
             return 0.0F;
         }
 
-        float thunder = minecraft.level.getThunderLevel(1.0F);
-        if (thunder > 0.01F) {
-            return THUNDER_WIND_SHEEN_MIN;
-        }
-
-        float rain = minecraft.level.getRainLevel(1.0F);
-        return rain > 0.01F ? RAIN_WIND_SHEEN_MIN : 0.0F;
+        return currentWeatherValue(
+                ClientConfig.CLEAR_WEATHER_SHEEN_STRENGTH.getAsDouble(),
+                ClientConfig.RAIN_WEATHER_SHEEN_STRENGTH.getAsDouble(),
+                ClientConfig.THUNDER_WEATHER_SHEEN_STRENGTH.getAsDouble()
+        );
     }
 
     private static float weatherDrivenSwayStrength() {
@@ -279,13 +275,23 @@ public final class ResponsiveFoliageShaders {
             return 0.0F;
         }
 
-        float thunder = minecraft.level.getThunderLevel(1.0F);
-        if (thunder > 0.01F) {
-            return THUNDER_WIND_SWAY_MIN;
+        return currentWeatherValue(
+                ClientConfig.CLEAR_WEATHER_SWAY_STRENGTH.getAsDouble(),
+                ClientConfig.RAIN_WEATHER_SWAY_STRENGTH.getAsDouble(),
+                ClientConfig.THUNDER_WEATHER_SWAY_STRENGTH.getAsDouble()
+        );
+    }
+
+    private static float currentWeatherValue(double clearValue, double rainValue, double thunderValue) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null) {
+            return 0.0F;
         }
 
         float rain = minecraft.level.getRainLevel(1.0F);
-        return rain > 0.01F ? RAIN_WIND_SWAY_MIN : 0.0F;
+        float thunder = minecraft.level.getThunderLevel(1.0F);
+        float rainyValue = Mth.lerp(rain, (float) clearValue, (float) rainValue);
+        return Mth.lerp(thunder, rainyValue, (float) thunderValue);
     }
 
     private static boolean isExternalShaderPackActive() {

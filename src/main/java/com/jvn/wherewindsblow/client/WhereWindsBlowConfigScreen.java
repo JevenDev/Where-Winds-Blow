@@ -109,6 +109,19 @@ public final class WhereWindsBlowConfigScreen {
                         ))
                         .build())
                 .group(OptionGroup.createBuilder()
+                        .name(translatable("group.weather"))
+                        .description(description("group.weather.description"))
+                        .option(weatherWindPowerOption(ClientConfig.CLEAR_WEATHER_WIND_POWER, 0.0D))
+                        .option(weatherWindPowerOption(ClientConfig.RAIN_WEATHER_WIND_POWER, 0.75D))
+                        .option(weatherWindPowerOption(ClientConfig.THUNDER_WEATHER_WIND_POWER, 2.0D))
+                        .option(weatherSwayOption(ClientConfig.CLEAR_WEATHER_SWAY_STRENGTH, 0.0D))
+                        .option(weatherSwayOption(ClientConfig.RAIN_WEATHER_SWAY_STRENGTH, 1.5D))
+                        .option(weatherSwayOption(ClientConfig.THUNDER_WEATHER_SWAY_STRENGTH, 2.0D))
+                        .option(weatherSheenOption(ClientConfig.CLEAR_WEATHER_SHEEN_STRENGTH, 0.0D))
+                        .option(weatherSheenOption(ClientConfig.RAIN_WEATHER_SHEEN_STRENGTH, 1.5D))
+                        .option(weatherSheenOption(ClientConfig.THUNDER_WEATHER_SHEEN_STRENGTH, 2.0D))
+                        .build())
+                .group(OptionGroup.createBuilder()
                         .name(translatable("group.ambientWind"))
                         .description(description("group.ambientWind.description"))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_STREAKS, true))
@@ -172,6 +185,18 @@ public final class WhereWindsBlowConfigScreen {
 
     private static Option<Double> worldgenOption(ModConfigSpec.DoubleValue value, double defaultValue) {
         return doubleOption(value, defaultValue, WORLDGEN_MIN, WORLDGEN_MAX, WORLDGEN_STEP);
+    }
+
+    private static Option<Double> weatherWindPowerOption(ModConfigSpec.DoubleValue value, double defaultValue) {
+        return doubleOption(value, defaultValue, ClientConfig.WEATHER_WIND_POWER_MIN, ClientConfig.WEATHER_WIND_POWER_MAX, SMALL_STEP);
+    }
+
+    private static Option<Double> weatherSwayOption(ModConfigSpec.DoubleValue value, double defaultValue) {
+        return doubleOption(value, defaultValue, ClientConfig.WEATHER_SWAY_STRENGTH_MIN, ClientConfig.WEATHER_SWAY_STRENGTH_MAX, SMALL_STEP);
+    }
+
+    private static Option<Double> weatherSheenOption(ModConfigSpec.DoubleValue value, double defaultValue) {
+        return doubleOption(value, defaultValue, ClientConfig.WEATHER_SHEEN_STRENGTH_MIN, ClientConfig.WEATHER_SHEEN_STRENGTH_MAX, SMALL_STEP);
     }
 
     private static Option<Double> doubleOption(ModConfigSpec.DoubleValue value, double defaultValue, double min, double max, double step) {

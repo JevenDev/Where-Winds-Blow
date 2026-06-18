@@ -19,6 +19,12 @@ public final class ClientConfig {
     public static final double WIND_FOLIAGE_SWAY_STRENGTH_MAX = 2.0D;
     public static final double WIND_PLANT_SWAY_START_HEIGHT_MIN = 0.0D;
     public static final double WIND_PLANT_SWAY_START_HEIGHT_MAX = 1.0D;
+    public static final double WEATHER_WIND_POWER_MIN = 0.0D;
+    public static final double WEATHER_WIND_POWER_MAX = 4.0D;
+    public static final double WEATHER_SWAY_STRENGTH_MIN = 0.0D;
+    public static final double WEATHER_SWAY_STRENGTH_MAX = 4.0D;
+    public static final double WEATHER_SHEEN_STRENGTH_MIN = 0.0D;
+    public static final double WEATHER_SHEEN_STRENGTH_MAX = 4.0D;
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
@@ -97,6 +103,42 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_PLANT_SWAY_START_HEIGHT = BUILDER
             .comment("Sets how far above the bottom of plant-like foliage wind sway starts, in block units.")
             .defineInRange("windPlantSwayStartHeight", 0.6D, WIND_PLANT_SWAY_START_HEIGHT_MIN, WIND_PLANT_SWAY_START_HEIGHT_MAX);
+
+    public static final ModConfigSpec.DoubleValue CLEAR_WEATHER_WIND_POWER = BUILDER
+            .comment("Weather wind power while the weather is clear. Affects foliage gust intensity, wind streak density, and wind smoke.")
+            .defineInRange("clearWeatherWindPower", 0.25D, WEATHER_WIND_POWER_MIN, WEATHER_WIND_POWER_MAX);
+
+    public static final ModConfigSpec.DoubleValue RAIN_WEATHER_WIND_POWER = BUILDER
+            .comment("Weather wind power at full rain. Affects foliage gust intensity, wind streak density, and wind smoke.")
+            .defineInRange("rainWeatherWindPower", 0.75D, WEATHER_WIND_POWER_MIN, WEATHER_WIND_POWER_MAX);
+
+    public static final ModConfigSpec.DoubleValue THUNDER_WEATHER_WIND_POWER = BUILDER
+            .comment("Weather wind power at full thunder. Affects foliage gust intensity, wind streak density, and wind smoke.")
+            .defineInRange("thunderWeatherWindPower", 2.0D, WEATHER_WIND_POWER_MIN, WEATHER_WIND_POWER_MAX);
+
+    public static final ModConfigSpec.DoubleValue CLEAR_WEATHER_SWAY_STRENGTH = BUILDER
+            .comment("Minimum foliage sway strength while the weather is clear.")
+            .defineInRange("clearWeatherSwayStrength", 0.0D, WEATHER_SWAY_STRENGTH_MIN, WEATHER_SWAY_STRENGTH_MAX);
+
+    public static final ModConfigSpec.DoubleValue RAIN_WEATHER_SWAY_STRENGTH = BUILDER
+            .comment("Minimum foliage sway strength at full rain.")
+            .defineInRange("rainWeatherSwayStrength", 1.5D, WEATHER_SWAY_STRENGTH_MIN, WEATHER_SWAY_STRENGTH_MAX);
+
+    public static final ModConfigSpec.DoubleValue THUNDER_WEATHER_SWAY_STRENGTH = BUILDER
+            .comment("Minimum foliage sway strength at full thunder.")
+            .defineInRange("thunderWeatherSwayStrength", 2.0D, WEATHER_SWAY_STRENGTH_MIN, WEATHER_SWAY_STRENGTH_MAX);
+
+    public static final ModConfigSpec.DoubleValue CLEAR_WEATHER_SHEEN_STRENGTH = BUILDER
+            .comment("Minimum wind sheen strength while the weather is clear.")
+            .defineInRange("clearWeatherSheenStrength", 0.0D, WEATHER_SHEEN_STRENGTH_MIN, WEATHER_SHEEN_STRENGTH_MAX);
+
+    public static final ModConfigSpec.DoubleValue RAIN_WEATHER_SHEEN_STRENGTH = BUILDER
+            .comment("Minimum wind sheen strength at full rain.")
+            .defineInRange("rainWeatherSheenStrength", 1.5D, WEATHER_SHEEN_STRENGTH_MIN, WEATHER_SHEEN_STRENGTH_MAX);
+
+    public static final ModConfigSpec.DoubleValue THUNDER_WEATHER_SHEEN_STRENGTH = BUILDER
+            .comment("Minimum wind sheen strength at full thunder.")
+            .defineInRange("thunderWeatherSheenStrength", 2.0D, WEATHER_SHEEN_STRENGTH_MIN, WEATHER_SHEEN_STRENGTH_MAX);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 
