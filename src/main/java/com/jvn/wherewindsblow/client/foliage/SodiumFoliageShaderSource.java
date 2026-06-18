@@ -20,6 +20,7 @@ public final class SodiumFoliageShaderSource {
             uniform float u_WwbWeatherWindPower;
             uniform float u_WwbPlantSwayStrength;
             uniform float u_WwbLeafSwayStrength;
+            uniform float u_WwbLanternSwayStrength;
             uniform float u_WwbPlantSheenStrength;
             uniform float u_WwbLeafSheenStrength;
             uniform vec3 u_WwbCameraPosition;
@@ -58,6 +59,11 @@ public final class SodiumFoliageShaderSource {
                 return encoded >= 44.5 && encoded <= 72.5;
             }
 
+            bool wwb_is_lantern_wind_vertex(float alpha) {
+                float encoded = alpha * 255.0;
+                return encoded >= 72.5 && encoded <= 88.5;
+            }
+
             bool wwb_is_foliage_wind_vertex(float alpha) {
                 return wwb_is_plant_wind_vertex(alpha) || wwb_is_leaf_wind_vertex(alpha);
             }
@@ -82,6 +88,10 @@ public final class SodiumFoliageShaderSource {
                 return wwb_has_foliage_material() && wwb_is_foliage_wind_vertex(alpha);
             }
 
+            bool wwb_should_apply_lantern_wind(float alpha) {
+                return wwb_is_lantern_wind_vertex(alpha) && u_WwbLanternSwayStrength > 0.0;
+            }
+
             float wwb_smooth_curve(float value) {
                 value = clamp(value, 0.0, 1.0);
                 return value * value * (3.0 - 2.0 * value);
@@ -94,6 +104,10 @@ public final class SodiumFoliageShaderSource {
                 }
 
                 return wwb_decode_plant_wind_alpha(alpha);
+            }
+
+            float wwb_decode_lantern_wind_alpha(float alpha) {
+                return clamp((floor(alpha * 255.0 + 0.5) - 73.0) / 15.0, 0.0, 1.0);
             }
 
             float wwb_sway_strength_for_alpha(float alpha) {
@@ -249,6 +263,35 @@ public final class SodiumFoliageShaderSource {
                 position.xz += dir * strength;
                 return position;
             }
+
+            vec3 wwb_apply_lantern_wind(vec3 position, float alpha) {
+                if (!wwb_should_apply_lantern_wind(alpha)) {
+                    return position;
+                }
+
+                float bend = wwb_smooth_curve(wwb_decode_lantern_wind_alpha(alpha));
+                if (bend <= 0.0) {
+                    return position;
+                }
+
+                float t = u_WwbTime;
+                vec3 windPosition = position + u_WwbCameraPosition;
+                vec2 windDir = normalize(vec2(0.821188, 0.570658));
+                vec2 crossDir = vec2(-windDir.y, windDir.x);
+                float along = dot(windPosition.xz, windDir);
+                float across = dot(windPosition.xz, crossDir);
+                float seed = wwb_grass_variation_seed(floor(windPosition.xz), vec2(91.7, 53.3));
+                float phase = seed * 6.2831853;
+                float drift = sin(t * 1.38 + along * 0.16 + phase)
+                        + sin(t * 2.06 + across * 0.21 + phase * 1.71) * 0.34;
+                float gust = 0.72 + 0.28 * wwb_smooth_curve(sin(along * 0.10 - t * 0.36 + phase * 0.5) * 0.5 + 0.5);
+                float directionNoise = sin(across * 0.18 + t * 0.42 + phase) * 0.24;
+                vec2 dir = normalize(windDir + crossDir * directionNoise);
+                float amplitude = (0.018 + u_WwbWeatherWindPower * 0.010) * u_WwbLanternSwayStrength * gust;
+                position.xz += dir * drift * amplitude * bend;
+                position.y += abs(drift) * amplitude * bend * 0.07;
+                return position;
+            }
             """;
 
     private static final String WIND_POSITION_INJECTION = """
@@ -257,10 +300,11 @@ public final class SodiumFoliageShaderSource {
                 vec2 wwbPlantAnchor = floor(_vert_position.xz) + vec2(0.5) + translation.xz;
                 vec3 wwbFoliageBase = position;
                 position = wwb_apply_foliage_wind(position, wwbFoliageAlpha);
+                position = wwb_apply_lantern_wind(position, wwbFoliageAlpha);
                 position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbPlantAnchor, wwbFoliageAlpha);""";
 
     private static final String WIND_COLOR_INJECTION = """
-                if (wwb_should_apply_foliage_wind(wwbFoliageAlpha)) {
+                if (wwb_should_apply_foliage_wind(wwbFoliageAlpha) || wwb_should_apply_lantern_wind(wwbFoliageAlpha)) {
                     v_Color.a = 1.0;
                 }
                 v_Color.rgb += vec3(wwbWindSheen * 0.44);""";

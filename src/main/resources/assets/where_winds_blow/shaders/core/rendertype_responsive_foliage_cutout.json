@@ -18,6 +18,7 @@
     { "name": "WeatherWindPower", "type": "float", "count": 1, "values": [ 0.0 ] },
     { "name": "PlantWindSwayStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "LeafWindSwayStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
+    { "name": "LanternWindSwayStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "PlantWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "LeafWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "CameraPosition", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0 ] },

@@ -149,6 +149,7 @@ public final class ResponsiveFoliageShaders {
         shader.safeGetUniform("WeatherWindPower").set(smoothedWeatherWindPower);
         shader.safeGetUniform("PlantWindSwayStrength").set(plantWindSwayStrength());
         shader.safeGetUniform("LeafWindSwayStrength").set(leafWindSwayStrength());
+        shader.safeGetUniform("LanternWindSwayStrength").set(lanternWindSwayStrength());
         shader.safeGetUniform("PlantWindSheenStrength").set(plantWindSheenStrength());
         shader.safeGetUniform("LeafWindSheenStrength").set(leafWindSheenStrength());
         Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
@@ -205,6 +206,12 @@ public final class ResponsiveFoliageShaders {
 
     public static float leafWindSwayStrength() {
         return ClientConfig.ENABLE_WIND_LEAF_SWAY.getAsBoolean() ? windSwayStrength() * LEAF_WIND_SWAY_SCALE : 0.0F;
+    }
+
+    public static float lanternWindSwayStrength() {
+        return shouldUseCustomFoliageShaders() && ClientConfig.ENABLE_WIND_LANTERN_SWAY.getAsBoolean()
+                ? (float) ClientConfig.WIND_LANTERN_SWAY_STRENGTH.getAsDouble()
+                : 0.0F;
     }
 
     public static float windSheenStrength() {

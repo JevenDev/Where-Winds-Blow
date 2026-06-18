@@ -33,6 +33,9 @@ public abstract class SodiumShaderChunkRendererMixin {
     private static int wherewindsblow$leafSwayStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
 
     @Unique
+    private static int wherewindsblow$lanternSwayStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
+
+    @Unique
     private static int wherewindsblow$plantSheenStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
 
     @Unique
@@ -68,6 +71,7 @@ public abstract class SodiumShaderChunkRendererMixin {
             wherewindsblow$uploadUniform(wherewindsblow$weatherWindPowerUniform, ResponsiveFoliageShaders.weatherWindPower());
             wherewindsblow$uploadUniform(wherewindsblow$plantSwayStrengthUniform, ResponsiveFoliageShaders.plantWindSwayStrength());
             wherewindsblow$uploadUniform(wherewindsblow$leafSwayStrengthUniform, ResponsiveFoliageShaders.leafWindSwayStrength());
+            wherewindsblow$uploadUniform(wherewindsblow$lanternSwayStrengthUniform, ResponsiveFoliageShaders.lanternWindSwayStrength());
             wherewindsblow$uploadUniform(wherewindsblow$plantSheenStrengthUniform, ResponsiveFoliageShaders.plantWindSheenStrength());
             wherewindsblow$uploadUniform(wherewindsblow$leafSheenStrengthUniform, ResponsiveFoliageShaders.leafWindSheenStrength());
             Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
@@ -91,6 +95,7 @@ public abstract class SodiumShaderChunkRendererMixin {
         wherewindsblow$weatherWindPowerUniform = GL20C.glGetUniformLocation(program, "u_WwbWeatherWindPower");
         wherewindsblow$plantSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSwayStrength");
         wherewindsblow$leafSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSwayStrength");
+        wherewindsblow$lanternSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLanternSwayStrength");
         wherewindsblow$plantSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSheenStrength");
         wherewindsblow$leafSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSheenStrength");
         wherewindsblow$cameraPositionUniform = GL20C.glGetUniformLocation(program, "u_WwbCameraPosition");

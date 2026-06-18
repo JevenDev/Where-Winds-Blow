@@ -19,6 +19,7 @@ uniform float WindTime;
 uniform float WeatherWindPower;
 uniform float PlantWindSwayStrength;
 uniform float LeafWindSwayStrength;
+uniform float LanternWindSwayStrength;
 uniform float PlantWindSheenStrength;
 uniform float LeafWindSheenStrength;
 uniform vec3 CameraPosition;
@@ -59,6 +60,11 @@ bool isLeafWindAlpha(float alpha) {
     return encoded >= 44.5 && encoded <= 72.5;
 }
 
+bool isLanternWindAlpha(float alpha) {
+    float encoded = alpha * 255.0;
+    return encoded >= 72.5 && encoded <= 88.5;
+}
+
 bool isFoliageWindVertex(float alpha) {
     return isPlantWindAlpha(alpha) || isLeafWindAlpha(alpha);
 }
@@ -78,6 +84,10 @@ float decodeWindAlpha(float alpha) {
     }
 
     return mod(plantAlphaCode(alpha), 7.0) / 6.0;
+}
+
+float decodeLanternWindAlpha(float alpha) {
+    return clamp((floor(alpha * 255.0 + 0.5) - 73.0) / 15.0, 0.0, 1.0);
 }
 
 float windSwayStrengthForAlpha(float alpha) {
@@ -160,15 +170,45 @@ float grassVariationSeed(vec2 cell, vec2 salt) {
     return fract(sin(dot(cell, salt)) * 43758.5453);
 }
 
+vec3 applyLanternWind(vec3 pos, float alpha) {
+    if (!isLanternWindAlpha(alpha) || LanternWindSwayStrength <= 0.0) {
+        return pos;
+    }
+
+    float bend = smoothCurve(decodeLanternWindAlpha(alpha));
+    if (bend <= 0.0) {
+        return pos;
+    }
+
+    float t = WindTime;
+    vec3 windPos = pos + CameraPosition;
+    vec2 windDir = normalize(vec2(0.821188, 0.570658));
+    vec2 crossDir = vec2(-windDir.y, windDir.x);
+    float along = dot(windPos.xz, windDir);
+    float across = dot(windPos.xz, crossDir);
+    float seed = grassVariationSeed(floor(windPos.xz), vec2(91.7, 53.3));
+    float phase = seed * 6.2831853;
+    float drift = sin(t * 1.38 + along * 0.16 + phase)
+            + sin(t * 2.06 + across * 0.21 + phase * 1.71) * 0.34;
+    float gust = 0.72 + 0.28 * smoothCurve(sin(along * 0.10 - t * 0.36 + phase * 0.5) * 0.5 + 0.5);
+    float directionNoise = sin(across * 0.18 + t * 0.42 + phase) * 0.24;
+    vec2 dir = normalize(windDir + crossDir * directionNoise);
+    float amplitude = (0.018 + WeatherWindPower * 0.010) * LanternWindSwayStrength * gust;
+    pos.xz += dir * drift * amplitude * bend;
+    pos.y += abs(drift) * amplitude * bend * 0.07;
+    return pos;
+}
+
 void main() {
     vec3 pos = Position + ChunkOffset;
     windSheen = 0.0;
 
     bool windMarker = isFoliageWindVertex(Color.a);
+    bool lanternWindMarker = isLanternWindAlpha(Color.a);
     float interactionBend = isPlantWindAlpha(Color.a) ? smoothCurve(decodePlantInteractionAlpha(Color.a)) : 0.0;
     bool interactionMarker = interactionBend > 0.0;
 
-    if (windMarker || interactionMarker) {
+    if (windMarker || lanternWindMarker || interactionMarker) {
         vec3 basePos = pos;
         vec3 worldBasePos = basePos + CameraPosition;
 
@@ -216,6 +256,10 @@ void main() {
             float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase) * (0.18 + plantWind * 0.08);
             vec2 dir = normalize(windDir + crossDir * directionNoise);
             pos.xz += dir * strength;
+        }
+
+        if (lanternWindMarker) {
+            pos = applyLanternWind(pos, Color.a);
         }
 
         if (interactionMarker) {

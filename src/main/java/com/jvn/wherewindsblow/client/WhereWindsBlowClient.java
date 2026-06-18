@@ -4,6 +4,7 @@ import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
+import com.jvn.wherewindsblow.client.lantern.LanternSway;
 import com.jvn.wherewindsblow.client.wind.WindStreakRenderer;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import net.minecraft.client.renderer.BiomeColors;
@@ -58,6 +59,7 @@ public final class WhereWindsBlowClient {
 
     private static void modifyBakedModels(ModelEvent.ModifyBakingResult event) {
         ResponsiveFoliage.wrapModels(event);
+        LanternSway.wrapModels(event);
     }
 
     private static void registerShaders(RegisterShadersEvent event) {

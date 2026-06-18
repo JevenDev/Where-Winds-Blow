@@ -154,6 +154,14 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_SMOKE_STRENGTH_MAX,
                                 SMALL_STEP
                         ))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_LANTERN_SWAY, true, WhereWindsBlowConfigScreen::rebuildFoliage))
+                        .option(doubleOption(
+                                ClientConfig.WIND_LANTERN_SWAY_STRENGTH,
+                                1.0D,
+                                ClientConfig.WIND_LANTERN_SWAY_STRENGTH_MIN,
+                                ClientConfig.WIND_LANTERN_SWAY_STRENGTH_MAX,
+                                SMALL_STEP
+                        ))
                         .build())
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.compatibility"))

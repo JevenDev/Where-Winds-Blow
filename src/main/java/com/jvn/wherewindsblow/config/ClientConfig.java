@@ -15,6 +15,8 @@ public final class ClientConfig {
     public static final double WIND_STREAK_THICKNESS_MAX = 4.0D;
     public static final double WIND_SMOKE_STRENGTH_MIN = 0.0D;
     public static final double WIND_SMOKE_STRENGTH_MAX = 4.0D;
+    public static final double WIND_LANTERN_SWAY_STRENGTH_MIN = 0.0D;
+    public static final double WIND_LANTERN_SWAY_STRENGTH_MAX = 2.0D;
     public static final double WIND_FOLIAGE_SWAY_STRENGTH_MIN = 0.0D;
     public static final double WIND_FOLIAGE_SWAY_STRENGTH_MAX = 2.0D;
     public static final double WIND_PLANT_SWAY_START_HEIGHT_MIN = 0.0D;
@@ -75,6 +77,14 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_SMOKE_STRENGTH = BUILDER
             .comment("Scales how strongly campfire smoke follows the wind.")
             .defineInRange("windSmokeStrength", 3.0D, WIND_SMOKE_STRENGTH_MIN, WIND_SMOKE_STRENGTH_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_LANTERN_SWAY = BUILDER
+            .comment("Lets hanging lanterns sway subtly with the wind.")
+            .define("enableWindLanternSway", true);
+
+    public static final ModConfigSpec.DoubleValue WIND_LANTERN_SWAY_STRENGTH = BUILDER
+            .comment("Scales how strongly hanging lanterns sway with the wind.")
+            .defineInRange("windLanternSwayStrength", 1.0D, WIND_LANTERN_SWAY_STRENGTH_MIN, WIND_LANTERN_SWAY_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue FORCE_WWB_WIND_WITH_SHADER_PACKS = BUILDER
             .comment("Keeps Where Winds Blow wind sway and sheen active even while an Iris shader pack is in use.")
