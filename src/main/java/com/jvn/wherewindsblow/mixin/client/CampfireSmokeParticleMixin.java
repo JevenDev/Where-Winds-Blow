@@ -1,6 +1,7 @@
 package com.jvn.wherewindsblow.mixin.client;
 
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
+import com.jvn.wherewindsblow.client.wind.WindDirection;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.CampfireSmokeParticle;
@@ -14,15 +15,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(CampfireSmokeParticle.class)
 public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
-    @Unique
-    private static final double WHEREWINDSBLOW_WIND_X = 0.821188D;
-    @Unique
-    private static final double WHEREWINDSBLOW_WIND_Z = 0.570658D;
-    @Unique
-    private static final double WHEREWINDSBLOW_CROSS_X = -WHEREWINDSBLOW_WIND_Z;
-    @Unique
-    private static final double WHEREWINDSBLOW_CROSS_Z = WHEREWINDSBLOW_WIND_X;
-
     @Unique
     private double wherewindsblow$sourceY;
     @Unique
@@ -75,8 +67,8 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
         double targetSpeed = (0.006D + weatherBoost * 0.014D) * strength * windGrab;
         double curl = Math.sin(this.wherewindsblow$windSeed + this.age * 0.055D + windTime * 0.7F)
                 * (0.18D + ageRamp * 0.28D);
-        double targetX = (WHEREWINDSBLOW_WIND_X + WHEREWINDSBLOW_CROSS_X * curl) * targetSpeed;
-        double targetZ = (WHEREWINDSBLOW_WIND_Z + WHEREWINDSBLOW_CROSS_Z * curl) * targetSpeed;
+        double targetX = (WindDirection.xDouble() + WindDirection.crossXDouble() * curl) * targetSpeed;
+        double targetZ = (WindDirection.zDouble() + WindDirection.crossZDouble() * curl) * targetSpeed;
         double response = 0.035D + weatherBoost * 0.025D;
         this.xd += (targetX - this.xd) * response;
         this.zd += (targetZ - this.zd) * response;

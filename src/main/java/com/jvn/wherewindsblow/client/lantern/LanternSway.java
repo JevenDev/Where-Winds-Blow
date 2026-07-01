@@ -11,14 +11,28 @@ public final class LanternSway {
     }
 
     public static void wrapModels(ModelEvent.ModifyBakingResult event) {
-        event.getModels().replaceAll((location, model) -> shouldWrap(location, model) ? new LanternSwayModel(model) : model);
+        event.getModels().replaceAll((location, model) -> {
+            LanternSwayModel.Subject subject = subjectFor(location, model);
+            return subject != null
+                ? new LanternSwayModel(model, subject)
+                : model;
+        });
     }
 
-    private static boolean shouldWrap(ModelResourceLocation location, BakedModel model) {
-        return location.variant() != null
-                && !location.variant().equals(ModelResourceLocation.INVENTORY_VARIANT)
-                && !(model instanceof LanternSwayModel)
-                && (location.id().equals(BuiltInRegistries.BLOCK.getKey(Blocks.LANTERN))
-                || location.id().equals(BuiltInRegistries.BLOCK.getKey(Blocks.SOUL_LANTERN)));
+    private static LanternSwayModel.Subject subjectFor(ModelResourceLocation location, BakedModel model) {
+        if (location.variant() == null
+                || location.variant().equals(ModelResourceLocation.INVENTORY_VARIANT)
+                || model instanceof LanternSwayModel) {
+            return null;
+        }
+
+        if (location.id().equals(BuiltInRegistries.BLOCK.getKey(Blocks.LANTERN))
+                || location.id().equals(BuiltInRegistries.BLOCK.getKey(Blocks.SOUL_LANTERN))) {
+            return LanternSwayModel.Subject.LANTERN;
+        }
+
+        return location.id().equals(BuiltInRegistries.BLOCK.getKey(Blocks.CHAIN))
+                ? LanternSwayModel.Subject.CHAIN
+                : null;
     }
 }

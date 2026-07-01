@@ -13,6 +13,8 @@ public final class ClientConfig {
     public static final double WIND_STREAK_OPACITY_MAX = 1.0D;
     public static final double WIND_STREAK_THICKNESS_MIN = 1.0D;
     public static final double WIND_STREAK_THICKNESS_MAX = 4.0D;
+    public static final double WIND_DIRECTION_DEGREES_MIN = 0.0D;
+    public static final double WIND_DIRECTION_DEGREES_MAX = 360.0D;
     public static final double WIND_SMOKE_STRENGTH_MIN = 0.0D;
     public static final double WIND_SMOKE_STRENGTH_MAX = 4.0D;
     public static final double WIND_LANTERN_SWAY_STRENGTH_MIN = 0.0D;
@@ -70,6 +72,10 @@ public final class ClientConfig {
             .comment("Sets wind streak line thickness in pixels.")
             .defineInRange("windStreakThickness", 3.0D, WIND_STREAK_THICKNESS_MIN, WIND_STREAK_THICKNESS_MAX);
 
+    public static final ModConfigSpec.DoubleValue WIND_DIRECTION_DEGREES = BUILDER
+            .comment("Sets the general wind direction in compass degrees clockwise from north. 0 is north, 90 is east, 180 is south, and 270 is west.")
+            .defineInRange("windDirectionDegrees", 125.0D, WIND_DIRECTION_DEGREES_MIN, WIND_DIRECTION_DEGREES_MAX);
+
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_SMOKE = BUILDER
             .comment("Lets campfire smoke naturally drift and curl with the wind.")
             .define("enableWindSmoke", true);
@@ -85,6 +91,10 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_LANTERN_SWAY_STRENGTH = BUILDER
             .comment("Scales how strongly hanging lanterns sway with the wind.")
             .defineInRange("windLanternSwayStrength", 1.0D, WIND_LANTERN_SWAY_STRENGTH_MIN, WIND_LANTERN_SWAY_STRENGTH_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_STANDALONE_CHAIN_SWAY = BUILDER
+            .comment("Lets vertical chain blocks sway even when their connected stack does not end in a hanging lantern.")
+            .define("enableStandaloneChainSway", false);
 
     public static final ModConfigSpec.BooleanValue FORCE_WWB_WIND_WITH_SHADER_PACKS = BUILDER
             .comment("Keeps Where Winds Blow wind sway and sheen active even while an Iris shader pack is in use.")

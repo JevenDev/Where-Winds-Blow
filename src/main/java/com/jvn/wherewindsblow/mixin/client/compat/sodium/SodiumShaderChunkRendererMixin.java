@@ -2,6 +2,7 @@ package com.jvn.wherewindsblow.mixin.client.compat.sodium;
 
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
+import com.jvn.wherewindsblow.client.wind.WindDirection;
 import java.util.Arrays;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
@@ -42,6 +43,9 @@ public abstract class SodiumShaderChunkRendererMixin {
     private static int wherewindsblow$leafSheenStrengthUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
 
     @Unique
+    private static int wherewindsblow$windDirectionUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
+
+    @Unique
     private static int wherewindsblow$cameraPositionUniform = WHEREWINDSBLOW$UNRESOLVED_UNIFORM;
 
     @Unique
@@ -74,6 +78,7 @@ public abstract class SodiumShaderChunkRendererMixin {
             wherewindsblow$uploadUniform(wherewindsblow$lanternSwayStrengthUniform, ResponsiveFoliageShaders.lanternWindSwayStrength());
             wherewindsblow$uploadUniform(wherewindsblow$plantSheenStrengthUniform, ResponsiveFoliageShaders.plantWindSheenStrength());
             wherewindsblow$uploadUniform(wherewindsblow$leafSheenStrengthUniform, ResponsiveFoliageShaders.leafWindSheenStrength());
+            wherewindsblow$uploadWindDirectionUniform(wherewindsblow$windDirectionUniform);
             Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
             wherewindsblow$uploadCameraPositionUniform(wherewindsblow$cameraPositionUniform, cameraPosition);
             int interactorCount = ResponsiveFoliageShaders.foliageInteractorCount();
@@ -98,6 +103,7 @@ public abstract class SodiumShaderChunkRendererMixin {
         wherewindsblow$lanternSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLanternSwayStrength");
         wherewindsblow$plantSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSheenStrength");
         wherewindsblow$leafSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSheenStrength");
+        wherewindsblow$windDirectionUniform = GL20C.glGetUniformLocation(program, "u_WwbWindDirection");
         wherewindsblow$cameraPositionUniform = GL20C.glGetUniformLocation(program, "u_WwbCameraPosition");
         wherewindsblow$interactorCountUniform = GL20C.glGetUniformLocation(program, "u_WwbInteractorCount");
         Arrays.fill(wherewindsblow$interactorUniforms, WHEREWINDSBLOW$UNRESOLVED_UNIFORM);
@@ -127,6 +133,13 @@ public abstract class SodiumShaderChunkRendererMixin {
     private static void wherewindsblow$uploadCameraPositionUniform(int location, Vec3 cameraPosition) {
         if (location >= 0) {
             GL20C.glUniform3f(location, (float) cameraPosition.x, (float) cameraPosition.y, (float) cameraPosition.z);
+        }
+    }
+
+    @Unique
+    private static void wherewindsblow$uploadWindDirectionUniform(int location) {
+        if (location >= 0) {
+            GL20C.glUniform2f(location, WindDirection.x(), WindDirection.z());
         }
     }
 

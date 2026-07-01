@@ -146,6 +146,13 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_STREAK_THICKNESS_MAX,
                                 SMALL_STEP
                         ))
+                        .option(doubleOption(
+                                ClientConfig.WIND_DIRECTION_DEGREES,
+                                125.0D,
+                                ClientConfig.WIND_DIRECTION_DEGREES_MIN,
+                                ClientConfig.WIND_DIRECTION_DEGREES_MAX,
+                                1.0D
+                        ))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_SMOKE, true))
                         .option(doubleOption(
                                 ClientConfig.WIND_SMOKE_STRENGTH,
@@ -162,6 +169,7 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_LANTERN_SWAY_STRENGTH_MAX,
                                 SMALL_STEP
                         ))
+                        .option(booleanOption(ClientConfig.ENABLE_STANDALONE_CHAIN_SWAY, false, WhereWindsBlowConfigScreen::rebuildFoliage))
                         .build())
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.compatibility"))

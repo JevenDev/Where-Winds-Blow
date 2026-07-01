@@ -44,10 +44,6 @@ public final class WindStreakRenderer {
     private static final int MAX_LEAVES = 18;
     private static final int LEAF_TEXTURE_COUNT = 12;
     private static final int BODY_SEGMENTS = 24;
-    private static final double WIND_X = 0.821188D;
-    private static final double WIND_Z = 0.570658D;
-    private static final double CROSS_X = -WIND_Z;
-    private static final double CROSS_Z = WIND_X;
     private static final double MAX_DISTANCE_FROM_PLAYER = 56.0D;
     private static final double TERRAIN_LOOKAHEAD = 6.5D;
     private static final double TERRAIN_SIDE_SAMPLE = 3.6D;
@@ -399,9 +395,9 @@ public final class WindStreakRenderer {
         double flutter = Math.sin((leaf.age + leaf.seed) * 0.084D) * leaf.verticalDrift * (1.0D + weatherBoost * 0.4D);
         Point next = keepAboveTerrainAndCollision(
                 level,
-                leaf.x + WIND_X * speed + CROSS_X * (weave + leaf.terrainSideFlow),
+                leaf.x + windX() * speed + crossX() * (weave + leaf.terrainSideFlow),
                 leaf.y + leaf.terrainLift + flutter,
-                leaf.z + WIND_Z * speed + CROSS_Z * (weave + leaf.terrainSideFlow),
+                leaf.z + windZ() * speed + crossZ() * (weave + leaf.terrainSideFlow),
                 LEAF_TERRAIN_CLEARANCE
         );
         if (windPathBlocked(level, leaf.x, leaf.y, leaf.z, next)) {
@@ -566,9 +562,9 @@ public final class WindStreakRenderer {
         for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
             double along = randomBetween(minAlong, maxAlong);
             double across = randomBetween(minAcross, maxAcross);
-            double x = player.getX() + WIND_X * along + CROSS_X * across;
+            double x = player.getX() + windX() * along + crossX() * across;
             double y = player.getEyeY() + randomBetween(minEyeOffset, maxEyeOffset);
-            double z = player.getZ() + WIND_Z * along + CROSS_Z * across;
+            double z = player.getZ() + windZ() * along + crossZ() * across;
             if (y < player.getY() + minPlayerClearance) {
                 y = player.getY() + randomBetween(minPlayerClearance, maxPlayerClearance);
             }
@@ -676,9 +672,9 @@ public final class WindStreakRenderer {
         double baseZ = lerp(partialTick, leaf.zOld, leaf.z);
         double weatherFlutterBoost = 1.0D + weatherBoost(weatherWindPower) * 0.35D;
         double flutter = Math.sin(leaf.seed + ((double) leaf.age + partialTick) * 0.16D + windTime * 1.35D) * leaf.bob;
-        double centerX = baseX + CROSS_X * flutter * weatherFlutterBoost;
+        double centerX = baseX + crossX() * flutter * weatherFlutterBoost;
         double centerY = baseY + Math.cos(leaf.seed * 0.7D + ((double) leaf.age + partialTick) * 0.13D) * leaf.bob;
-        double centerZ = baseZ + CROSS_Z * flutter * weatherFlutterBoost;
+        double centerZ = baseZ + crossZ() * flutter * weatherFlutterBoost;
         centerY = Math.max(centerY, terrainHeight(level, centerX, centerZ) + LEAF_TERRAIN_CLEARANCE);
         if (!leaf.fadingOut && !isOpenSkyAir(level, centerX, centerY, centerZ)) {
             return;
@@ -756,9 +752,9 @@ public final class WindStreakRenderer {
                 * streak.curveSign;
         double softRipple = Math.sin(flow + t * Math.PI * 2.0D) * 0.024D * pathEnvelope;
         double crossOffset = bodyCurve + sCurve + softRipple;
-        double x = baseX + WIND_X * along + CROSS_X * crossOffset;
+        double x = baseX + windX() * along + crossX() * crossOffset;
         double y = baseY + pathEnvelope * streak.lift + sCurve * 0.08D;
-        double z = baseZ + WIND_Z * along + CROSS_Z * crossOffset;
+        double z = baseZ + windZ() * along + crossZ() * crossOffset;
         return new Point(x, y, z);
     }
 
@@ -807,9 +803,9 @@ public final class WindStreakRenderer {
             normalY /= length;
             normalZ /= length;
         } else {
-            normalX = (float) WIND_X;
+            normalX = (float) windX();
             normalY = 0.0F;
-            normalZ = (float) WIND_Z;
+            normalZ = (float) windZ();
         }
 
         consumer.addVertex(pose, (float) (start.x - cameraPos.x()), (float) (start.y - cameraPos.y()), (float) (start.z - cameraPos.z()))
@@ -948,10 +944,10 @@ public final class WindStreakRenderer {
             double currentLift,
             double currentSide
     ) {
-        double nearX = x + WIND_X * (TERRAIN_LOOKAHEAD * 0.45D);
-        double nearZ = z + WIND_Z * (TERRAIN_LOOKAHEAD * 0.45D);
-        double forwardX = x + WIND_X * TERRAIN_LOOKAHEAD;
-        double forwardZ = z + WIND_Z * TERRAIN_LOOKAHEAD;
+        double nearX = x + windX() * (TERRAIN_LOOKAHEAD * 0.45D);
+        double nearZ = z + windZ() * (TERRAIN_LOOKAHEAD * 0.45D);
+        double forwardX = x + windX() * TERRAIN_LOOKAHEAD;
+        double forwardZ = z + windZ() * TERRAIN_LOOKAHEAD;
         double currentHeight = terrainHeight(level, x, z);
         double nearHeight = terrainHeight(level, nearX, nearZ);
         double forwardHeight = terrainHeight(level, forwardX, forwardZ);
@@ -961,8 +957,8 @@ public final class WindStreakRenderer {
                 ? Mth.clamp(heightError * liftStrength, 0.0D, MAX_TERRAIN_LIFT)
                 : 0.0D;
 
-        double leftHeight = terrainHeight(level, forwardX - CROSS_X * TERRAIN_SIDE_SAMPLE, forwardZ - CROSS_Z * TERRAIN_SIDE_SAMPLE);
-        double rightHeight = terrainHeight(level, forwardX + CROSS_X * TERRAIN_SIDE_SAMPLE, forwardZ + CROSS_Z * TERRAIN_SIDE_SAMPLE);
+        double leftHeight = terrainHeight(level, forwardX - crossX() * TERRAIN_SIDE_SAMPLE, forwardZ - crossZ() * TERRAIN_SIDE_SAMPLE);
+        double rightHeight = terrainHeight(level, forwardX + crossX() * TERRAIN_SIDE_SAMPLE, forwardZ + crossZ() * TERRAIN_SIDE_SAMPLE);
         double tallestNearbyTerrain = Math.max(Math.max(leftHeight, rightHeight), forwardHeight);
         double sideAwareness = smoothFade(Mth.clamp((float) ((tallestNearbyTerrain + clearance + 3.0D - y) / 5.5D), 0.0F, 1.0F));
         double desiredSide = Mth.clamp(
@@ -1087,6 +1083,22 @@ public final class WindStreakRenderer {
 
     private static double lerp(float amount, double start, double end) {
         return start + (end - start) * amount;
+    }
+
+    private static double windX() {
+        return WindDirection.xDouble();
+    }
+
+    private static double windZ() {
+        return WindDirection.zDouble();
+    }
+
+    private static double crossX() {
+        return WindDirection.crossXDouble();
+    }
+
+    private static double crossZ() {
+        return WindDirection.crossZDouble();
     }
 
     private static final class WindStreak {

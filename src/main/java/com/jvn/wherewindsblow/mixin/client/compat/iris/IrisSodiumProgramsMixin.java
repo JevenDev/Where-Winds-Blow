@@ -26,6 +26,7 @@ public abstract class IrisSodiumProgramsMixin {
             uniform float u_WwbPlantSwayStrength;
             uniform float u_WwbLeafSwayStrength;
             uniform float u_WwbLanternSwayStrength;
+            uniform vec2 u_WwbWindDirection;
             uniform vec3 u_WwbCameraPosition;
             uniform int u_WwbInteractorCount;
             uniform vec4 u_WwbInteractor0;
@@ -63,6 +64,10 @@ public abstract class IrisSodiumProgramsMixin {
                 float encoded = alpha * 255.0;
                 return encoded >= 72.5 && encoded <= 88.5;
             }
+            bool wwb_is_chain_wind_vertex(float alpha) {
+                float encoded = alpha * 255.0;
+                return encoded >= 88.5 && encoded <= 104.5;
+            }
 
             bool wwb_is_foliage_wind_vertex(float alpha) {
                 return wwb_is_plant_wind_vertex(alpha) || wwb_is_leaf_wind_vertex(alpha);
@@ -88,7 +93,7 @@ public abstract class IrisSodiumProgramsMixin {
                 return wwb_has_foliage_material() && wwb_is_foliage_wind_vertex(alpha);
             }
             bool wwb_should_apply_lantern_wind(float alpha) {
-                return wwb_is_lantern_wind_vertex(alpha) && u_WwbLanternSwayStrength > 0.0;
+                return (wwb_is_lantern_wind_vertex(alpha) || wwb_is_chain_wind_vertex(alpha)) && u_WwbLanternSwayStrength > 0.0;
             }
 
             float wwb_smooth_curve(float value) {
@@ -105,6 +110,9 @@ public abstract class IrisSodiumProgramsMixin {
             }
             float wwb_decode_lantern_wind_alpha(float alpha) {
                 return clamp((floor(alpha * 255.0 + 0.5) - 73.0) / 15.0, 0.0, 1.0);
+            }
+            float wwb_decode_chain_wind_alpha(float alpha) {
+                return clamp((floor(alpha * 255.0 + 0.5) - 89.0) / 15.0, 0.0, 1.0);
             }
             float wwb_sway_strength_for_alpha(float alpha) {
                 return wwb_is_leaf_wind_vertex(alpha) ? u_WwbLeafSwayStrength : u_WwbPlantSwayStrength;
@@ -182,6 +190,11 @@ public abstract class IrisSodiumProgramsMixin {
             float wwb_grass_variation_seed(vec2 cell, vec2 salt) {
                 return fract(sin(dot(cell, salt)) * 43758.5453);
             }
+            vec3 wwb_rotate_around_axis(vec3 value, vec3 axis, float angle) {
+                float c = cos(angle);
+                float s = sin(angle);
+                return value * c + cross(axis, value) * s + axis * dot(axis, value) * (1.0 - c);
+            }
             vec3 wwb_apply_foliage_wind(vec3 position, float alpha) {
                 if (!wwb_should_apply_foliage_wind(alpha)) {
                     return position;
@@ -191,7 +204,7 @@ public abstract class IrisSodiumProgramsMixin {
                 float weatherStrength = 1.0 + u_WwbWeatherWindPower * 0.55;
                 float t = u_WwbTime;
                 vec3 windPosition = position + u_WwbCameraPosition;
-                vec2 windDir = normalize(vec2(0.821188, 0.570658));
+                vec2 windDir = normalize(u_WwbWindDirection);
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
                 float along = dot(windPosition.xz, windDir);
                 float across = dot(windPosition.xz, crossDir);
@@ -224,27 +237,64 @@ public abstract class IrisSodiumProgramsMixin {
                     return position;
                 }
 
-                float bend = wwb_smooth_curve(wwb_decode_lantern_wind_alpha(alpha));
-                if (bend <= 0.0) {
-                    return position;
-                }
+                bool lanternMarker = wwb_is_lantern_wind_vertex(alpha);
+                bool chainMarker = wwb_is_chain_wind_vertex(alpha);
+                float markerStrength = lanternMarker ? wwb_decode_lantern_wind_alpha(alpha) : wwb_decode_chain_wind_alpha(alpha);
 
                 float t = u_WwbTime;
                 vec3 windPosition = position + u_WwbCameraPosition;
-                vec2 windDir = normalize(vec2(0.821188, 0.570658));
+                vec2 windAnchor = floor(windPosition.xz) + vec2(0.5);
+                vec2 windDir = normalize(u_WwbWindDirection);
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
-                float along = dot(windPosition.xz, windDir);
-                float across = dot(windPosition.xz, crossDir);
-                float seed = wwb_grass_variation_seed(floor(windPosition.xz), vec2(91.7, 53.3));
+                float along = dot(windAnchor, windDir);
+                float across = dot(windAnchor, crossDir);
+                float seed = wwb_grass_variation_seed(floor(windAnchor), vec2(91.7, 53.3));
                 float phase = seed * 6.2831853;
-                float drift = sin(t * 1.38 + along * 0.16 + phase)
-                        + sin(t * 2.06 + across * 0.21 + phase * 1.71) * 0.34;
-                float gust = 0.72 + 0.28 * wwb_smooth_curve(sin(along * 0.10 - t * 0.36 + phase * 0.5) * 0.5 + 0.5);
-                float directionNoise = sin(across * 0.18 + t * 0.42 + phase) * 0.24;
-                vec2 dir = normalize(windDir + crossDir * directionNoise);
-                float amplitude = (0.018 + u_WwbWeatherWindPower * 0.010) * u_WwbLanternSwayStrength * gust;
-                position.xz += dir * drift * amplitude * bend;
-                position.y += abs(drift) * amplitude * bend * 0.07;
+                float linkLag = 0.24;
+                float swingTime = t - linkLag;
+                float primarySwing = sin(swingTime * 1.08 + along * 0.13 + phase)
+                        + sin(swingTime * 1.62 + across * 0.17 + phase * 1.71) * 0.34;
+                float crossSwing = sin(swingTime * 0.82 + across * 0.12 + phase * 1.37) * 0.46;
+                float recoil = sin((t + linkLag * 0.65) * 2.24 + along * 0.055 + phase * 2.17) * 0.13;
+                float gust = 0.68 + 0.32 * wwb_smooth_curve(sin(along * 0.10 - t * 0.36 + phase * 0.5) * 0.5 + 0.5);
+                float directionNoise = sin(across * 0.18 + t * 0.42 + phase) * 0.16;
+                vec2 baseDir = normalize(windDir + crossDir * directionNoise);
+                vec2 swing = baseDir * (primarySwing + recoil) + crossDir * crossSwing * 0.48;
+                float swingLength = length(swing);
+                if (swingLength <= 0.001) {
+                    return position;
+                }
+
+                vec2 swingDir = swing / swingLength;
+                vec3 axis = normalize(vec3(-swingDir.y, 0.0, swingDir.x));
+                float chainAngle = clamp(swingLength * (0.072 + u_WwbWeatherWindPower * 0.026) * u_WwbLanternSwayStrength * gust, 0.0, 0.18);
+                float bodyAngle = clamp(swingLength * (0.094 + u_WwbWeatherWindPower * 0.034) * u_WwbLanternSwayStrength * gust, 0.0, 0.24);
+                vec3 chainEndOffset = wwb_rotate_around_axis(vec3(0.0, -1.0, 0.0), axis, chainAngle) - vec3(0.0, -1.0, 0.0);
+
+                float localY = fract(windPosition.y);
+                if (chainMarker) {
+                    if (markerStrength <= 0.0) {
+                        return position;
+                    }
+
+                    position += chainEndOffset * markerStrength;
+                    return position;
+                }
+
+                vec3 local = vec3(windPosition.x - windAnchor.x, localY - 1.0, windPosition.z - windAnchor.y);
+                vec3 rotated = wwb_rotate_around_axis(local, axis, bodyAngle * markerStrength);
+
+                float yaw = sin(swingTime * 1.46 + phase * 2.3 + across * 0.05) * (0.020 + u_WwbWeatherWindPower * 0.005) * u_WwbLanternSwayStrength * markerStrength;
+                float yawCos = cos(yaw);
+                float yawSin = sin(yaw);
+                rotated.xz = vec2(
+                        rotated.x * yawCos - rotated.z * yawSin,
+                        rotated.x * yawSin + rotated.z * yawCos
+                );
+
+                position += chainEndOffset;
+                position += rotated - local;
+                position.y += 0.03125 * markerStrength;
                 return position;
             }
             """;

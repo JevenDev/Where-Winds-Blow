@@ -1,6 +1,7 @@
 package com.jvn.wherewindsblow.client.foliage;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
+import com.jvn.wherewindsblow.client.wind.WindDirection;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import java.io.IOException;
@@ -152,6 +153,7 @@ public final class ResponsiveFoliageShaders {
         shader.safeGetUniform("LanternWindSwayStrength").set(lanternWindSwayStrength());
         shader.safeGetUniform("PlantWindSheenStrength").set(plantWindSheenStrength());
         shader.safeGetUniform("LeafWindSheenStrength").set(leafWindSheenStrength());
+        shader.safeGetUniform("WindDirection").set(WindDirection.x(), WindDirection.z());
         Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         shader.safeGetUniform("CameraPosition").set((float) cameraPosition.x, (float) cameraPosition.y, (float) cameraPosition.z);
         shader.safeGetUniform("FoliageInteractorCount").set(foliageInteractorCount);
