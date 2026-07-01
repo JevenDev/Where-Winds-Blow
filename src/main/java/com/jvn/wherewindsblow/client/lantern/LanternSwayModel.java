@@ -1,6 +1,7 @@
 package com.jvn.wherewindsblow.client.lantern;
 
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
+import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,8 +30,9 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
     private static final int CHAIN_ALPHA_MAX = 104;
     private static final int CHAIN_ALPHA_LEVELS = CHAIN_ALPHA_MAX - CHAIN_ALPHA_MIN + 1;
     private static final float CHAIN_BOTTOM_ENDPOINT_MARGIN = 0.1875F;
+    private static final float ENCLOSED_SWAY_SCALE = 0.12F;
     private final Subject subject;
-    private final Map<BakedQuad, BakedQuad> lanternQuadCache = new ConcurrentHashMap<>();
+    private final Map<LanternQuadKey, BakedQuad> lanternQuadCache = new ConcurrentHashMap<>();
     private final Map<ChainQuadKey, BakedQuad> chainQuadCache = new ConcurrentHashMap<>();
 
     LanternSwayModel(BakedModel originalModel, Subject subject) {
@@ -48,6 +50,7 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
         if (subject == Subject.LANTERN && isHangingLantern(state)) {
             return originalData.derive()
                     .with(LanternModelData.LANTERN_CHAIN_ATTACHED, hasVerticalChainAbove(level, pos))
+                    .with(LanternModelData.WIND_EXPOSED, ResponsiveFoliage.isWindExposed(level, pos))
                     .build();
         }
 
@@ -79,7 +82,7 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
                         yield null;
                     }
 
-                    yield lanternQuadCache.computeIfAbsent(quad, this::transformLanternQuad);
+                    yield lanternQuadCache.computeIfAbsent(new LanternQuadKey(quad, windExposed(extraData)), LanternSwayModel::transformLanternQuad);
                 }
                 case CHAIN -> {
                     LanternModelData.ChainSegment segment = extraData.get(LanternModelData.CHAIN_SEGMENT);
@@ -94,8 +97,8 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
                     }
 
                     yield chainQuadCache.computeIfAbsent(
-                            new ChainQuadKey(quad, segment.offsetFromTop(), segment.height(), segment.hangingLanternAttached()),
-                            this::transformChainQuad
+                            new ChainQuadKey(quad, segment.offsetFromTop(), segment.height(), segment.hangingLanternAttached(), segment.windExposed()),
+                            LanternSwayModel::transformChainQuad
                     );
                 }
             });
@@ -116,12 +119,13 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
                 && ClientConfig.ENABLE_WIND_LANTERN_SWAY.getAsBoolean();
     }
 
-    private BakedQuad transformLanternQuad(BakedQuad quad) {
+    private static BakedQuad transformLanternQuad(LanternQuadKey key) {
+        BakedQuad quad = key.quad();
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * stride;
-            vertices[offset + 3] = packLanternAlpha(vertices[offset + 3]);
+            vertices[offset + 3] = packLanternAlpha(vertices[offset + 3], key.windExposed());
         }
 
         return new BakedQuad(
@@ -134,10 +138,11 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
         );
     }
 
-    private BakedQuad transformChainQuad(ChainQuadKey key) {
+    private static BakedQuad transformChainQuad(ChainQuadKey key) {
         BakedQuad quad = key.quad();
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
+        float exposureScale = windExposureScale(key.windExposed());
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * stride;
             float y = Float.intBitsToFloat(vertices[offset + 1]);
@@ -147,7 +152,7 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
             float longStack = Mth.clamp((key.height() - 3.0F) / 8.0F, 0.0F, 1.0F);
             float bendExponent = Mth.lerp(longStack, 1.45F, 1.05F);
             float swayWeight = (float) Math.pow(smoothStep(progress), bendExponent);
-            vertices[offset + 3] = packChainAlpha(vertices[offset + 3], swayWeight);
+            vertices[offset + 3] = packChainAlpha(vertices[offset + 3], swayWeight * exposureScale);
         }
 
         return new BakedQuad(
@@ -171,7 +176,7 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
             height++;
         }
 
-        return new LanternModelData.ChainSegment(top, top.getY() - pos.getY(), height, hasHangingLanternBelow(level, top, height));
+        return new LanternModelData.ChainSegment(top, top.getY() - pos.getY(), height, hasHangingLanternBelow(level, top, height), ResponsiveFoliage.isWindExposed(level, pos));
     }
 
     private static boolean isVerticalChain(@Nullable BlockState state) {
@@ -199,8 +204,9 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
                 && state.getValue(LanternBlock.HANGING);
     }
 
-    private static int packLanternAlpha(int color) {
-        return (color & 0x00FFFFFF) | (LANTERN_ALPHA_MAX << 24);
+    private static int packLanternAlpha(int color, boolean windExposed) {
+        int alpha = Math.round(LANTERN_ALPHA_MIN + windExposureScale(windExposed) * (LANTERN_ALPHA_MAX - LANTERN_ALPHA_MIN));
+        return (color & 0x00FFFFFF) | (Mth.clamp(alpha, LANTERN_ALPHA_MIN, LANTERN_ALPHA_MAX) << 24);
     }
 
     private static int packChainAlpha(int color, float swayWeight) {
@@ -213,11 +219,22 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
         return x * x * (3.0F - 2.0F * x);
     }
 
+    private static boolean windExposed(ModelData extraData) {
+        return !extraData.has(LanternModelData.WIND_EXPOSED) || Boolean.TRUE.equals(extraData.get(LanternModelData.WIND_EXPOSED));
+    }
+
+    private static float windExposureScale(boolean windExposed) {
+        return windExposed ? 1.0F : ENCLOSED_SWAY_SCALE;
+    }
+
     enum Subject {
         LANTERN,
         CHAIN
     }
 
-    private record ChainQuadKey(BakedQuad quad, int offsetFromTop, int height, boolean hangingLanternAttached) {
+    private record LanternQuadKey(BakedQuad quad, boolean windExposed) {
+    }
+
+    private record ChainQuadKey(BakedQuad quad, int offsetFromTop, int height, boolean hangingLanternAttached, boolean windExposed) {
     }
 }

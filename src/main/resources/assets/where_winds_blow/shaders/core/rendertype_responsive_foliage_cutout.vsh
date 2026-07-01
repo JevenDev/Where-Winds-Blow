@@ -221,8 +221,9 @@ vec3 applyLanternWind(vec3 pos, float alpha) {
 
     vec2 swingDir = swing / swingLength;
     vec3 axis = normalize(vec3(-swingDir.y, 0.0, swingDir.x));
-    float chainAngle = clamp(swingLength * (0.072 + WeatherWindPower * 0.026) * LanternWindSwayStrength * gust, 0.0, 0.18);
-    float bodyAngle = clamp(swingLength * (0.094 + WeatherWindPower * 0.034) * LanternWindSwayStrength * gust, 0.0, 0.24);
+    float lanternWeatherPower = markerStrength <= 0.15 ? 0.0 : WeatherWindPower;
+    float chainAngle = clamp(swingLength * (0.072 + lanternWeatherPower * 0.026) * LanternWindSwayStrength * gust, 0.0, 0.18);
+    float bodyAngle = clamp(swingLength * (0.094 + lanternWeatherPower * 0.034) * LanternWindSwayStrength * gust, 0.0, 0.24);
     vec3 chainEndOffset = rotateAroundAxis(vec3(0.0, -1.0, 0.0), axis, chainAngle) - vec3(0.0, -1.0, 0.0);
 
     float localY = fract(windPos.y);
@@ -238,7 +239,7 @@ vec3 applyLanternWind(vec3 pos, float alpha) {
     vec3 local = vec3(windPos.x - windAnchor.x, localY - 1.0, windPos.z - windAnchor.y);
     vec3 rotated = rotateAroundAxis(local, axis, bodyAngle * markerStrength);
 
-    float yaw = sin(swingTime * 1.46 + phase * 2.3 + across * 0.05) * (0.020 + WeatherWindPower * 0.005) * LanternWindSwayStrength * markerStrength;
+    float yaw = sin(swingTime * 1.46 + phase * 2.3 + across * 0.05) * (0.020 + lanternWeatherPower * 0.005) * LanternWindSwayStrength * markerStrength;
     float yawCos = cos(yaw);
     float yawSin = sin(yaw);
     rotated.xz = vec2(
@@ -246,7 +247,7 @@ vec3 applyLanternWind(vec3 pos, float alpha) {
             rotated.x * yawSin + rotated.z * yawCos
     );
 
-    pos += chainEndOffset;
+    pos += chainEndOffset * markerStrength;
     pos += rotated - local;
     pos.y += 0.03125 * markerStrength;
     return pos;

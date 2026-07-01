@@ -6,6 +6,7 @@ import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
@@ -21,12 +22,20 @@ import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.model.data.ModelData;
 
 public final class ResponsiveFoliage {
     private static final float PLANE_EPSILON = 0.01F;
     private static final int MIN_WIND_EXPOSED_SKY_LIGHT = 14;
+    private static final int WIND_SIDE_ACCESS_RADIUS = 5;
+    private static final Direction[] HORIZONTAL_DIRECTIONS = {
+            Direction.NORTH,
+            Direction.SOUTH,
+            Direction.WEST,
+            Direction.EAST
+    };
 
     private ResponsiveFoliage() {
     }
@@ -73,7 +82,41 @@ public final class ResponsiveFoliage {
     }
 
     public static boolean isWindExposed(BlockAndTintGetter level, BlockPos pos) {
+        if (hasWindSkylight(level, pos)) {
+            return true;
+        }
+
+        BlockPos.MutableBlockPos samplePos = new BlockPos.MutableBlockPos();
+        for (Direction direction : HORIZONTAL_DIRECTIONS) {
+            for (int distance = 1; distance <= WIND_SIDE_ACCESS_RADIUS; distance++) {
+                samplePos.set(
+                        pos.getX() + direction.getStepX() * distance,
+                        pos.getY(),
+                        pos.getZ() + direction.getStepZ() * distance
+                );
+
+                if (!canWindPassThrough(level, samplePos)) {
+                    break;
+                }
+
+                if (hasWindSkylight(level, samplePos)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean hasWindSkylight(BlockAndTintGetter level, BlockPos pos) {
         return level.getBrightness(LightLayer.SKY, pos) >= MIN_WIND_EXPOSED_SKY_LIGHT;
+    }
+
+    private static boolean canWindPassThrough(BlockAndTintGetter level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return isInteractive(state)
+                || isLeaf(state)
+                || state.getCollisionShape(level, pos, CollisionContext.empty()).isEmpty();
     }
 
     public static void wrapModels(ModelEvent.ModifyBakingResult event) {

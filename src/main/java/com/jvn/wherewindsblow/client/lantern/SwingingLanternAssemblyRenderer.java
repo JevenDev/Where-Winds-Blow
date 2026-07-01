@@ -1,6 +1,7 @@
 package com.jvn.wherewindsblow.client.lantern;
 
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
+import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.client.wind.WindDirection;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -42,6 +43,7 @@ public final class SwingingLanternAssemblyRenderer {
     private static final double CHAIN_COLLISION_DIAMETER = 0.10D;
     private static final double LANTERN_COLLISION_WIDTH = 0.42D;
     private static final double LANTERN_COLLISION_HEIGHT = 0.72D;
+    private static final float ENCLOSED_SWAY_SCALE = 0.12F;
     private static final ModelData ASSEMBLY_MODEL_DATA = ModelData.of(LanternModelData.RENDERING_ASSEMBLY, Boolean.TRUE);
     private static final Map<Long, SwingState> SWING_STATES = new ConcurrentHashMap<>();
     private static net.minecraft.resources.ResourceKey<Level> activeDimension;
@@ -135,7 +137,7 @@ public final class SwingingLanternAssemblyRenderer {
     ) {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         float tickTime = level.getGameTime() + partialTick;
-        Swing targetSwing = windSwingFor(lanternPos, chainHeight, tickTime);
+        Swing targetSwing = windSwingFor(lanternPos, chainHeight, tickTime, ResponsiveFoliage.isWindExposed(level, lanternPos));
         Swing swing = updateSwingState(level, lanternPos, chainHeight, targetSwing, tickTime);
 
         poseStack.pushPose();
@@ -175,9 +177,9 @@ public final class SwingingLanternAssemblyRenderer {
         poseStack.popPose();
     }
 
-    private static Swing windSwingFor(BlockPos lanternPos, int chainHeight, float tickTime) {
-        float weatherPower = ResponsiveFoliageShaders.weatherWindPower();
-        float strength = (float) ClientConfig.WIND_LANTERN_SWAY_STRENGTH.getAsDouble();
+    private static Swing windSwingFor(BlockPos lanternPos, int chainHeight, float tickTime, boolean windExposed) {
+        float weatherPower = windExposed ? ResponsiveFoliageShaders.weatherWindPower() : 0.0F;
+        float strength = (float) ClientConfig.WIND_LANTERN_SWAY_STRENGTH.getAsDouble() * (windExposed ? 1.0F : ENCLOSED_SWAY_SCALE);
         float longChainScale = Mth.clamp(1.0F / (1.0F + chainHeight * 0.12F), 0.3F, 1.0F);
         float speedScale = Mth.clamp(1.0F / Mth.sqrt(1.0F + Math.min(chainHeight, 6) * 0.25F), 0.35F, 1.0F);
 

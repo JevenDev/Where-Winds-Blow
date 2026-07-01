@@ -315,8 +315,9 @@ public final class SodiumFoliageShaderSource {
 
                 vec2 swingDir = swing / swingLength;
                 vec3 axis = normalize(vec3(-swingDir.y, 0.0, swingDir.x));
-                float chainAngle = clamp(swingLength * (0.072 + u_WwbWeatherWindPower * 0.026) * u_WwbLanternSwayStrength * gust, 0.0, 0.18);
-                float bodyAngle = clamp(swingLength * (0.094 + u_WwbWeatherWindPower * 0.034) * u_WwbLanternSwayStrength * gust, 0.0, 0.24);
+                float lanternWeatherPower = markerStrength <= 0.15 ? 0.0 : u_WwbWeatherWindPower;
+                float chainAngle = clamp(swingLength * (0.072 + lanternWeatherPower * 0.026) * u_WwbLanternSwayStrength * gust, 0.0, 0.18);
+                float bodyAngle = clamp(swingLength * (0.094 + lanternWeatherPower * 0.034) * u_WwbLanternSwayStrength * gust, 0.0, 0.24);
                 vec3 chainEndOffset = wwb_rotate_around_axis(vec3(0.0, -1.0, 0.0), axis, chainAngle) - vec3(0.0, -1.0, 0.0);
 
                 float localY = fract(windPosition.y);
@@ -332,7 +333,7 @@ public final class SodiumFoliageShaderSource {
                 vec3 local = vec3(windPosition.x - windAnchor.x, localY - 1.0, windPosition.z - windAnchor.y);
                 vec3 rotated = wwb_rotate_around_axis(local, axis, bodyAngle * markerStrength);
 
-                float yaw = sin(swingTime * 1.46 + phase * 2.3 + across * 0.05) * (0.020 + u_WwbWeatherWindPower * 0.005) * u_WwbLanternSwayStrength * markerStrength;
+                float yaw = sin(swingTime * 1.46 + phase * 2.3 + across * 0.05) * (0.020 + lanternWeatherPower * 0.005) * u_WwbLanternSwayStrength * markerStrength;
                 float yawCos = cos(yaw);
                 float yawSin = sin(yaw);
                 rotated.xz = vec2(
@@ -340,7 +341,7 @@ public final class SodiumFoliageShaderSource {
                         rotated.x * yawSin + rotated.z * yawCos
                 );
 
-                position += chainEndOffset;
+                position += chainEndOffset * markerStrength;
                 position += rotated - local;
                 position.y += 0.03125 * markerStrength;
                 return position;
