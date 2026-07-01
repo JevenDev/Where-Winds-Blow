@@ -14,6 +14,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.client.event.ClientPauseChangeEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
@@ -35,6 +36,7 @@ public final class ResponsiveFoliagePhysics {
     private static final int MAX_INTERACTIVE_ENTITIES = ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS;
     private static final Map<Long, FoliageContact> ACTIVE_CONTACTS = new HashMap<>();
     private static long lastInteractorUpdateGameTime = Long.MIN_VALUE;
+    private static long pauseStartedMillis;
 
     private ResponsiveFoliagePhysics() {
     }
@@ -54,6 +56,16 @@ public final class ResponsiveFoliagePhysics {
         }
     }
 
+    public static void onClientPauseChange(ClientPauseChangeEvent.Post event) {
+        if (event.isPaused()) {
+            pauseStartedMillis = Util.getMillis();
+            return;
+        }
+
+        resumeInteractorTimers(Util.getMillis());
+        lastInteractorUpdateGameTime = Long.MIN_VALUE;
+    }
+
     public static void updateShaderInteractors() {
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
@@ -62,6 +74,15 @@ public final class ResponsiveFoliagePhysics {
             clearInteractorState();
             return;
         }
+
+        if (minecraft.isPaused()) {
+            if (pauseStartedMillis == 0L) {
+                pauseStartedMillis = Util.getMillis();
+            }
+            return;
+        }
+
+        resumeInteractorTimers(Util.getMillis());
 
         long gameTime = level.getGameTime();
         if (lastInteractorUpdateGameTime == gameTime) {
@@ -93,8 +114,21 @@ public final class ResponsiveFoliagePhysics {
 
     private static void clearInteractorState() {
         lastInteractorUpdateGameTime = Long.MIN_VALUE;
+        pauseStartedMillis = 0L;
         ResponsiveFoliageShaders.clearFoliageInteractors();
         ACTIVE_CONTACTS.clear();
+    }
+
+    private static void resumeInteractorTimers(long nowMillis) {
+        if (pauseStartedMillis == 0L) {
+            return;
+        }
+
+        long pausedMillis = Math.max(0L, nowMillis - pauseStartedMillis);
+        if (pausedMillis > 0L) {
+            ACTIVE_CONTACTS.replaceAll((key, contact) -> contact.shift(pausedMillis));
+        }
+        pauseStartedMillis = 0L;
     }
 
     private static void trimEntities(Entity player, List<Entity> entities) {
@@ -213,6 +247,10 @@ public final class ResponsiveFoliagePhysics {
     private record FoliageContact(int cellX, int cellY, int cellZ, float x, float minY, float z, float radius, float strength, long lastTouchedMillis) {
         private FoliageContact refresh(float x, float minY, float z, float radius, float strength, long nowMillis) {
             return new FoliageContact(cellX, cellY, cellZ, x, minY, z, radius, strength, nowMillis);
+        }
+
+        private FoliageContact shift(long millis) {
+            return new FoliageContact(cellX, cellY, cellZ, x, minY, z, radius, strength, lastTouchedMillis + millis);
         }
     }
 }

@@ -14,6 +14,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.loading.LoadingModList;
+import net.neoforged.neoforge.client.event.ClientPauseChangeEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import org.jetbrains.annotations.Nullable;
 
@@ -196,6 +197,10 @@ public final class ResponsiveFoliageShaders {
         return smoothedWeatherWindPower;
     }
 
+    public static void onClientPauseChange(ClientPauseChangeEvent.Post event) {
+        lastWeatherUpdateMillis = Util.getMillis();
+    }
+
     public static float windSwayStrength() {
         return shouldUseCustomFoliageShaders() && ClientConfig.ENABLE_WIND_FOLIAGE_SWAY.getAsBoolean()
                 ? Math.max((float) ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH.getAsDouble(), weatherDrivenSwayStrength())
@@ -236,6 +241,11 @@ public final class ResponsiveFoliageShaders {
             lastWeatherUpdateMillis = now;
             windTimeSeconds = now * 0.001F;
             smoothedWeatherWindPower = targetWeatherWindPower();
+            return;
+        }
+
+        if (Minecraft.getInstance().isPaused()) {
+            lastWeatherUpdateMillis = now;
             return;
         }
 

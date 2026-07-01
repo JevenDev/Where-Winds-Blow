@@ -3,6 +3,7 @@ package com.jvn.wherewindsblow.mixin.client;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.wind.WindDirection;
 import com.jvn.wherewindsblow.config.ClientConfig;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.CampfireSmokeParticle;
 import net.minecraft.client.particle.TextureSheetParticle;
@@ -49,6 +50,10 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
             )
     )
     private void wherewindsblow$flowWithWind(CallbackInfo ci) {
+        if (Minecraft.getInstance().isPaused()) {
+            return;
+        }
+
         if (!ClientConfig.ENABLE_WIND_SMOKE.getAsBoolean()) {
             return;
         }

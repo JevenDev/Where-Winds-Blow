@@ -14,8 +14,9 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.client.event.ClientPauseChangeEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
@@ -32,6 +33,7 @@ public final class WhereWindsBlowClient {
         modEventBus.addListener(WhereWindsBlowClient::registerShaders);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onClientTick);
+        NeoForge.EVENT_BUS.addListener(WhereWindsBlowClient::onClientPauseChange);
         NeoForge.EVENT_BUS.addListener(SwingingLanternAssemblyRenderer::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onClientTick);
@@ -66,5 +68,10 @@ public final class WhereWindsBlowClient {
 
     private static void registerShaders(RegisterShadersEvent event) {
         ResponsiveFoliageShaders.register(event);
+    }
+
+    private static void onClientPauseChange(ClientPauseChangeEvent.Post event) {
+        ResponsiveFoliageShaders.onClientPauseChange(event);
+        ResponsiveFoliagePhysics.onClientPauseChange(event);
     }
 }

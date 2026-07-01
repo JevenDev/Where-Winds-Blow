@@ -102,6 +102,10 @@ public final class WindStreakRenderer {
             return;
         }
 
+        if (minecraft.isPaused()) {
+            return;
+        }
+
         boolean canSpawnWind = shouldRenderAround(level, player);
         int desiredCount = canSpawnWind ? desiredStreakCount() : 0;
         int desiredLeafCount = canSpawnWind ? desiredLeafCount() : 0;
