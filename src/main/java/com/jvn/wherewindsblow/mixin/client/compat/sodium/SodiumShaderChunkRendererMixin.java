@@ -13,7 +13,7 @@ public abstract class SodiumShaderChunkRendererMixin {
             at = @At("TAIL"),
             require = 0
     )
-    private void wherewindsblow$uploadResponsiveFoliageWindUniforms(Object terrainRenderPass, CallbackInfo ci) {
+    private void wherewindsblow$uploadResponsiveFoliageWindUniforms(CallbackInfo ci) {
         SodiumFoliageUniforms.uploadActiveProgramUniforms();
     }
 }

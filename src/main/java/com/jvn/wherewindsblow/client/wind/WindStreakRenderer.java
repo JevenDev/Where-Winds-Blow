@@ -1,12 +1,15 @@
 package com.jvn.wherewindsblow.client.wind;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
+import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Random;
 import net.minecraft.client.Camera;
@@ -44,14 +47,17 @@ public final class WindStreakRenderer {
     private static final int MAX_LEAVES = 18;
     private static final int LEAF_TEXTURE_COUNT = 12;
     private static final int BODY_SEGMENTS = 24;
+    private static final int LEAF_BLOCK_SPAWN_ATTEMPTS = 22;
     private static final double MAX_DISTANCE_FROM_PLAYER = 56.0D;
     private static final double TERRAIN_LOOKAHEAD = 6.5D;
     private static final double TERRAIN_SIDE_SAMPLE = 3.6D;
     private static final double TERRAIN_FLOW_SMOOTHING = 0.56D;
     private static final double TERRAIN_SIDE_PUSH = 0.026D;
     private static final double STREAK_TERRAIN_CLEARANCE = 1.45D;
+    private static final double STREAK_MIN_STROKE_SCALE = 0.5D;
     private static final double LEAF_TERRAIN_CLEARANCE = 0.78D;
     private static final double LEAF_TERRAIN_LIFT_STRENGTH = 0.28D;
+    private static final int LEAF_SIDE_ACCESS_RADIUS = 5;
     private static final double MAX_TERRAIN_LIFT = 0.58D;
     private static final double MAX_TERRAIN_SIDE_FLOW = 0.18D;
     private static final int SPAWN_ATTEMPTS = 12;
@@ -68,8 +74,7 @@ public final class WindStreakRenderer {
     private static final RenderType[] LEAF_RENDER_TYPES = new RenderType[LEAF_TEXTURE_COUNT];
     private static final ByteBufferBuilder LINE_BUFFER = new ByteBufferBuilder(65536);
     private static final ByteBufferBuilder LEAF_BUFFER = new ByteBufferBuilder(65536);
-    private static double cachedLineWidth = -1.0D;
-    private static RenderType cachedLineRenderType;
+    private static final Map<Double, RenderType> LINE_RENDER_TYPES = new HashMap<>();
 
     static {
         for (int index = 0; index < STREAKS.length; index++) {
@@ -148,8 +153,9 @@ public final class WindStreakRenderer {
             return;
         }
 
-        float opacity = (float) ClientConfig.WIND_STREAK_OPACITY.getAsDouble();
-        if (opacity <= 0.0F) {
+        float lineOpacity = (float) ClientConfig.WIND_STREAK_OPACITY.getAsDouble();
+        float leafOpacity = (float) ClientConfig.WIND_LEAF_OPACITY.getAsDouble();
+        if (lineOpacity <= 0.0F && leafOpacity <= 0.0F) {
             return;
         }
 
@@ -160,17 +166,18 @@ public final class WindStreakRenderer {
         float weatherWindPower = ResponsiveFoliageShaders.weatherWindPower();
         Matrix4f pose = event.getPoseStack().last().pose();
         MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(LINE_BUFFER);
-        RenderType renderType = windStreakLines();
-        VertexConsumer consumer = bufferSource.getBuffer(renderType);
 
         for (WindStreak streak : STREAKS) {
-            if (streak.active) {
-                renderStreak(consumer, pose, minecraft.level, streak, cameraPos, partialTick, windTime, weatherWindPower, opacity);
+            if (streak.active && lineOpacity > 0.0F) {
+                VertexConsumer consumer = bufferSource.getBuffer(windStreakLines(streak.strokeScale));
+                renderStreak(consumer, pose, minecraft.level, streak, cameraPos, partialTick, windTime, weatherWindPower, lineOpacity);
             }
         }
 
-        bufferSource.endBatch(renderType);
-        renderLeaves(minecraft.level, camera, pose, cameraPos, partialTick, windTime, weatherWindPower, opacity);
+        bufferSource.endBatch();
+        if (leafOpacity > 0.0F) {
+            renderLeaves(minecraft.level, camera, pose, cameraPos, partialTick, windTime, weatherWindPower, leafOpacity);
+        }
     }
 
     private static void clear() {
@@ -239,29 +246,26 @@ public final class WindStreakRenderer {
         );
     }
 
-    private static RenderType windStreakLines() {
-        double lineWidth = Math.round(ClientConfig.WIND_STREAK_THICKNESS.getAsDouble() * 10.0D) / 10.0D;
-        if (cachedLineRenderType == null || Math.abs(cachedLineWidth - lineWidth) > 0.001D) {
-            cachedLineWidth = lineWidth;
-            cachedLineRenderType = RenderType.create(
-                    "where_winds_blow_wind_streaks_" + lineWidth,
-                    DefaultVertexFormat.POSITION_COLOR_NORMAL,
-                    VertexFormat.Mode.LINES,
-                    65536,
-                    false,
-                    false,
-                    RenderType.CompositeState.builder()
-                            .setShaderState(RenderStateShard.RENDERTYPE_LINES_SHADER)
-                            .setLineState(new RenderStateShard.LineStateShard(OptionalDouble.of(lineWidth)))
-                            .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
-                            .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
-                            .setWriteMaskState(RenderStateShard.COLOR_WRITE)
-                            .setCullState(RenderStateShard.NO_CULL)
-                            .createCompositeState(false)
-            );
-        }
-
-        return cachedLineRenderType;
+    private static RenderType windStreakLines(double strokeScale) {
+        double maxLineWidth = ClientConfig.WIND_STREAK_THICKNESS.getAsDouble();
+        double scaledLineWidth = maxLineWidth * Mth.clamp(strokeScale, STREAK_MIN_STROKE_SCALE, 1.0D);
+        double lineWidth = Math.round(Math.max(0.5D, scaledLineWidth) * 10.0D) / 10.0D;
+        return LINE_RENDER_TYPES.computeIfAbsent(lineWidth, width -> RenderType.create(
+                "where_winds_blow_wind_streaks_" + width,
+                DefaultVertexFormat.POSITION_COLOR_NORMAL,
+                VertexFormat.Mode.LINES,
+                65536,
+                false,
+                false,
+                RenderType.CompositeState.builder()
+                        .setShaderState(RenderStateShard.RENDERTYPE_LINES_SHADER)
+                        .setLineState(new RenderStateShard.LineStateShard(OptionalDouble.of(width)))
+                        .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
+                        .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
+                        .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+                        .setCullState(RenderStateShard.NO_CULL)
+                        .createCompositeState(false)
+        ));
     }
 
     private static ResourceLocation leafTexture(int index) {
@@ -322,21 +326,7 @@ public final class WindStreakRenderer {
     private static void spawn(WindStreak streak, LocalPlayer player, ClientLevel level, float weatherWindPower, boolean scatterAge) {
         double weatherBoost = weatherBoost(weatherWindPower);
         for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
-            Point spawn = randomOpenAirPosition(
-                    player,
-                    level,
-                    -27.0D,
-                    19.0D,
-                    -29.0D,
-                    29.0D,
-                    -1.8D,
-                    8.6D,
-                    0.35D,
-                    2.2D,
-                    STREAK_TERRAIN_CLEARANCE,
-                    0.1D,
-                    1.8D
-            );
+            Point spawn = randomWindStreakPosition(player, level);
             if (spawn == null) {
                 break;
             }
@@ -362,6 +352,7 @@ public final class WindStreakRenderer {
             streak.brushWidth = randomBetween(0.105D, 0.16D);
             streak.wakeLength = randomBetween(0.48D, 0.68D);
             streak.shimmerStrength = randomBetween(0.055D, 0.145D);
+            streak.strokeScale = randomBetween(STREAK_MIN_STROKE_SCALE, 1.0D);
             streak.seed = RANDOM.nextDouble() * Math.PI * 2.0D;
             streak.lifetime = Math.max(38, Math.round((48 + RANDOM.nextInt(30)) / (float) (1.0D + weatherBoost * 0.18D)));
             streak.age = scatterAge ? RANDOM.nextInt(Math.max(1, streak.lifetime / 2)) : 0;
@@ -377,6 +368,39 @@ public final class WindStreakRenderer {
         streak.fadingOut = false;
     }
 
+    private static Point randomWindStreakPosition(LocalPlayer player, ClientLevel level) {
+        for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
+            double along = RANDOM.nextDouble() < 0.78D
+                    ? -32.0D + Math.pow(RANDOM.nextDouble(), 0.62D) * 30.0D
+                    : randomBetween(-6.0D, 20.0D);
+            double across = triangularRandom() * randomBetween(8.0D, 28.0D);
+            double x = player.getX() + windX() * along + crossX() * across;
+            double z = player.getZ() + windZ() * along + crossZ() * across;
+
+            double terrainY = terrainHeight(level, x, z) + STREAK_TERRAIN_CLEARANCE;
+            double groundLayer = terrainY + randomElevationAboveTerrain();
+            double eyeLayer = player.getEyeY() + randomBetween(-1.6D, 7.8D);
+            double blend = smoothFade(RANDOM.nextFloat());
+            double y = Mth.lerp(blend, groundLayer, Math.max(groundLayer, eyeLayer));
+
+            Point spawn = keepAboveTerrainAndCollision(level, x, y, z, STREAK_TERRAIN_CLEARANCE);
+            if (isValidWindSpace(level, spawn.x(), spawn.y(), spawn.z(), STREAK_TERRAIN_CLEARANCE)) {
+                return spawn;
+            }
+        }
+
+        return null;
+    }
+
+    private static double randomElevationAboveTerrain() {
+        double lift = 0.12D + Math.pow(RANDOM.nextDouble(), 1.85D) * 4.8D;
+        if (RANDOM.nextDouble() < 0.18D) {
+            lift += randomBetween(2.4D, 6.2D);
+        }
+
+        return lift;
+    }
+
     private static void tick(WindLeaf leaf, LocalPlayer player, ClientLevel level, float weatherWindPower) {
         leaf.xOld = leaf.x;
         leaf.yOld = leaf.y;
@@ -389,7 +413,7 @@ public final class WindStreakRenderer {
 
         leaf.age++;
 
-        if (!isOpenSkyAir(level, leaf.x, leaf.y, leaf.z)) {
+        if (!isValidLeafSpace(level, leaf.x, leaf.y, leaf.z, 0.0D)) {
             beginFadeOut(leaf);
             return;
         }
@@ -425,10 +449,11 @@ public final class WindStreakRenderer {
         ) * leaf.verticalDrift * (1.0D + weatherBoost * 0.4D);
         double forwardPulse = Math.cos(swirlAngle) * leaf.swirlStrength * 0.16D;
         double sideDrift = weave + swirl + loop + leaf.terrainSideFlow;
+        double fall = leaf.fallSpeed * (1.0D + weatherBoost * 0.18D);
         Point next = keepAboveTerrainAndCollision(
                 level,
                 leaf.x + windX() * (speed + forwardPulse) + crossX() * sideDrift,
-                leaf.y + leaf.terrainLift + flutter + Math.cos(swirlAngle) * leaf.swirlStrength * 0.42D + loopLift,
+                leaf.y + leaf.terrainLift + flutter + Math.cos(swirlAngle) * leaf.swirlStrength * 0.42D + loopLift - fall,
                 leaf.z + windZ() * (speed + forwardPulse) + crossZ() * sideDrift,
                 LEAF_TERRAIN_CLEARANCE
         );
@@ -452,7 +477,10 @@ public final class WindStreakRenderer {
 
     private static void spawn(WindLeaf leaf, LocalPlayer player, ClientLevel level, float weatherWindPower, boolean scatterAge) {
         double weatherBoost = weatherBoost(weatherWindPower);
-        Point spawn = randomOpenAirPosition(
+        LeafBlockSpawn leafBlockSpawn = RANDOM.nextDouble() < 0.58D
+                ? randomLeafBlockSpawn(player, level)
+                : null;
+        Point spawn = leafBlockSpawn != null ? leafBlockSpawn.position() : randomOpenAirPosition(
                 player,
                 level,
                 -26.0D,
@@ -479,12 +507,14 @@ public final class WindStreakRenderer {
         leaf.yOld = leaf.y;
         leaf.zOld = leaf.z;
         leaf.textureIndex = RANDOM.nextInt(LEAF_TEXTURE_COUNT);
-        leaf.size = randomBetween(0.09D, 0.23D) * (1.0D + weatherBoost * 0.12D);
-        leaf.speed = randomBetween(0.18D, 0.32D);
-        leaf.crossDrift = randomBetween(-0.018D, 0.018D) * (1.0D + weatherBoost * 0.7D);
-        leaf.verticalDrift = randomBetween(0.003D, 0.012D) * (1.0D + weatherBoost * 0.35D);
-        leaf.bob = randomBetween(0.025D, 0.075D) * (1.0D + weatherBoost * 0.3D);
-        leaf.swirlStrength = randomBetween(0.006D, 0.035D) * (1.0D + weatherBoost * 0.55D);
+        boolean fromLeafBlock = leafBlockSpawn != null;
+        leaf.size = randomBetween(fromLeafBlock ? 0.08D : 0.09D, fromLeafBlock ? 0.19D : 0.23D) * (1.0D + weatherBoost * 0.12D);
+        leaf.speed = randomBetween(fromLeafBlock ? 0.095D : 0.16D, fromLeafBlock ? 0.235D : 0.31D);
+        leaf.crossDrift = randomBetween(fromLeafBlock ? -0.028D : -0.018D, fromLeafBlock ? 0.028D : 0.018D) * (1.0D + weatherBoost * 0.7D);
+        leaf.verticalDrift = randomBetween(fromLeafBlock ? 0.006D : 0.003D, fromLeafBlock ? 0.017D : 0.012D) * (1.0D + weatherBoost * 0.35D);
+        leaf.fallSpeed = randomBetween(fromLeafBlock ? 0.012D : 0.002D, fromLeafBlock ? 0.032D : 0.009D);
+        leaf.bob = randomBetween(fromLeafBlock ? 0.032D : 0.025D, fromLeafBlock ? 0.088D : 0.075D) * (1.0D + weatherBoost * 0.3D);
+        leaf.swirlStrength = randomBetween(fromLeafBlock ? 0.012D : 0.006D, fromLeafBlock ? 0.048D : 0.035D) * (1.0D + weatherBoost * 0.55D);
         leaf.swirlSpeed = randomBetween(0.105D, 0.225D) * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
         leaf.swirlPhase = RANDOM.nextDouble() * Math.PI * 2.0D;
         leaf.loopStrength = (RANDOM.nextDouble() < 0.44D ? randomBetween(0.018D, 0.065D) : randomBetween(0.0D, 0.018D))
@@ -503,11 +533,62 @@ public final class WindStreakRenderer {
         leaf.age = scatterAge ? RANDOM.nextInt(Math.max(1, leaf.lifetime / 2)) : 0;
         leaf.fadingOut = false;
         leaf.fadeOutAge = 0;
-        int color = sampleGrassColor(level, leaf.x, player.getY(), leaf.z);
+        int color = leafBlockSpawn != null
+                ? sampleGrassColor(level, leafBlockSpawn.source().getX(), leafBlockSpawn.source().getY(), leafBlockSpawn.source().getZ())
+                : sampleGrassColor(level, leaf.x, player.getY(), leaf.z);
         leaf.red = color >> 16 & 255;
         leaf.green = color >> 8 & 255;
         leaf.blue = color & 255;
         leaf.active = true;
+    }
+
+    private static LeafBlockSpawn randomLeafBlockSpawn(LocalPlayer player, ClientLevel level) {
+        BlockPos.MutableBlockPos leafPos = new BlockPos.MutableBlockPos();
+        int baseY = Mth.floor(player.getY());
+        for (int attempt = 0; attempt < LEAF_BLOCK_SPAWN_ATTEMPTS; attempt++) {
+            double along = randomBetween(-22.0D, 18.0D);
+            double across = randomBetween(-24.0D, 24.0D);
+            int x = Mth.floor(player.getX() + windX() * along + crossX() * across);
+            int z = Mth.floor(player.getZ() + windZ() * along + crossZ() * across);
+            int startY = baseY + 11 - RANDOM.nextInt(4);
+            int endY = baseY - 2;
+
+            for (int y = startY; y >= endY; y--) {
+                leafPos.set(x, y, z);
+                if (!level.hasChunk(SectionPos.blockToSectionCoord(x), SectionPos.blockToSectionCoord(z))) {
+                    break;
+                }
+
+                BlockState state = level.getBlockState(leafPos);
+                if (!ResponsiveFoliage.isLeaf(state) || !isLeafBlockWindExposed(level, leafPos)) {
+                    continue;
+                }
+
+                LeafBlockSpawn spawn = spawnNearLeafBlock(level, leafPos);
+                if (spawn != null) {
+                    return spawn;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static LeafBlockSpawn spawnNearLeafBlock(ClientLevel level, BlockPos source) {
+        for (int attempt = 0; attempt < 4; attempt++) {
+            double side = randomBetween(-0.34D, 0.34D);
+            double outward = randomBetween(0.34D, 0.72D);
+            double downward = RANDOM.nextDouble() < 0.72D ? randomBetween(0.1D, 0.86D) : randomBetween(-0.08D, 0.22D);
+            double x = source.getX() + 0.5D + windX() * outward + crossX() * side;
+            double y = source.getY() + 0.92D - downward;
+            double z = source.getZ() + 0.5D + windZ() * outward + crossZ() * side;
+            Point spawn = keepAboveTerrainAndCollision(level, x, y, z, LEAF_TERRAIN_CLEARANCE);
+            if (isValidLeafSpace(level, spawn.x(), spawn.y(), spawn.z(), LEAF_TERRAIN_CLEARANCE)) {
+                return new LeafBlockSpawn(spawn, source.immutable());
+            }
+        }
+
+        return null;
     }
 
     private static double weatherBoost(float weatherWindPower) {
@@ -722,7 +803,7 @@ public final class WindStreakRenderer {
         double centerY = baseY + Math.cos(leaf.seed * 0.7D + leafTime * 0.13D) * leaf.bob;
         double centerZ = baseZ + crossZ() * flutter * weatherFlutterBoost;
         centerY = Math.max(centerY, terrainHeight(level, centerX, centerZ) + LEAF_TERRAIN_CLEARANCE);
-        if (!leaf.fadingOut && !isOpenSkyAir(level, centerX, centerY, centerZ)) {
+        if (!leaf.fadingOut && !isValidLeafSpace(level, centerX, centerY, centerZ, 0.0D)) {
             return;
         }
 
@@ -1064,7 +1145,7 @@ public final class WindStreakRenderer {
     private static boolean windPathBlocked(ClientLevel level, double x, double y, double z, Point destination) {
         Vec3 start = new Vec3(x, y, z);
         Vec3 end = new Vec3(destination.x(), destination.y(), destination.z());
-        return !isValidWindSpace(level, destination.x(), destination.y(), destination.z(), LEAF_TERRAIN_CLEARANCE)
+        return !isValidLeafSpace(level, destination.x(), destination.y(), destination.z(), LEAF_TERRAIN_CLEARANCE)
                 || lineHitsCollision(level, start, end);
     }
 
@@ -1083,6 +1164,56 @@ public final class WindStreakRenderer {
         }
 
         return y + SURFACE_TOLERANCE >= terrainHeight(level, x, z) + terrainClearance;
+    }
+
+    private static boolean isValidLeafSpace(ClientLevel level, double x, double y, double z, double terrainClearance) {
+        BlockPos pos = BlockPos.containing(x, y, z);
+        if (!level.hasChunk(SectionPos.blockToSectionCoord(pos.getX()), SectionPos.blockToSectionCoord(pos.getZ()))
+                || !level.getFluidState(pos).isEmpty()
+                || level.getBrightness(LightLayer.SKY, pos) < MIN_OPEN_SKY_LIGHT
+                || !hasWindAccess(level, pos)
+                || pointInsideCollision(level, x, y, z)) {
+            return false;
+        }
+
+        return y + SURFACE_TOLERANCE >= terrainHeight(level, x, z) + terrainClearance;
+    }
+
+    private static boolean isLeafBlockWindExposed(ClientLevel level, BlockPos pos) {
+        return level.getBrightness(LightLayer.SKY, pos) >= MIN_OPEN_SKY_LIGHT && hasWindAccess(level, pos);
+    }
+
+    private static boolean hasWindAccess(ClientLevel level, BlockPos pos) {
+        if (level.canSeeSky(pos)) {
+            return true;
+        }
+
+        BlockPos.MutableBlockPos samplePos = new BlockPos.MutableBlockPos();
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            for (int distance = 1; distance <= LEAF_SIDE_ACCESS_RADIUS; distance++) {
+                samplePos.set(
+                        pos.getX() + direction.getStepX() * distance,
+                        pos.getY(),
+                        pos.getZ() + direction.getStepZ() * distance
+                );
+
+                if (!canWindPassThrough(level, samplePos)) {
+                    break;
+                }
+
+                if (level.getBrightness(LightLayer.SKY, samplePos) >= MIN_OPEN_SKY_LIGHT && level.canSeeSky(samplePos)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean canWindPassThrough(ClientLevel level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return ResponsiveFoliage.isLeaf(state)
+                || state.getCollisionShape(level, pos, CollisionContext.empty()).isEmpty();
     }
 
     private static boolean lineHitsCollision(ClientLevel level, Point start, Point end) {
@@ -1158,6 +1289,10 @@ public final class WindStreakRenderer {
         return min + RANDOM.nextDouble() * (max - min);
     }
 
+    private static double triangularRandom() {
+        return RANDOM.nextDouble() - RANDOM.nextDouble();
+    }
+
     private static double lerp(float amount, double start, double end) {
         return start + (end - start) * amount;
     }
@@ -1205,6 +1340,7 @@ public final class WindStreakRenderer {
         private double brushWidth;
         private double wakeLength;
         private double shimmerStrength;
+        private double strokeScale;
         private double seed;
     }
 
@@ -1228,6 +1364,7 @@ public final class WindStreakRenderer {
         private double speed;
         private double crossDrift;
         private double verticalDrift;
+        private double fallSpeed;
         private double terrainLift;
         private double terrainSideFlow;
         private double bob;
@@ -1246,6 +1383,9 @@ public final class WindStreakRenderer {
     }
 
     private record Point(double x, double y, double z) {
+    }
+
+    private record LeafBlockSpawn(Point position, BlockPos source) {
     }
 
     private record TerrainFlow(double lift, double side) {

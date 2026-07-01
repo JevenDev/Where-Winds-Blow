@@ -148,9 +148,16 @@ public final class WhereWindsBlowConfigScreen {
                         ))
                         .option(doubleOption(
                                 ClientConfig.WIND_STREAK_OPACITY,
-                                0.8D,
+                                0.65D,
                                 ClientConfig.WIND_STREAK_OPACITY_MIN,
                                 ClientConfig.WIND_STREAK_OPACITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.WIND_LEAF_OPACITY,
+                                1.0D,
+                                ClientConfig.WIND_LEAF_OPACITY_MIN,
+                                ClientConfig.WIND_LEAF_OPACITY_MAX,
                                 SMALL_STEP
                         ))
                         .option(doubleOption(

@@ -15,6 +15,8 @@ public final class ClientConfig {
     public static final double WIND_LEAF_DENSITY_MAX = 4.0D;
     public static final double WIND_STREAK_OPACITY_MIN = 0.0D;
     public static final double WIND_STREAK_OPACITY_MAX = 1.0D;
+    public static final double WIND_LEAF_OPACITY_MIN = 0.0D;
+    public static final double WIND_LEAF_OPACITY_MAX = 1.0D;
     public static final double WIND_STREAK_THICKNESS_MIN = 1.0D;
     public static final double WIND_STREAK_THICKNESS_MAX = 4.0D;
     public static final double WIND_DIRECTION_DEGREES_MIN = 0.0D;
@@ -77,11 +79,15 @@ public final class ClientConfig {
             .defineInRange("windLeafDensity", 1.0D, WIND_LEAF_DENSITY_MIN, WIND_LEAF_DENSITY_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_OPACITY = BUILDER
-            .comment("Scales wind streak opacity.")
-            .defineInRange("windStreakOpacity", 0.8D, WIND_STREAK_OPACITY_MIN, WIND_STREAK_OPACITY_MAX);
+            .comment("Scales wind line opacity.")
+            .defineInRange("windStreakOpacity", 0.65D, WIND_STREAK_OPACITY_MIN, WIND_STREAK_OPACITY_MAX);
+
+    public static final ModConfigSpec.DoubleValue WIND_LEAF_OPACITY = BUILDER
+            .comment("Scales drifting leaf particle opacity.")
+            .defineInRange("windLeafOpacity", 1.0D, WIND_LEAF_OPACITY_MIN, WIND_LEAF_OPACITY_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_THICKNESS = BUILDER
-            .comment("Sets wind streak line thickness in pixels.")
+            .comment("Sets the maximum wind streak line thickness in pixels. Individual strokes range down to about half this width.")
             .defineInRange("windStreakThickness", 3.0D, WIND_STREAK_THICKNESS_MIN, WIND_STREAK_THICKNESS_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_DIRECTION_DEGREES = BUILDER
