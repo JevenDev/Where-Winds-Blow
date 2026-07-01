@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 public final class SodiumFoliageShaderSource {
     private static final String SODIUM_NAMESPACE = "sodium";
     private static final String SODIUM_TERRAIN_VERTEX_SHADER = "blocks/block_layer_opaque.vsh";
+    private static final String VERTEX_SHADER_EXTENSION = ".vsh";
     private static final Pattern MAIN_METHOD_PATTERN = Pattern.compile("(?m)^\\s*void\\s+main\\s*\\(\\s*\\)\\s*\\{.*$");
     private static final Pattern LIGHT_SAMPLER_PATTERN = Pattern.compile("(?m)^\\s*uniform\\s+sampler2D\\s+u_LightTex\\s*;.*$");
     private static final Pattern POSITION_LINE_PATTERN = Pattern.compile("(?m)^\\s*vec3\\s+position\\s*=\\s*_vert_position\\s*\\+\\s*translation\\s*;.*$");
@@ -366,8 +367,12 @@ public final class SodiumFoliageShaderSource {
     private SodiumFoliageShaderSource() {
     }
 
-    public static boolean isSodiumTerrainVertexShader(ResourceLocation name) {
-        return SODIUM_NAMESPACE.equals(name.getNamespace()) && SODIUM_TERRAIN_VERTEX_SHADER.equals(name.getPath());
+    public static boolean isSodiumTerrainVertexShader(ResourceLocation name, String source) {
+        return SODIUM_NAMESPACE.equals(name.getNamespace())
+                && name.getPath().endsWith(VERTEX_SHADER_EXTENSION)
+                && source.contains("_vert_init")
+                && source.contains("_vert_position")
+                && source.contains("_material_params");
     }
 
     public static String patch(ResourceLocation name, String source) {
@@ -393,6 +398,10 @@ public final class SodiumFoliageShaderSource {
                 && matches(source, POSITION_LINE_PATTERN)
                 && colorAnchor != null) {
             return true;
+        }
+
+        if (!SODIUM_TERRAIN_VERTEX_SHADER.equals(name.getPath())) {
+            return false;
         }
 
         ResponsiveFoliageShaders.disableSodiumShaderPatch(

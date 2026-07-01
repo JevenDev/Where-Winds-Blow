@@ -26,10 +26,10 @@ public final class WhereWindsBlowMixinPlugin implements IMixinConfigPlugin {
         }
 
         if (mixinClassName.contains(".compat.sodium.")) {
-            return isModLoaded("sodium");
+            return isModLoaded("sodium") && classExists(targetClassName);
         }
         if (mixinClassName.contains(".compat.iris.")) {
-            return isModLoaded("iris") && isModLoaded("sodium");
+            return isModLoaded("iris") && isModLoaded("sodium") && classExists(targetClassName);
         }
 
         return true;
@@ -59,5 +59,15 @@ public final class WhereWindsBlowMixinPlugin implements IMixinConfigPlugin {
         } catch (RuntimeException exception) {
             return false;
         }
+    }
+
+    private static boolean classExists(String className) {
+        String resourceName = className.replace('.', '/') + ".class";
+        return hasClassResource(WhereWindsBlowMixinPlugin.class.getClassLoader(), resourceName)
+                || hasClassResource(Thread.currentThread().getContextClassLoader(), resourceName);
+    }
+
+    private static boolean hasClassResource(ClassLoader classLoader, String resourceName) {
+        return classLoader != null && classLoader.getResource(resourceName) != null;
     }
 }

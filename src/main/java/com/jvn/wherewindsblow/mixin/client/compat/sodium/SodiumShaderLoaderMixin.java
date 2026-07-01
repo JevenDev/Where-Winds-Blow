@@ -14,7 +14,7 @@ public abstract class SodiumShaderLoaderMixin {
     private static void wherewindsblow$patchResponsiveFoliageWindShader(ResourceLocation name, CallbackInfoReturnable<String> cir) {
         String source = cir.getReturnValue();
         if (source == null
-                || !SodiumFoliageShaderSource.isSodiumTerrainVertexShader(name)
+                || !SodiumFoliageShaderSource.isSodiumTerrainVertexShader(name, source)
                 || !ResponsiveFoliageShaders.shouldPatchSodiumShaders()) {
             return;
         }
