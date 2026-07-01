@@ -216,7 +216,12 @@ public final class WindStreakRenderer {
         }
 
         float weatherWindPower = ResponsiveFoliageShaders.weatherWindPower();
-        return Mth.clamp(Math.round((7.0F + weatherWindPower * 7.5F) * Math.min(visibility, 1.6F)), 0, MAX_STREAKS);
+        float lineDensity = (float) ClientConfig.WIND_LINE_DENSITY.getAsDouble();
+        return Mth.clamp(
+                Math.round((7.0F + weatherWindPower * 7.5F) * Math.min(visibility, 1.6F) * lineDensity),
+                0,
+                MAX_STREAKS
+        );
     }
 
     private static int desiredLeafCount() {
@@ -226,7 +231,12 @@ public final class WindStreakRenderer {
         }
 
         float weatherWindPower = ResponsiveFoliageShaders.weatherWindPower();
-        return Mth.clamp(Math.round((4.0F + weatherWindPower * 6.0F) * Math.min(visibility, 1.8F)), 0, MAX_LEAVES);
+        float leafDensity = (float) ClientConfig.WIND_LEAF_DENSITY.getAsDouble();
+        return Mth.clamp(
+                Math.round((4.0F + weatherWindPower * 6.0F) * Math.min(visibility, 1.8F) * leafDensity),
+                0,
+                MAX_LEAVES
+        );
     }
 
     private static RenderType windStreakLines() {
@@ -345,6 +355,13 @@ public final class WindStreakRenderer {
             streak.curvePhase = RANDOM.nextDouble() * Math.PI * 2.0D;
             streak.curveFrequency = randomBetween(0.72D, 1.35D);
             streak.curveSign = RANDOM.nextBoolean() ? 1.0D : -1.0D;
+            streak.rippleStrength = randomBetween(0.018D, 0.074D) * (1.0D + weatherBoost * 0.24D);
+            streak.rippleFrequency = randomBetween(2.1D, 4.8D);
+            streak.ripplePhase = RANDOM.nextDouble() * Math.PI * 2.0D;
+            streak.verticalRipple = randomBetween(0.008D, 0.038D) * (1.0D + weatherBoost * 0.18D);
+            streak.brushWidth = randomBetween(0.105D, 0.16D);
+            streak.wakeLength = randomBetween(0.48D, 0.68D);
+            streak.shimmerStrength = randomBetween(0.055D, 0.145D);
             streak.seed = RANDOM.nextDouble() * Math.PI * 2.0D;
             streak.lifetime = Math.max(38, Math.round((48 + RANDOM.nextInt(30)) / (float) (1.0D + weatherBoost * 0.18D)));
             streak.age = scatterAge ? RANDOM.nextInt(Math.max(1, streak.lifetime / 2)) : 0;
@@ -379,7 +396,17 @@ public final class WindStreakRenderer {
 
         double weatherBoost = weatherBoost(weatherWindPower);
         double speed = leaf.speed * (1.0D + weatherBoost * 1.15D);
-        double weave = Math.sin((leaf.age + leaf.seed) * 0.09D) * leaf.crossDrift * (1.0D + weatherBoost * 0.8D);
+        double leafTime = (double) leaf.age + leaf.seed;
+        double weatherMotionBoost = 1.0D + weatherBoost * 0.8D;
+        double weave = (
+                Math.sin(leafTime * 0.09D)
+                        + Math.sin(leaf.swirlPhase + leafTime * 0.027D) * 0.46D
+        ) * leaf.crossDrift * weatherMotionBoost;
+        double swirlAngle = leaf.swirlPhase + leafTime * leaf.swirlSpeed;
+        double loopAngle = leaf.loopPhase + leafTime * leaf.loopSpeed;
+        double swirl = Math.sin(swirlAngle) * leaf.swirlStrength * weatherMotionBoost;
+        double loop = Math.sin(loopAngle) * leaf.loopStrength * weatherMotionBoost;
+        double loopLift = Math.cos(loopAngle) * leaf.loopStrength * 0.72D * weatherMotionBoost;
         TerrainFlow terrainFlow = terrainFlow(
                 level,
                 leaf.x,
@@ -392,12 +419,17 @@ public final class WindStreakRenderer {
         );
         leaf.terrainLift = terrainFlow.lift();
         leaf.terrainSideFlow = terrainFlow.side();
-        double flutter = Math.sin((leaf.age + leaf.seed) * 0.084D) * leaf.verticalDrift * (1.0D + weatherBoost * 0.4D);
+        double flutter = (
+                Math.sin(leafTime * 0.084D)
+                        + Math.sin(leaf.flipPhase + leafTime * 0.17D) * 0.54D
+        ) * leaf.verticalDrift * (1.0D + weatherBoost * 0.4D);
+        double forwardPulse = Math.cos(swirlAngle) * leaf.swirlStrength * 0.16D;
+        double sideDrift = weave + swirl + loop + leaf.terrainSideFlow;
         Point next = keepAboveTerrainAndCollision(
                 level,
-                leaf.x + windX() * speed + crossX() * (weave + leaf.terrainSideFlow),
-                leaf.y + leaf.terrainLift + flutter,
-                leaf.z + windZ() * speed + crossZ() * (weave + leaf.terrainSideFlow),
+                leaf.x + windX() * (speed + forwardPulse) + crossX() * sideDrift,
+                leaf.y + leaf.terrainLift + flutter + Math.cos(swirlAngle) * leaf.swirlStrength * 0.42D + loopLift,
+                leaf.z + windZ() * (speed + forwardPulse) + crossZ() * sideDrift,
                 LEAF_TERRAIN_CLEARANCE
         );
         if (windPathBlocked(level, leaf.x, leaf.y, leaf.z, next)) {
@@ -452,10 +484,20 @@ public final class WindStreakRenderer {
         leaf.crossDrift = randomBetween(-0.018D, 0.018D) * (1.0D + weatherBoost * 0.7D);
         leaf.verticalDrift = randomBetween(0.003D, 0.012D) * (1.0D + weatherBoost * 0.35D);
         leaf.bob = randomBetween(0.025D, 0.075D) * (1.0D + weatherBoost * 0.3D);
+        leaf.swirlStrength = randomBetween(0.006D, 0.035D) * (1.0D + weatherBoost * 0.55D);
+        leaf.swirlSpeed = randomBetween(0.105D, 0.225D) * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
+        leaf.swirlPhase = RANDOM.nextDouble() * Math.PI * 2.0D;
+        leaf.loopStrength = (RANDOM.nextDouble() < 0.44D ? randomBetween(0.018D, 0.065D) : randomBetween(0.0D, 0.018D))
+                * (1.0D + weatherBoost * 0.68D);
+        leaf.loopSpeed = randomBetween(0.072D, 0.152D) * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
+        leaf.loopPhase = RANDOM.nextDouble() * Math.PI * 2.0D;
         leaf.terrainLift = 0.0D;
         leaf.terrainSideFlow = 0.0D;
         leaf.tilt = randomBetween(-Math.PI, Math.PI);
-        leaf.tiltSpeed = randomBetween(0.045D, 0.105D) * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
+        leaf.tiltSpeed = randomBetween(0.045D, 0.145D) * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
+        leaf.flipPhase = RANDOM.nextDouble() * Math.PI * 2.0D;
+        leaf.flipSpeed = randomBetween(0.115D, 0.265D) * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
+        leaf.tumbleStrength = randomBetween(0.12D, 0.42D);
         leaf.seed = RANDOM.nextDouble() * Math.PI * 2.0D;
         leaf.lifetime = Math.max(64, Math.round((94 + RANDOM.nextInt(70)) / (float) (1.0D + weatherBoost * 0.28D)));
         leaf.age = scatterAge ? RANDOM.nextInt(Math.max(1, leaf.lifetime / 2)) : 0;
@@ -671,9 +713,13 @@ public final class WindStreakRenderer {
         double baseY = lerp(partialTick, leaf.yOld, leaf.y);
         double baseZ = lerp(partialTick, leaf.zOld, leaf.z);
         double weatherFlutterBoost = 1.0D + weatherBoost(weatherWindPower) * 0.35D;
-        double flutter = Math.sin(leaf.seed + ((double) leaf.age + partialTick) * 0.16D + windTime * 1.35D) * leaf.bob;
+        double leafTime = (double) leaf.age + partialTick + leaf.seed;
+        double flutter = (
+                Math.sin(leaf.seed + leafTime * 0.16D + windTime * 1.35D)
+                        + Math.sin(leaf.swirlPhase + leafTime * leaf.swirlSpeed * 0.72D) * 0.38D
+        ) * leaf.bob;
         double centerX = baseX + crossX() * flutter * weatherFlutterBoost;
-        double centerY = baseY + Math.cos(leaf.seed * 0.7D + ((double) leaf.age + partialTick) * 0.13D) * leaf.bob;
+        double centerY = baseY + Math.cos(leaf.seed * 0.7D + leafTime * 0.13D) * leaf.bob;
         double centerZ = baseZ + crossZ() * flutter * weatherFlutterBoost;
         centerY = Math.max(centerY, terrainHeight(level, centerX, centerZ) + LEAF_TERRAIN_CLEARANCE);
         if (!leaf.fadingOut && !isOpenSkyAir(level, centerX, centerY, centerZ)) {
@@ -690,9 +736,19 @@ public final class WindStreakRenderer {
             return;
         }
 
-        float tilt = (float) (leaf.tilt + ((double) leaf.age + partialTick) * leaf.tiltSpeed
-                + Math.sin(leaf.seed + windTime * 0.9D) * 0.18D);
-        float halfSize = (float) (leaf.size * (0.5D + Math.sin(leaf.seed * 1.3D + ((double) leaf.age + partialTick) * 0.11D) * 0.035D));
+        double flip = Math.cos(
+                leaf.flipPhase + leafTime * leaf.flipSpeed + Math.sin(leaf.swirlPhase + leafTime * 0.083D) * leaf.tumbleStrength
+        );
+        float tilt = (float) (leaf.tilt + leafTime * leaf.tiltSpeed
+                + Math.sin(leaf.seed + windTime * 0.9D) * 0.18D
+                + Math.sin(leaf.loopPhase + leafTime * leaf.loopSpeed) * leaf.tumbleStrength);
+        float halfSize = (float) (leaf.size * (0.5D + Math.sin(leaf.seed * 1.3D + leafTime * 0.11D) * 0.035D));
+        float flipScale = (float) Mth.clamp(0.18D + Math.abs(flip) * 0.82D, 0.18D, 1.0D);
+        float stretchScale = (float) Mth.clamp(
+                1.0D + Math.sin(leaf.swirlPhase + leafTime * leaf.swirlSpeed) * 0.13D,
+                0.86D,
+                1.14D
+        );
         int alphaByte = alphaByte(alpha);
         int light = LevelRenderer.getLightColor(level, BlockPos.containing(centerX, centerY, centerZ));
         emitLeafQuad(
@@ -705,6 +761,8 @@ public final class WindStreakRenderer {
                 centerZ,
                 halfSize,
                 tilt,
+                flipScale,
+                stretchScale,
                 leaf.red,
                 leaf.green,
                 leaf.blue,
@@ -746,14 +804,26 @@ public final class WindStreakRenderer {
         double flow = streak.seed;
         double pathEnvelope = Math.sin(t * Math.PI);
         double bodyCurve = pathEnvelope * streak.arc;
-        double sCurve = Math.sin(t * Math.PI * streak.curveFrequency + streak.curvePhase)
+        double sCurve = Math.sin(
+                t * Math.PI * streak.curveFrequency + streak.curvePhase + windTime * 0.46D * streak.curveSign
+        )
                 * streak.curveStrength
                 * pathEnvelope
                 * streak.curveSign;
-        double softRipple = Math.sin(flow + t * Math.PI * 2.0D) * 0.024D * pathEnvelope;
-        double crossOffset = bodyCurve + sCurve + softRipple;
+        double softRipple = Math.sin(flow + t * Math.PI * 2.0D + windTime * 0.68D) * 0.024D * pathEnvelope;
+        double fastRipple = Math.sin(streak.ripplePhase + t * Math.PI * streak.rippleFrequency + windTime * 1.16D)
+                * streak.rippleStrength
+                * pathEnvelope;
+        double counterRipple = Math.sin(
+                flow * 1.7D + t * Math.PI * (streak.rippleFrequency * 0.54D) - windTime * 0.74D
+        )
+                * streak.rippleStrength
+                * 0.46D
+                * pathEnvelope;
+        double crossOffset = bodyCurve + sCurve + softRipple + fastRipple + counterRipple;
         double x = baseX + windX() * along + crossX() * crossOffset;
-        double y = baseY + pathEnvelope * streak.lift + sCurve * 0.08D;
+        double y = baseY + pathEnvelope * streak.lift + sCurve * 0.08D
+                + Math.cos(streak.ripplePhase + t * Math.PI * 3.0D + windTime * 0.9D) * streak.verticalRipple * pathEnvelope;
         double z = baseZ + windZ() * along + crossZ() * crossOffset;
         return new Point(x, y, z);
     }
@@ -761,11 +831,14 @@ public final class WindStreakRenderer {
     private static float motionTaper(WindStreak streak, float t, float windTime, float brushPosition) {
         float shapeFade = smoothFade(Mth.clamp(t / 0.12F, 0.0F, 1.0F))
                 * smoothFade(Mth.clamp((1.0F - t) / 0.2F, 0.0F, 1.0F));
-        float leadingEdge = movingBrush(t, brushPosition, 0.13F) * 0.92F;
-        float trailingWake = trailingWake(t, brushPosition, 0.58F);
+        float leadingEdge = movingBrush(t, brushPosition, (float) streak.brushWidth) * 0.92F;
+        float trailingWake = trailingWake(t, brushPosition, (float) streak.wakeLength);
         float curveBoost = Mth.sin(t * Mth.PI) * 0.08F;
-        float shimmer = 0.9F + 0.1F * Mth.sin((float) streak.seed + windTime * 3.6F + t * Mth.PI * 6.0F);
-        return shapeFade * shimmer * (leadingEdge + trailingWake * (0.68F + curveBoost));
+        float shimmer = (float) (1.0D - streak.shimmerStrength
+                + streak.shimmerStrength * Mth.sin((float) streak.seed + windTime * 3.6F + t * Mth.PI * 6.0F));
+        float fineBreakup = 0.9F
+                + 0.1F * Mth.sin((float) streak.ripplePhase + windTime * 5.2F + t * Mth.PI * 13.0F);
+        return shapeFade * shimmer * fineBreakup * (leadingEdge + trailingWake * (0.68F + curveBoost));
     }
 
     private static boolean streakBodyHitsCollision(ClientLevel level, WindStreak streak, float windTime) {
@@ -826,6 +899,8 @@ public final class WindStreakRenderer {
             double centerZ,
             float halfSize,
             float tilt,
+            float flipScale,
+            float stretchScale,
             int red,
             int green,
             int blue,
@@ -842,14 +917,16 @@ public final class WindStreakRenderer {
         double axisYx = up.x() * tiltCos - left.x() * tiltSin;
         double axisYy = up.y() * tiltCos - left.y() * tiltSin;
         double axisYz = up.z() * tiltCos - left.z() * tiltSin;
+        double halfWidth = halfSize * flipScale;
+        double halfHeight = halfSize * stretchScale;
 
         emitLeafVertex(
                 consumer,
                 pose,
                 cameraPos,
-                centerX - axisXx * halfSize - axisYx * halfSize,
-                centerY - axisXy * halfSize - axisYy * halfSize,
-                centerZ - axisXz * halfSize - axisYz * halfSize,
+                centerX - axisXx * halfWidth - axisYx * halfHeight,
+                centerY - axisXy * halfWidth - axisYy * halfHeight,
+                centerZ - axisXz * halfWidth - axisYz * halfHeight,
                 0.0F,
                 1.0F,
                 red,
@@ -862,9 +939,9 @@ public final class WindStreakRenderer {
                 consumer,
                 pose,
                 cameraPos,
-                centerX + axisXx * halfSize - axisYx * halfSize,
-                centerY + axisXy * halfSize - axisYy * halfSize,
-                centerZ + axisXz * halfSize - axisYz * halfSize,
+                centerX + axisXx * halfWidth - axisYx * halfHeight,
+                centerY + axisXy * halfWidth - axisYy * halfHeight,
+                centerZ + axisXz * halfWidth - axisYz * halfHeight,
                 1.0F,
                 1.0F,
                 red,
@@ -877,9 +954,9 @@ public final class WindStreakRenderer {
                 consumer,
                 pose,
                 cameraPos,
-                centerX + axisXx * halfSize + axisYx * halfSize,
-                centerY + axisXy * halfSize + axisYy * halfSize,
-                centerZ + axisXz * halfSize + axisYz * halfSize,
+                centerX + axisXx * halfWidth + axisYx * halfHeight,
+                centerY + axisXy * halfWidth + axisYy * halfHeight,
+                centerZ + axisXz * halfWidth + axisYz * halfHeight,
                 1.0F,
                 0.0F,
                 red,
@@ -892,9 +969,9 @@ public final class WindStreakRenderer {
                 consumer,
                 pose,
                 cameraPos,
-                centerX - axisXx * halfSize + axisYx * halfSize,
-                centerY - axisXy * halfSize + axisYy * halfSize,
-                centerZ - axisXz * halfSize + axisYz * halfSize,
+                centerX - axisXx * halfWidth + axisYx * halfHeight,
+                centerY - axisXy * halfWidth + axisYy * halfHeight,
+                centerZ - axisXz * halfWidth + axisYz * halfHeight,
                 0.0F,
                 0.0F,
                 red,
@@ -1121,6 +1198,13 @@ public final class WindStreakRenderer {
         private double curvePhase;
         private double curveFrequency;
         private double curveSign;
+        private double rippleStrength;
+        private double rippleFrequency;
+        private double ripplePhase;
+        private double verticalRipple;
+        private double brushWidth;
+        private double wakeLength;
+        private double shimmerStrength;
         private double seed;
     }
 
@@ -1147,8 +1231,17 @@ public final class WindStreakRenderer {
         private double terrainLift;
         private double terrainSideFlow;
         private double bob;
+        private double swirlStrength;
+        private double swirlSpeed;
+        private double swirlPhase;
+        private double loopStrength;
+        private double loopSpeed;
+        private double loopPhase;
         private double tilt;
         private double tiltSpeed;
+        private double flipPhase;
+        private double flipSpeed;
+        private double tumbleStrength;
         private double seed;
     }
 

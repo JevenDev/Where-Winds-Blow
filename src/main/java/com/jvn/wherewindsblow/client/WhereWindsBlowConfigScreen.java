@@ -133,6 +133,20 @@ public final class WhereWindsBlowConfigScreen {
                                 SMALL_STEP
                         ))
                         .option(doubleOption(
+                                ClientConfig.WIND_LINE_DENSITY,
+                                1.0D,
+                                ClientConfig.WIND_LINE_DENSITY_MIN,
+                                ClientConfig.WIND_LINE_DENSITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.WIND_LEAF_DENSITY,
+                                1.0D,
+                                ClientConfig.WIND_LEAF_DENSITY_MIN,
+                                ClientConfig.WIND_LEAF_DENSITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
                                 ClientConfig.WIND_STREAK_OPACITY,
                                 0.8D,
                                 ClientConfig.WIND_STREAK_OPACITY_MIN,

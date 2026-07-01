@@ -9,6 +9,10 @@ public final class ClientConfig {
     public static final double WIND_SHEEN_STRENGTH_MAX = 2.0D;
     public static final double WIND_STREAK_VISIBILITY_MIN = 0.0D;
     public static final double WIND_STREAK_VISIBILITY_MAX = 4.0D;
+    public static final double WIND_LINE_DENSITY_MIN = 0.0D;
+    public static final double WIND_LINE_DENSITY_MAX = 4.0D;
+    public static final double WIND_LEAF_DENSITY_MIN = 0.0D;
+    public static final double WIND_LEAF_DENSITY_MAX = 4.0D;
     public static final double WIND_STREAK_OPACITY_MIN = 0.0D;
     public static final double WIND_STREAK_OPACITY_MAX = 1.0D;
     public static final double WIND_STREAK_THICKNESS_MIN = 1.0D;
@@ -61,8 +65,16 @@ public final class ClientConfig {
             .define("enableWindStreaks", true);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_VISIBILITY = BUILDER
-            .comment("Scales wind streak density.")
+            .comment("Scales overall ambient wind streak and drifting leaf density.")
             .defineInRange("windStreakVisibility", 1.0D, WIND_STREAK_VISIBILITY_MIN, WIND_STREAK_VISIBILITY_MAX);
+
+    public static final ModConfigSpec.DoubleValue WIND_LINE_DENSITY = BUILDER
+            .comment("Scales how many wind lines spawn.")
+            .defineInRange("windLineDensity", 1.0D, WIND_LINE_DENSITY_MIN, WIND_LINE_DENSITY_MAX);
+
+    public static final ModConfigSpec.DoubleValue WIND_LEAF_DENSITY = BUILDER
+            .comment("Scales how many drifting leaf particles spawn.")
+            .defineInRange("windLeafDensity", 1.0D, WIND_LEAF_DENSITY_MIN, WIND_LEAF_DENSITY_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_OPACITY = BUILDER
             .comment("Scales wind streak opacity.")
