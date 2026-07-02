@@ -169,16 +169,19 @@ public final class WindStreakRenderer {
         float windTime = ResponsiveFoliageShaders.windTime();
         float weatherWindPower = ResponsiveFoliageShaders.weatherWindPower();
         Matrix4f pose = event.getPoseStack().last().pose();
-        MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(LINE_BUFFER);
 
-        for (WindStreak streak : STREAKS) {
-            if (streak.active && lineOpacity > 0.0F) {
-                VertexConsumer consumer = bufferSource.getBuffer(windStreakLines(streak.strokeScale));
-                renderStreak(consumer, pose, minecraft.level, streak, cameraPos, partialTick, windTime, weatherWindPower, lineOpacity);
+        if (lineOpacity > 0.0F) {
+            MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(LINE_BUFFER);
+            for (WindStreak streak : STREAKS) {
+                if (streak.active) {
+                    VertexConsumer consumer = bufferSource.getBuffer(windStreakLines(streak.strokeScale));
+                    renderStreak(consumer, pose, minecraft.level, streak, cameraPos, partialTick, windTime, lineOpacity);
+                }
             }
+
+            bufferSource.endBatch();
         }
 
-        bufferSource.endBatch();
         if (leafOpacity > 0.0F) {
             renderLeaves(minecraft.level, camera, pose, cameraPos, partialTick, windTime, weatherWindPower, leafOpacity);
         }
@@ -262,7 +265,7 @@ public final class WindStreakRenderer {
                 false,
                 false,
                 RenderType.CompositeState.builder()
-                        .setShaderState(RenderStateShard.RENDERTYPE_LINES_SHADER)
+                        .setShaderState(WindVisualShaders.windStreakShaderState())
                         .setLineState(new RenderStateShard.LineStateShard(OptionalDouble.of(width)))
                         .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
                         .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
@@ -717,7 +720,6 @@ public final class WindStreakRenderer {
             Vec3 cameraPos,
             float partialTick,
             float windTime,
-            float weatherWindPower,
             float opacity
     ) {
         float life = ((float) streak.age + partialTick) / (float) streak.lifetime;

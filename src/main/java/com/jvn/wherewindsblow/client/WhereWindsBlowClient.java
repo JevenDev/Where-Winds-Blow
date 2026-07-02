@@ -7,6 +7,7 @@ import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.lantern.LanternSway;
 import com.jvn.wherewindsblow.client.lantern.SwingingLanternAssemblyRenderer;
 import com.jvn.wherewindsblow.client.wind.WindStreakRenderer;
+import com.jvn.wherewindsblow.client.wind.WindVisualShaders;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.world.level.GrassColor;
@@ -68,6 +69,7 @@ public final class WhereWindsBlowClient {
 
     private static void registerShaders(RegisterShadersEvent event) {
         ResponsiveFoliageShaders.register(event);
+        WindVisualShaders.register(event);
     }
 
     private static void onClientPauseChange(ClientPauseChangeEvent.Post event) {

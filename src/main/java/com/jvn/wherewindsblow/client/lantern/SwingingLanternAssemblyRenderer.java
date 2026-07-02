@@ -5,6 +5,8 @@ import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.client.wind.WindDirection;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.Camera;
@@ -37,6 +39,9 @@ import org.joml.Quaternionf;
 public final class SwingingLanternAssemblyRenderer {
     private static final RenderLevelStageEvent.Stage RENDER_STAGE = RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES;
     private static final int CHUNK_RENDER_RADIUS = 5;
+    private static final int CHUNK_CACHE_TTL_TICKS = 40;
+    private static final int MAX_CHUNK_CACHE_SCANS_PER_FRAME = 6;
+    private static final int MAX_LANTERN_CHUNK_CACHE_SIZE = 512;
     private static final int MAX_CHAIN_HEIGHT = 32;
     private static final int COLLISION_BINARY_SEARCH_STEPS = 7;
     private static final double COLLISION_GRID_EPSILON = 1.0E-7D;
@@ -46,7 +51,9 @@ public final class SwingingLanternAssemblyRenderer {
     private static final float ENCLOSED_SWAY_SCALE = 0.12F;
     private static final ModelData ASSEMBLY_MODEL_DATA = ModelData.of(LanternModelData.RENDERING_ASSEMBLY, Boolean.TRUE);
     private static final Map<Long, SwingState> SWING_STATES = new ConcurrentHashMap<>();
+    private static final Map<Long, LanternChunkCache> LANTERN_CHUNK_CACHE = new ConcurrentHashMap<>();
     private static net.minecraft.resources.ResourceKey<Level> activeDimension;
+    private static int chunkCacheScansThisFrame;
 
     private SwingingLanternAssemblyRenderer() {
     }
@@ -66,7 +73,11 @@ public final class SwingingLanternAssemblyRenderer {
 
         if (activeDimension != level.dimension()) {
             SWING_STATES.clear();
+            LANTERN_CHUNK_CACHE.clear();
             activeDimension = level.dimension();
+        }
+        if (LANTERN_CHUNK_CACHE.size() > MAX_LANTERN_CHUNK_CACHE_SIZE) {
+            LANTERN_CHUNK_CACHE.clear();
         }
 
         Camera camera = event.getCamera();
@@ -74,12 +85,14 @@ public final class SwingingLanternAssemblyRenderer {
         ChunkPos cameraChunk = new ChunkPos(camera.getBlockPosition());
         BlockRenderDispatcher blockRenderer = minecraft.getBlockRenderer();
         MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
+        long gameTime = level.getGameTime();
+        chunkCacheScansThisFrame = 0;
 
         for (int chunkZ = cameraChunk.z - CHUNK_RENDER_RADIUS; chunkZ <= cameraChunk.z + CHUNK_RENDER_RADIUS; chunkZ++) {
             for (int chunkX = cameraChunk.x - CHUNK_RENDER_RADIUS; chunkX <= cameraChunk.x + CHUNK_RENDER_RADIUS; chunkX++) {
                 ChunkAccess chunk = level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
                 if (chunk instanceof LevelChunk levelChunk) {
-                    renderChunkLanterns(level, levelChunk, blockRenderer, bufferSource, event.getPoseStack(), cameraPos, event);
+                    renderChunkLanterns(level, levelChunk, blockRenderer, bufferSource, event.getPoseStack(), cameraPos, event, gameTime);
                 }
             }
         }
@@ -109,19 +122,45 @@ public final class SwingingLanternAssemblyRenderer {
             MultiBufferSource bufferSource,
             PoseStack poseStack,
             Vec3 cameraPos,
-            RenderLevelStageEvent event
+            RenderLevelStageEvent event,
+            long gameTime
     ) {
+        List<BlockPos> lanternPositions = hangingLanternsForChunk(chunk, gameTime);
+        for (BlockPos pos : lanternPositions) {
+            BlockState state = level.getBlockState(pos);
+            if (!isHangingLantern(state)) {
+                continue;
+            }
+
+            int chainHeight = chainHeightAbove(level, pos);
+            if (chainHeight <= 0 || chainHeight > MAX_CHAIN_HEIGHT || !isVisible(event, pos, chainHeight)) {
+                continue;
+            }
+
+            renderAssembly(level, pos, state, chainHeight, blockRenderer, bufferSource, poseStack, cameraPos, event);
+        }
+    }
+
+    private static List<BlockPos> hangingLanternsForChunk(LevelChunk chunk, long gameTime) {
+        long key = chunk.getPos().toLong();
+        LanternChunkCache cached = LANTERN_CHUNK_CACHE.get(key);
+        if (cached != null && gameTime - cached.scannedGameTime() < CHUNK_CACHE_TTL_TICKS) {
+            return cached.positions();
+        }
+
+        if (chunkCacheScansThisFrame >= MAX_CHUNK_CACHE_SCANS_PER_FRAME) {
+            return cached != null ? cached.positions() : List.of();
+        }
+
+        chunkCacheScansThisFrame++;
+        List<BlockPos> positions = new ArrayList<>();
         chunk.findBlocks(
                 SwingingLanternAssemblyRenderer::isHangingLantern,
-                (pos, state) -> {
-                    int chainHeight = chainHeightAbove(level, pos);
-                    if (chainHeight <= 0 || chainHeight > MAX_CHAIN_HEIGHT || !isVisible(event, pos, chainHeight)) {
-                        return;
-                    }
-
-                    renderAssembly(level, pos.immutable(), state, chainHeight, blockRenderer, bufferSource, poseStack, cameraPos, event);
-                }
+                (pos, state) -> positions.add(pos.immutable())
         );
+        LanternChunkCache updated = new LanternChunkCache(gameTime, List.copyOf(positions));
+        LANTERN_CHUNK_CACHE.put(key, updated);
+        return updated.positions();
     }
 
     private static void renderAssembly(
@@ -486,5 +525,8 @@ public final class SwingingLanternAssemblyRenderer {
 
             return Mth.clamp(deltaTicks, 0.0F, 2.0F);
         }
+    }
+
+    private record LanternChunkCache(long scannedGameTime, List<BlockPos> positions) {
     }
 }
