@@ -95,11 +95,11 @@ public final class ClientConfig {
             .defineInRange("windDirectionDegrees", 125.0D, WIND_DIRECTION_DEGREES_MIN, WIND_DIRECTION_DEGREES_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_SMOKE = BUILDER
-            .comment("Lets campfire smoke naturally drift and curl with the wind.")
+            .comment("Lets campfire smoke drift, curl, and merge into larger wind-shaped plumes.")
             .define("enableWindSmoke", true);
 
     public static final ModConfigSpec.DoubleValue WIND_SMOKE_STRENGTH = BUILDER
-            .comment("Scales how strongly campfire smoke follows the wind.")
+            .comment("Scales how strongly campfire smoke follows the wind and plume turbulence.")
             .defineInRange("windSmokeStrength", 3.0D, WIND_SMOKE_STRENGTH_MIN, WIND_SMOKE_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_LANTERN_SWAY = BUILDER
