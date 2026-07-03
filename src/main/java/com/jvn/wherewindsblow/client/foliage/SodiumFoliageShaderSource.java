@@ -10,7 +10,7 @@ public final class SodiumFoliageShaderSource {
     private static final String VERTEX_SHADER_EXTENSION = ".vsh";
     private static final Pattern MAIN_METHOD_PATTERN = Pattern.compile("(?m)^\\s*void\\s+main\\s*\\(\\s*\\)\\s*\\{.*$");
     private static final Pattern LIGHT_SAMPLER_PATTERN = Pattern.compile("(?m)^\\s*uniform\\s+sampler2D\\s+u_LightTex\\s*;.*$");
-    private static final Pattern POSITION_LINE_PATTERN = Pattern.compile("(?m)^\\s*vec3\\s+position\\s*=\\s*_vert_position\\s*\\+\\s*translation\\s*;.*$");
+    private static final Pattern POSITION_LINE_PATTERN = Pattern.compile("(?m)^\\s*vec3\\s+position\\s*=\\s*_vert_position\\s*\\+\\s*[^;]+;.*$");
     private static final Pattern COLOR_LINE_PATTERN = Pattern.compile("(?m)^\\s*v_Color\\s*=\\s*_vert_color\\s*\\*\\s*texture\\s*\\(\\s*u_LightTex\\s*,\\s*_vert_tex_light_coord\\s*\\)\\s*;.*$");
     private static final Pattern SHINE_BASE_COLOR_LINE_PATTERN = Pattern.compile("(?m)^\\s*v_Color\\s*=\\s*_vert_color\\s*\\*\\s*texture\\s*\\(\\s*u_LightTex\\s*,\\s*shineLightCoord\\s*\\)\\s*;.*$");
     private static final Pattern SHINE_COLORED_LIGHT_LINE_PATTERN = Pattern.compile("(?m)^\\s*v_Color\\s*=\\s*shine_apply_colored_light\\s*\\(\\s*position\\s*,\\s*v_Color\\s*,\\s*shineLightCoord\\s*\\)\\s*;.*$");
@@ -352,7 +352,7 @@ public final class SodiumFoliageShaderSource {
     private static final String WIND_POSITION_INJECTION = """
                 float wwbFoliageAlpha = _vert_color.a;
                 float wwbWindSheen = wwb_foliage_wind_sheen(position, wwbFoliageAlpha);
-                vec2 wwbPlantAnchor = floor(_vert_position.xz) + vec2(0.5) + translation.xz;
+                vec2 wwbPlantAnchor = floor(_vert_position.xz) + vec2(0.5) + (position.xz - _vert_position.xz);
                 vec3 wwbFoliageBase = position;
                 position = wwb_apply_foliage_wind(position, wwbFoliageAlpha);
                 position = wwb_apply_lantern_wind(position, wwbFoliageAlpha);
@@ -368,11 +368,14 @@ public final class SodiumFoliageShaderSource {
     }
 
     public static boolean isSodiumTerrainVertexShader(ResourceLocation name, String source) {
-        return SODIUM_NAMESPACE.equals(name.getNamespace())
-                && name.getPath().endsWith(VERTEX_SHADER_EXTENSION)
-                && source.contains("_vert_init")
-                && source.contains("_vert_position")
-                && source.contains("_material_params");
+        if (!SODIUM_NAMESPACE.equals(name.getNamespace()) || !name.getPath().endsWith(VERTEX_SHADER_EXTENSION)) {
+            return false;
+        }
+
+        return SODIUM_TERRAIN_VERTEX_SHADER.equals(name.getPath())
+                || (source.contains("_vert_init")
+                        && source.contains("_vert_position")
+                        && source.contains("_material_params"));
     }
 
     public static String patch(ResourceLocation name, String source) {
@@ -396,6 +399,7 @@ public final class SodiumFoliageShaderSource {
         if (matches(source, LIGHT_SAMPLER_PATTERN)
                 && matches(source, MAIN_METHOD_PATTERN)
                 && matches(source, POSITION_LINE_PATTERN)
+                && source.contains("_material_params")
                 && colorAnchor != null) {
             return true;
         }
