@@ -47,6 +47,8 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
     private float wherewindsblow$sizeVariance;
     @Unique
     private boolean wherewindsblow$capturedVisualState;
+    @Unique
+    private boolean wherewindsblow$capturedProviderAlpha;
 
     protected CampfireSmokeParticleMixin(ClientLevel level, double x, double y, double z) {
         super(level, x, y, z);
@@ -96,6 +98,11 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
             if (context.clustered()) {
                 this.yd += (this.random.nextDouble() - 0.5D) * 0.025D;
             }
+
+            if (ClientConfig.WIND_SMOKE_STRENGTH.getAsDouble() > 0.0D) {
+                wherewindsblow$captureVisualState(true);
+                wherewindsblow$applyVisualShape(0.0F, false);
+            }
         }
     }
 
@@ -121,7 +128,7 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
             return;
         }
 
-        wherewindsblow$captureVisualState();
+        wherewindsblow$captureVisualState(false);
 
         float windTime = ResponsiveFoliageShaders.windTime();
         float weatherWindPower = ResponsiveFoliageShaders.weatherWindPower();
@@ -177,9 +184,14 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
             return;
         }
 
-        wherewindsblow$captureVisualState();
+        wherewindsblow$captureVisualState(false);
 
         float ageFactor = Mth.clamp((float) this.age / (float) Math.max(this.lifetime, 1), 0.0F, 1.0F);
+        wherewindsblow$applyVisualShape(ageFactor, true);
+    }
+
+    @Unique
+    private void wherewindsblow$applyVisualShape(float ageFactor, boolean applyAlpha) {
         float targetScale = this.wherewindsblow$initialQuadSize * wherewindsblow$targetScaleMultiplier();
         float growth = ageFactor * Mth.sqrt(ageFactor);
         this.quadSize = Mth.clamp(
@@ -188,7 +200,10 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
                 targetScale
         );
 
-        this.alpha = this.wherewindsblow$initialAlpha * wherewindsblow$alphaFade(ageFactor);
+        if (applyAlpha) {
+            this.alpha = this.wherewindsblow$initialAlpha * wherewindsblow$alphaFade(ageFactor);
+        }
+
         wherewindsblow$tintSmoke(ageFactor);
     }
 
@@ -198,8 +213,9 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
     }
 
     @Unique
-    private void wherewindsblow$captureVisualState() {
+    private void wherewindsblow$captureVisualState(boolean waitForProviderAlpha) {
         if (this.wherewindsblow$capturedVisualState) {
+            wherewindsblow$captureProviderAlpha();
             return;
         }
 
@@ -210,6 +226,17 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
         this.wherewindsblow$initialGreen = this.gCol;
         this.wherewindsblow$initialBlue = this.bCol;
         this.wherewindsblow$sizeVariance = 0.72F + Mth.sqrt(this.random.nextFloat()) * 0.5F;
+        this.wherewindsblow$capturedProviderAlpha = !waitForProviderAlpha;
+    }
+
+    @Unique
+    private void wherewindsblow$captureProviderAlpha() {
+        if (this.wherewindsblow$capturedProviderAlpha) {
+            return;
+        }
+
+        this.wherewindsblow$capturedProviderAlpha = true;
+        this.wherewindsblow$initialAlpha = this.alpha;
     }
 
     @Unique
