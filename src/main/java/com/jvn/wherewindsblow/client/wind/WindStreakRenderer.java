@@ -54,13 +54,17 @@ public final class WindStreakRenderer {
     private static final double TERRAIN_FLOW_SMOOTHING = 0.56D;
     private static final double TERRAIN_SIDE_PUSH = 0.026D;
     private static final double STREAK_TERRAIN_CLEARANCE = 1.45D;
-    private static final double STREAK_MIN_STROKE_SCALE = 0.5D;
+    private static final double STREAK_TERRAIN_LIFT_STRENGTH = 0.18D;
+    private static final double STREAK_MIN_STROKE_SCALE = 0.68D;
+    private static final double STREAK_MIN_HORIZONTAL_SPACING = 7.5D;
+    private static final double STREAK_MIN_VERTICAL_SPACING = 2.8D;
     private static final double LEAF_TERRAIN_CLEARANCE = 0.78D;
     private static final double LEAF_TERRAIN_LIFT_STRENGTH = 0.28D;
     private static final int LEAF_SIDE_ACCESS_RADIUS = 5;
     private static final double MAX_TERRAIN_LIFT = 0.58D;
     private static final double MAX_TERRAIN_SIDE_FLOW = 0.18D;
     private static final int SPAWN_ATTEMPTS = 12;
+    private static final int STREAK_FADE_IN_TICKS = 26;
     private static final int FADE_OUT_TICKS = 18;
     private static final int MIN_OPEN_SKY_LIGHT = 14;
     private static final double SURFACE_TOLERANCE = 0.08D;
@@ -191,6 +195,7 @@ public final class WindStreakRenderer {
         for (WindStreak streak : STREAKS) {
             streak.active = false;
             streak.fadingOut = false;
+            streak.fadeInAge = 0;
             streak.fadeOutAge = 0;
         }
 
@@ -310,6 +315,9 @@ public final class WindStreakRenderer {
         }
 
         streak.age++;
+        if (streak.fadeInAge < STREAK_FADE_IN_TICKS) {
+            streak.fadeInAge++;
+        }
 
         if (!isOpenSkyAir(level, streak.x, streak.y, streak.z)) {
             beginFadeOut(streak);
@@ -326,14 +334,54 @@ public final class WindStreakRenderer {
         double dz = streak.z - player.getZ();
         if (streak.age >= streak.lifetime
                 || dx * dx + dy * dy + dz * dz > MAX_DISTANCE_FROM_PLAYER * MAX_DISTANCE_FROM_PLAYER) {
-            spawn(streak, player, level, weatherWindPower, false);
+            beginFadeOut(streak);
+            return;
         }
+
+        double weatherBoost = weatherBoost(weatherWindPower);
+        TerrainFlow terrainFlow = terrainFlow(
+                level,
+                streak.x,
+                streak.y,
+                streak.z,
+                STREAK_TERRAIN_CLEARANCE,
+                STREAK_TERRAIN_LIFT_STRENGTH,
+                streak.terrainLift,
+                streak.terrainSideFlow
+        );
+        streak.terrainLift = terrainFlow.lift();
+        streak.terrainSideFlow = terrainFlow.side();
+        double driftSpeed = streak.driftSpeed * (1.0D + weatherBoost * 0.32D);
+        double sideDrift = streak.terrainSideFlow
+                + Math.sin(streak.seed + (double) streak.age * 0.045D) * streak.crossDrift;
+        Point next = keepAboveTerrainAndCollision(
+                level,
+                streak.x + windX() * driftSpeed + crossX() * sideDrift,
+                streak.y + streak.terrainLift,
+                streak.z + windZ() * driftSpeed + crossZ() * sideDrift,
+                STREAK_TERRAIN_CLEARANCE
+        );
+        if (streakBodyHitsCollision(
+                level,
+                streak,
+                next.x(),
+                next.y(),
+                next.z(),
+                ResponsiveFoliageShaders.windTime()
+        )) {
+            beginFadeOut(streak);
+            return;
+        }
+
+        streak.x = next.x();
+        streak.y = next.y();
+        streak.z = next.z();
     }
 
     private static void spawn(WindStreak streak, LocalPlayer player, ClientLevel level, float weatherWindPower, boolean scatterAge) {
         double weatherBoost = weatherBoost(weatherWindPower);
         for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
-            Point spawn = randomWindStreakPosition(player, level);
+            Point spawn = randomWindStreakPosition(streak, player, level);
             if (spawn == null) {
                 break;
             }
@@ -344,29 +392,55 @@ public final class WindStreakRenderer {
             streak.xOld = streak.x;
             streak.yOld = streak.y;
             streak.zOld = streak.z;
-            streak.length = randomBetween(6.2D, 12.4D) * (1.0D + weatherBoost * 0.36D);
-            streak.arc = randomBetween(-0.42D, 0.42D) * (1.0D + weatherBoost * 0.34D);
-            streak.lift = randomBetween(0.04D, 0.22D) * (1.0D + weatherBoost * 0.2D);
-            streak.speed = randomBetween(0.029D, 0.045D) * (1.0D + weatherBoost * 0.22D);
-            streak.curveStrength = randomBetween(0.08D, 0.44D) * (1.0D + weatherBoost * 0.12D);
+            streak.length = randomBetween(7.6D, 12.6D) * (1.0D + weatherBoost * 0.16D);
+            streak.arc = randomBetween(-0.34D, 0.34D) * (1.0D + weatherBoost * 0.12D);
+            streak.lift = randomBetween(0.02D, 0.12D) * (1.0D + weatherBoost * 0.14D);
+            streak.speed = randomBetween(0.018D, 0.029D) * (1.0D + weatherBoost * 0.12D);
+            streak.driftSpeed = randomBetween(0.038D, 0.082D) * (1.0D + weatherBoost * 0.16D);
+            streak.crossDrift = randomBetween(0.0012D, 0.004D) * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
+            streak.curveStrength = randomBetween(0.018D, 0.105D) * (1.0D + weatherBoost * 0.06D);
             streak.curvePhase = RANDOM.nextDouble() * Math.PI * 2.0D;
-            streak.curveFrequency = randomBetween(0.72D, 1.35D);
+            streak.curveFrequency = randomBetween(0.55D, 0.95D);
             streak.curveSign = RANDOM.nextBoolean() ? 1.0D : -1.0D;
-            streak.rippleStrength = randomBetween(0.018D, 0.074D) * (1.0D + weatherBoost * 0.24D);
-            streak.rippleFrequency = randomBetween(2.1D, 4.8D);
+            streak.rippleStrength = randomBetween(0.006D, 0.025D) * (1.0D + weatherBoost * 0.18D);
+            streak.rippleFrequency = randomBetween(1.2D, 2.25D);
             streak.ripplePhase = RANDOM.nextDouble() * Math.PI * 2.0D;
-            streak.verticalRipple = randomBetween(0.008D, 0.038D) * (1.0D + weatherBoost * 0.18D);
-            streak.brushWidth = randomBetween(0.105D, 0.16D);
-            streak.wakeLength = randomBetween(0.48D, 0.68D);
-            streak.shimmerStrength = randomBetween(0.055D, 0.145D);
+            streak.verticalRipple = randomBetween(0.003D, 0.016D) * (1.0D + weatherBoost * 0.12D);
+            streak.brushWidth = randomBetween(0.13D, 0.21D);
+            streak.wakeLength = randomBetween(0.58D, 0.76D);
+            streak.shimmerStrength = randomBetween(0.025D, 0.075D);
             streak.strokeScale = randomBetween(STREAK_MIN_STROKE_SCALE, 1.0D);
             streak.seed = RANDOM.nextDouble() * Math.PI * 2.0D;
-            streak.lifetime = Math.max(38, Math.round((48 + RANDOM.nextInt(30)) / (float) (1.0D + weatherBoost * 0.18D)));
+            streak.terrainLift = 0.0D;
+            streak.terrainSideFlow = 0.0D;
+            streak.lifetime = Math.max(72, Math.round((92 + RANDOM.nextInt(54)) / (float) (1.0D + weatherBoost * 0.1D)));
             streak.age = scatterAge ? RANDOM.nextInt(Math.max(1, streak.lifetime / 2)) : 0;
+            if (streak.age > 0) {
+                double travelled = streak.driftSpeed * (double) streak.age;
+                double seededSideDrift = Math.sin(streak.seed + (double) streak.age * 0.045D)
+                        * streak.crossDrift
+                        * (double) streak.age
+                        * 0.32D;
+                Point seededPosition = keepAboveTerrainAndCollision(
+                        level,
+                        streak.x + windX() * travelled + crossX() * seededSideDrift,
+                        streak.y,
+                        streak.z + windZ() * travelled + crossZ() * seededSideDrift,
+                        STREAK_TERRAIN_CLEARANCE
+                );
+                streak.x = seededPosition.x();
+                streak.y = seededPosition.y();
+                streak.z = seededPosition.z();
+                streak.xOld = streak.x;
+                streak.yOld = streak.y;
+                streak.zOld = streak.z;
+            }
             streak.fadingOut = false;
+            streak.fadeInAge = 0;
             streak.fadeOutAge = 0;
             streak.active = true;
-            if (!streakBodyHitsCollision(level, streak, ResponsiveFoliageShaders.windTime())) {
+            if (!isTooCloseToActiveStreak(streak, streak.x, streak.y, streak.z)
+                    && !streakBodyHitsCollision(level, streak, ResponsiveFoliageShaders.windTime())) {
                 return;
             }
         }
@@ -375,23 +449,24 @@ public final class WindStreakRenderer {
         streak.fadingOut = false;
     }
 
-    private static Point randomWindStreakPosition(LocalPlayer player, ClientLevel level) {
+    private static Point randomWindStreakPosition(WindStreak target, LocalPlayer player, ClientLevel level) {
         for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
-            double along = RANDOM.nextDouble() < 0.78D
-                    ? -32.0D + Math.pow(RANDOM.nextDouble(), 0.62D) * 30.0D
-                    : randomBetween(-6.0D, 20.0D);
-            double across = triangularRandom() * randomBetween(8.0D, 28.0D);
+            double along = RANDOM.nextDouble() < 0.72D
+                    ? randomBetween(-30.0D, -6.0D)
+                    : randomBetween(-8.0D, 18.0D);
+            double across = triangularRandom() * randomBetween(12.0D, 34.0D);
             double x = player.getX() + windX() * along + crossX() * across;
             double z = player.getZ() + windZ() * along + crossZ() * across;
 
             double terrainY = terrainHeight(level, x, z) + STREAK_TERRAIN_CLEARANCE;
             double groundLayer = terrainY + randomElevationAboveTerrain();
-            double eyeLayer = player.getEyeY() + randomBetween(-1.6D, 7.8D);
-            double blend = smoothFade(RANDOM.nextFloat());
+            double eyeLayer = player.getEyeY() + randomBetween(-0.9D, 4.8D);
+            double blend = smoothFade((float) Math.pow(RANDOM.nextDouble(), 1.65D));
             double y = Mth.lerp(blend, groundLayer, Math.max(groundLayer, eyeLayer));
 
             Point spawn = keepAboveTerrainAndCollision(level, x, y, z, STREAK_TERRAIN_CLEARANCE);
-            if (isValidWindSpace(level, spawn.x(), spawn.y(), spawn.z(), STREAK_TERRAIN_CLEARANCE)) {
+            if (isValidWindSpace(level, spawn.x(), spawn.y(), spawn.z(), STREAK_TERRAIN_CLEARANCE)
+                    && !isTooCloseToActiveStreak(target, spawn.x(), spawn.y(), spawn.z())) {
                 return spawn;
             }
         }
@@ -400,12 +475,30 @@ public final class WindStreakRenderer {
     }
 
     private static double randomElevationAboveTerrain() {
-        double lift = 0.12D + Math.pow(RANDOM.nextDouble(), 1.85D) * 4.8D;
-        if (RANDOM.nextDouble() < 0.18D) {
-            lift += randomBetween(2.4D, 6.2D);
+        double lift = 0.28D + Math.pow(RANDOM.nextDouble(), 1.7D) * 3.4D;
+        if (RANDOM.nextDouble() < 0.08D) {
+            lift += randomBetween(1.6D, 3.8D);
         }
 
         return lift;
+    }
+
+    private static boolean isTooCloseToActiveStreak(WindStreak target, double x, double y, double z) {
+        double minHorizontalDistanceSquared = STREAK_MIN_HORIZONTAL_SPACING * STREAK_MIN_HORIZONTAL_SPACING;
+        for (WindStreak streak : STREAKS) {
+            if (streak == target || !streak.active) {
+                continue;
+            }
+
+            double dx = streak.x - x;
+            double dz = streak.z - z;
+            if (dx * dx + dz * dz < minHorizontalDistanceSquared
+                    && Math.abs(streak.y - y) < STREAK_MIN_VERTICAL_SPACING) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void tick(WindLeaf leaf, LocalPlayer player, ClientLevel level, float weatherWindPower) {
@@ -723,8 +816,15 @@ public final class WindStreakRenderer {
             float opacity
     ) {
         float life = ((float) streak.age + partialTick) / (float) streak.lifetime;
-        float fade = smoothFade(Mth.clamp(life / 0.24F, 0.0F, 1.0F))
-                * smoothFade(Mth.clamp((1.0F - life) / 0.34F, 0.0F, 1.0F));
+        float fadeIn = smoothFade(Mth.clamp(
+                ((float) streak.fadeInAge + partialTick) / (float) STREAK_FADE_IN_TICKS,
+                0.0F,
+                1.0F
+        ));
+        float naturalEndFade = streak.fadingOut
+                ? 1.0F
+                : smoothFade(Mth.clamp((1.0F - life) / 0.34F, 0.0F, 1.0F));
+        float fade = fadeIn * naturalEndFade;
         if (fade <= 0.01F) {
             return;
         }
@@ -738,12 +838,12 @@ public final class WindStreakRenderer {
 
         double cameraDistance = cameraPos.distanceTo(new Vec3(baseX, baseY, baseZ));
         float distanceFade = smoothFade(Mth.clamp((float) ((MAX_DISTANCE_FROM_PLAYER - cameraDistance) / 18.0D), 0.0F, 1.0F));
-        float alpha = 0.92F * opacity * fade * distanceFade * fadeOutMultiplier(streak, partialTick);
+        float alpha = 0.94F * opacity * fade * distanceFade * fadeOutMultiplier(streak, partialTick);
         if (alpha <= 0.006F) {
             return;
         }
 
-        float brushPosition = (float) (((double) streak.age + partialTick) * streak.speed - 0.24D);
+        float brushPosition = (float) (((double) streak.age + partialTick) * streak.speed - 0.18D);
         for (int segment = 0; segment < BODY_SEGMENTS; segment++) {
             float t0 = (float) segment / (float) BODY_SEGMENTS;
             float t1 = (float) (segment + 1) / (float) BODY_SEGMENTS;
@@ -890,27 +990,24 @@ public final class WindStreakRenderer {
         double along = t * streak.length;
         double flow = streak.seed;
         double pathEnvelope = Math.sin(t * Math.PI);
+        double tailEase = smoothFade(Mth.clamp(t / 0.22F, 0.0F, 1.0F));
+        double headEase = smoothFade(Mth.clamp((1.0F - t) / 0.28F, 0.0F, 1.0F));
+        double motionEnvelope = pathEnvelope * tailEase * headEase;
         double bodyCurve = pathEnvelope * streak.arc;
         double sCurve = Math.sin(
-                t * Math.PI * streak.curveFrequency + streak.curvePhase + windTime * 0.46D * streak.curveSign
+                t * Math.PI * streak.curveFrequency + streak.curvePhase + windTime * 0.18D * streak.curveSign
         )
                 * streak.curveStrength
-                * pathEnvelope
+                * motionEnvelope
                 * streak.curveSign;
-        double softRipple = Math.sin(flow + t * Math.PI * 2.0D + windTime * 0.68D) * 0.024D * pathEnvelope;
-        double fastRipple = Math.sin(streak.ripplePhase + t * Math.PI * streak.rippleFrequency + windTime * 1.16D)
+        double softRipple = Math.sin(flow + t * Math.PI * 1.35D + windTime * 0.26D) * 0.012D * motionEnvelope;
+        double fineRipple = Math.sin(streak.ripplePhase + t * Math.PI * streak.rippleFrequency + windTime * 0.52D)
                 * streak.rippleStrength
-                * pathEnvelope;
-        double counterRipple = Math.sin(
-                flow * 1.7D + t * Math.PI * (streak.rippleFrequency * 0.54D) - windTime * 0.74D
-        )
-                * streak.rippleStrength
-                * 0.46D
-                * pathEnvelope;
-        double crossOffset = bodyCurve + sCurve + softRipple + fastRipple + counterRipple;
+                * motionEnvelope;
+        double crossOffset = bodyCurve + sCurve + softRipple + fineRipple;
         double x = baseX + windX() * along + crossX() * crossOffset;
-        double y = baseY + pathEnvelope * streak.lift + sCurve * 0.08D
-                + Math.cos(streak.ripplePhase + t * Math.PI * 3.0D + windTime * 0.9D) * streak.verticalRipple * pathEnvelope;
+        double y = baseY + pathEnvelope * streak.lift
+                + Math.cos(streak.ripplePhase + t * Math.PI * 1.7D + windTime * 0.42D) * streak.verticalRipple * motionEnvelope;
         double z = baseZ + windZ() * along + crossZ() * crossOffset;
         return new Point(x, y, z);
     }
@@ -918,14 +1015,14 @@ public final class WindStreakRenderer {
     private static float motionTaper(WindStreak streak, float t, float windTime, float brushPosition) {
         float shapeFade = smoothFade(Mth.clamp(t / 0.12F, 0.0F, 1.0F))
                 * smoothFade(Mth.clamp((1.0F - t) / 0.2F, 0.0F, 1.0F));
-        float leadingEdge = movingBrush(t, brushPosition, (float) streak.brushWidth) * 0.92F;
+        float leadingEdge = movingBrush(t, brushPosition, (float) streak.brushWidth) * 0.84F;
         float trailingWake = trailingWake(t, brushPosition, (float) streak.wakeLength);
         float curveBoost = Mth.sin(t * Mth.PI) * 0.08F;
         float shimmer = (float) (1.0D - streak.shimmerStrength
-                + streak.shimmerStrength * Mth.sin((float) streak.seed + windTime * 3.6F + t * Mth.PI * 6.0F));
-        float fineBreakup = 0.9F
-                + 0.1F * Mth.sin((float) streak.ripplePhase + windTime * 5.2F + t * Mth.PI * 13.0F);
-        return shapeFade * shimmer * fineBreakup * (leadingEdge + trailingWake * (0.68F + curveBoost));
+                + streak.shimmerStrength * Mth.sin((float) streak.seed + windTime * 1.8F + t * Mth.PI * 3.0F));
+        float fineBreakup = 0.94F
+                + 0.06F * Mth.sin((float) streak.ripplePhase + windTime * 2.8F + t * Mth.PI * 7.0F);
+        return shapeFade * shimmer * fineBreakup * (leadingEdge + trailingWake * (0.72F + curveBoost));
     }
 
     private static boolean streakBodyHitsCollision(ClientLevel level, WindStreak streak, float windTime) {
@@ -1324,6 +1421,7 @@ public final class WindStreakRenderer {
         private boolean fadingOut;
         private int age;
         private int lifetime;
+        private int fadeInAge;
         private int fadeOutAge;
         private double x;
         private double y;
@@ -1335,6 +1433,10 @@ public final class WindStreakRenderer {
         private double arc;
         private double lift;
         private double speed;
+        private double driftSpeed;
+        private double crossDrift;
+        private double terrainLift;
+        private double terrainSideFlow;
         private double curveStrength;
         private double curvePhase;
         private double curveFrequency;
