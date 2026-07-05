@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.wind;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
@@ -40,6 +41,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 
 public final class WindStreakRenderer {
@@ -71,7 +73,7 @@ public final class WindStreakRenderer {
     private static final int RED = 232;
     private static final int GREEN = 246;
     private static final int BLUE = 255;
-    private static final RenderLevelStageEvent.Stage RENDER_STAGE = RenderLevelStageEvent.Stage.AFTER_WEATHER;
+    private static final RenderLevelStageEvent.Stage RENDER_STAGE = RenderLevelStageEvent.Stage.AFTER_LEVEL;
     private static final Random RANDOM = new Random();
     private static final WindStreak[] STREAKS = new WindStreak[MAX_STREAKS];
     private static final WindLeaf[] LEAVES = new WindLeaf[MAX_LEAVES];
@@ -167,27 +169,39 @@ public final class WindStreakRenderer {
             return;
         }
 
-        Camera camera = event.getCamera();
-        Vec3 cameraPos = camera.getPosition();
-        float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        float windTime = ResponsiveFoliageShaders.windTime();
-        float weatherWindPower = ResponsiveFoliageShaders.weatherWindPower();
-        Matrix4f pose = event.getPoseStack().last().pose();
+        minecraft.getMainRenderTarget().bindWrite(false);
 
-        if (lineOpacity > 0.0F) {
-            MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(LINE_BUFFER);
-            for (WindStreak streak : STREAKS) {
-                if (streak.active) {
-                    VertexConsumer consumer = bufferSource.getBuffer(windStreakLines(streak.strokeScale));
-                    renderStreak(consumer, pose, minecraft.level, streak, cameraPos, partialTick, windTime, lineOpacity);
+        Matrix4fStack modelViewStack = RenderSystem.getModelViewStack();
+        modelViewStack.pushMatrix();
+        modelViewStack.mul(event.getModelViewMatrix());
+        RenderSystem.applyModelViewMatrix();
+
+        try {
+            Camera camera = event.getCamera();
+            Vec3 cameraPos = camera.getPosition();
+            float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            float windTime = ResponsiveFoliageShaders.windTime();
+            float weatherWindPower = ResponsiveFoliageShaders.weatherWindPower();
+            Matrix4f pose = event.getPoseStack().last().pose();
+
+            if (lineOpacity > 0.0F) {
+                MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(LINE_BUFFER);
+                for (WindStreak streak : STREAKS) {
+                    if (streak.active) {
+                        VertexConsumer consumer = bufferSource.getBuffer(windStreakLines(streak.strokeScale));
+                        renderStreak(consumer, pose, minecraft.level, streak, cameraPos, partialTick, windTime, lineOpacity);
+                    }
                 }
+
+                bufferSource.endBatch();
             }
 
-            bufferSource.endBatch();
-        }
-
-        if (leafOpacity > 0.0F) {
-            renderLeaves(minecraft.level, camera, pose, cameraPos, partialTick, windTime, weatherWindPower, leafOpacity);
+            if (leafOpacity > 0.0F) {
+                renderLeaves(minecraft.level, camera, pose, cameraPos, partialTick, windTime, weatherWindPower, leafOpacity);
+            }
+        } finally {
+            modelViewStack.popMatrix();
+            RenderSystem.applyModelViewMatrix();
         }
     }
 

@@ -9,7 +9,8 @@
     "client.GameRendererMixin",
     "client.compat.sodium.SodiumShaderLoaderMixin",
     "client.compat.sodium.SodiumShaderChunkRendererMixin",
-    "client.compat.iris.IrisSodiumProgramsMixin"
+    "client.compat.iris.IrisSodiumProgramsMixin",
+    "client.compat.iris.IrisSodiumShaderMixin"
   ],
   "injectors": {
     "defaultRequire": 0

@@ -1,6 +1,7 @@
 package com.jvn.wherewindsblow.mixin.client.compat.iris;
 
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,9 +17,12 @@ public abstract class IrisSodiumProgramsMixin {
             Pattern.MULTILINE
     );
     private static final Pattern WHEREWINDSBLOW$IRIS_VERTEX_POSITION_RETURN_PATTERN = Pattern.compile(
-            "return\\s+vec4\\s*\\(\\s*_vert_position\\s*\\+\\s*u_RegionOffset\\s*\\+\\s*_get_draw_translation\\s*\\(\\s*_draw_id\\s*\\)\\s*,\\s*1\\.0\\s*\\)\\s*;",
-            Pattern.MULTILINE
+            "return\\s+vec4\\s*\\((.+?),\\s*1\\.0\\s*\\)\\s*;",
+            Pattern.DOTALL
     );
+    private static final Pattern WHEREWINDSBLOW$IRIS_MAIN_METHOD_PATTERN = Pattern.compile("(?m)^\\s*void\\s+main\\s*\\(\\s*\\)\\s*\\{.*$");
+    private static final Pattern WHEREWINDSBLOW$IRIS_POSITION_LINE_PATTERN = Pattern.compile("(?m)^\\s*vec3\\s+position\\s*=\\s*_vert_position\\s*\\+\\s*[^;]+;.*$");
+    private static final Pattern WHEREWINDSBLOW$IRIS_COLOR_LINE_PATTERN = Pattern.compile("(?m)^\\s*v_Color\\s*=\\s*_vert_color\\s*\\*\\s*texture\\s*\\(\\s*u_LightTex\\s*,\\s*_vert_tex_light_coord\\s*\\)\\s*;.*$");
 
     private static final String WHEREWINDSBLOW$IRIS_WIND_HELPERS = """
             uniform float u_WwbTime;
@@ -26,6 +30,8 @@ public abstract class IrisSodiumProgramsMixin {
             uniform float u_WwbPlantSwayStrength;
             uniform float u_WwbLeafSwayStrength;
             uniform float u_WwbLanternSwayStrength;
+            uniform float u_WwbPlantSheenStrength;
+            uniform float u_WwbLeafSheenStrength;
             uniform vec2 u_WwbWindDirection;
             uniform vec3 u_WwbCameraPosition;
             uniform int u_WwbInteractorCount;
@@ -116,6 +122,38 @@ public abstract class IrisSodiumProgramsMixin {
             }
             float wwb_sway_strength_for_alpha(float alpha) {
                 return wwb_is_leaf_wind_vertex(alpha) ? u_WwbLeafSwayStrength : u_WwbPlantSwayStrength;
+            }
+            float wwb_sheen_strength_for_alpha(float alpha) {
+                return wwb_is_leaf_wind_vertex(alpha) ? u_WwbLeafSheenStrength : u_WwbPlantSheenStrength;
+            }
+            float wwb_foliage_wind_sheen(vec3 position, float alpha) {
+                if (!wwb_should_apply_foliage_wind(alpha)) {
+                    return 0.0;
+                }
+
+                float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
+                float t = u_WwbTime;
+                vec3 windPosition = position + u_WwbCameraPosition;
+                vec2 windDir = normalize(u_WwbWindDirection);
+                vec2 crossDir = vec2(-windDir.y, windDir.x);
+                float along = dot(windPosition.xz, windDir);
+                float across = dot(windPosition.xz, crossDir);
+                float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
+                        + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
+                float tempoDrift = 1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09) * 0.08;
+                float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7) * 0.5 + 0.5;
+                float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35) * 0.5 + 0.5);
+                float fieldWarp = sin(along * 0.075 + across * 0.115 + t * 0.21) * 0.75
+                        + sin(along * 0.16 - across * 0.085 - t * 0.13) * 0.36;
+                float wavePhase = along * 0.34 - t * 1.52 * tempoDrift + sin(across * 0.055 + t * 0.22) * 1.1 + fieldWarp + phaseDrift * 0.55;
+                float waveFace = sin(wavePhase) * 0.5 + 0.5;
+                float leadingCrest = wwb_smooth_curve(smoothstep(0.46, 0.86, waveFace));
+                float trailingWash = pow(max(0.0, sin(wavePhase - 0.62)), 2.6) * 0.35;
+                float patchBreakup = 0.58 + 0.42 * wwb_smooth_curve(sin(along * 0.23 + across * 0.31 - t * 0.34 + phaseDrift * 0.45) * 0.5 + 0.5);
+                float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47 + phaseDrift * 0.5);
+                float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
+                float tipLift = wwb_smooth_curve(bend);
+                return clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * wwb_sheen_strength_for_alpha(alpha), 0.0, 0.35);
             }
             vec4 wwb_foliage_interactor_at(int index) {
                 if (index == 0) return u_WwbInteractor0;
@@ -300,20 +338,37 @@ public abstract class IrisSodiumProgramsMixin {
             }
             """;
 
-    private static final String WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION_RETURN = """
-                vec3 wwbPosition = _vert_position + u_RegionOffset + _get_draw_translation(_draw_id);
+    private static final String WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION_RETURN_FORMAT = """
+                vec3 wwbPosition = %s;
                 float wwbFoliageAlpha = _vert_color.a;
-                vec2 wwbPlantAnchor = floor(_vert_position.xz) + vec2(0.5) + u_RegionOffset.xz + _get_draw_translation(_draw_id).xz;
+                float wwbWindSheen = wwb_foliage_wind_sheen(wwbPosition, wwbFoliageAlpha);
+                vec2 wwbPlantAnchor = floor(_vert_position.xz) + vec2(0.5) + (wwbPosition.xz - _vert_position.xz);
                 vec3 wwbFoliageBase = wwbPosition;
                 if (wwb_should_apply_foliage_wind(wwbFoliageAlpha) || wwb_should_apply_lantern_wind(wwbFoliageAlpha)) {
                     _vert_color.a = 1.0;
                 }
+                _vert_color.rgb += vec3(wwbWindSheen * 0.44);
                 wwbPosition = wwb_apply_foliage_wind(wwbPosition, wwbFoliageAlpha);
                 wwbPosition = wwb_apply_lantern_wind(wwbPosition, wwbFoliageAlpha);
                 wwbPosition = wwb_apply_foliage_interaction(wwbPosition, wwbFoliageBase, wwbPlantAnchor, wwbFoliageAlpha);
                 return vec4(wwbPosition, 1.0);""";
 
-    @Inject(method = "transformShaders", at = @At("RETURN"), require = 0)
+    private static final String WHEREWINDSBLOW$IRIS_WIND_CORE_POSITION_INJECTION = """
+                float wwbFoliageAlpha = _vert_color.a;
+                float wwbWindSheen = wwb_foliage_wind_sheen(position, wwbFoliageAlpha);
+                vec2 wwbPlantAnchor = floor(_vert_position.xz) + vec2(0.5) + (position.xz - _vert_position.xz);
+                vec3 wwbFoliageBase = position;
+                position = wwb_apply_foliage_wind(position, wwbFoliageAlpha);
+                position = wwb_apply_lantern_wind(position, wwbFoliageAlpha);
+                position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbPlantAnchor, wwbFoliageAlpha);""";
+
+    private static final String WHEREWINDSBLOW$IRIS_WIND_CORE_COLOR_INJECTION = """
+                if (wwb_should_apply_foliage_wind(wwbFoliageAlpha) || wwb_should_apply_lantern_wind(wwbFoliageAlpha)) {
+                    v_Color.a = 1.0;
+                }
+                v_Color.rgb += vec3(wwbWindSheen * 0.44);""";
+
+    @Inject(method = "transformShaders", at = @At("RETURN"), cancellable = true, require = 0)
     private void wherewindsblow$patchIrisSodiumTerrainWind(CallbackInfoReturnable<Map<Object, String>> cir) {
         if (!ResponsiveFoliageShaders.shouldPatchSodiumShaders()) {
             return;
@@ -324,40 +379,112 @@ public abstract class IrisSodiumProgramsMixin {
             return;
         }
 
+        Map<Object, String> patchedSources = null;
         for (Map.Entry<Object, String> entry : sources.entrySet()) {
             String source = entry.getValue();
-            if (!"VERTEX".equals(String.valueOf(entry.getKey())) || source == null || source.contains("wwb_apply_foliage_wind")) {
+            if (!wherewindsblow$isVertexShaderType(entry.getKey()) || source == null || source.contains("wwb_apply_foliage_wind")) {
                 continue;
             }
 
             try {
                 String patched = wherewindsblow$patchVertexPosition(source);
                 if (!patched.equals(source)) {
-                    entry.setValue(patched);
+                    if (patchedSources == null) {
+                        patchedSources = new LinkedHashMap<>(sources);
+                    }
+                    patchedSources.put(entry.getKey(), patched);
                 }
             } catch (RuntimeException exception) {
                 ResponsiveFoliageShaders.disableSodiumShaderPatch("Failed to patch Iris Sodium terrain shader source.", exception);
                 return;
             }
         }
+
+        if (patchedSources != null) {
+            cir.setReturnValue(patchedSources);
+        }
     }
 
     private static String wherewindsblow$patchVertexPosition(String source) {
-        if (!source.contains("_material_params")) {
+        if (!source.contains("_material_params") || !source.contains("_vert_position") || !source.contains("_vert_color")) {
             return source;
         }
 
-        Matcher returnMatcher = WHEREWINDSBLOW$IRIS_VERTEX_POSITION_RETURN_PATTERN.matcher(source);
-        if (!returnMatcher.find()) {
-            return source;
+        String patched = wherewindsblow$patchGetVertexPosition(source);
+        if (!patched.equals(source)) {
+            return patched;
         }
 
-        String patched = returnMatcher.replaceFirst(Matcher.quoteReplacement(WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION_RETURN));
-        Matcher functionMatcher = WHEREWINDSBLOW$IRIS_VERTEX_POSITION_FUNCTION_PATTERN.matcher(patched);
+        return wherewindsblow$patchCoreTerrainMain(source);
+    }
+
+    private static String wherewindsblow$patchGetVertexPosition(String source) {
+        Matcher functionMatcher = WHEREWINDSBLOW$IRIS_VERTEX_POSITION_FUNCTION_PATTERN.matcher(source);
         if (!functionMatcher.find()) {
             return source;
         }
 
+        int bodyStart = functionMatcher.end();
+        int bodyEnd = source.indexOf('}', bodyStart);
+        if (bodyEnd < 0) {
+            return source;
+        }
+
+        String functionBody = source.substring(bodyStart, bodyEnd);
+        Matcher returnMatcher = WHEREWINDSBLOW$IRIS_VERTEX_POSITION_RETURN_PATTERN.matcher(functionBody);
+        if (!returnMatcher.find()) {
+            return source;
+        }
+
+        String positionExpression = returnMatcher.group(1).strip();
+        if (positionExpression.isEmpty()) {
+            return source;
+        }
+
+        String patchedReturn = WHEREWINDSBLOW$IRIS_WIND_VERTEX_POSITION_RETURN_FORMAT.formatted(positionExpression);
+        String patchedBody = returnMatcher.replaceFirst(Matcher.quoteReplacement(patchedReturn));
+        String patched = source.substring(0, bodyStart) + patchedBody + source.substring(bodyEnd);
         return patched.substring(0, functionMatcher.start()) + WHEREWINDSBLOW$IRIS_WIND_HELPERS + patched.substring(functionMatcher.start());
+    }
+
+    private static String wherewindsblow$patchCoreTerrainMain(String source) {
+        if (!wherewindsblow$matches(source, WHEREWINDSBLOW$IRIS_MAIN_METHOD_PATTERN)
+                || !wherewindsblow$matches(source, WHEREWINDSBLOW$IRIS_POSITION_LINE_PATTERN)
+                || !wherewindsblow$matches(source, WHEREWINDSBLOW$IRIS_COLOR_LINE_PATTERN)) {
+            return source;
+        }
+
+        String patched = wherewindsblow$insertBefore(source, WHEREWINDSBLOW$IRIS_MAIN_METHOD_PATTERN, WHEREWINDSBLOW$IRIS_WIND_HELPERS);
+        patched = wherewindsblow$insertAfter(patched, WHEREWINDSBLOW$IRIS_POSITION_LINE_PATTERN, WHEREWINDSBLOW$IRIS_WIND_CORE_POSITION_INJECTION);
+        patched = wherewindsblow$insertAfter(patched, WHEREWINDSBLOW$IRIS_COLOR_LINE_PATTERN, WHEREWINDSBLOW$IRIS_WIND_CORE_COLOR_INJECTION);
+        return patched;
+    }
+
+    private static boolean wherewindsblow$isVertexShaderType(Object key) {
+        return "VERTEX".equals(key instanceof Enum<?> shaderType ? shaderType.name() : String.valueOf(key));
+    }
+
+    private static boolean wherewindsblow$matches(String source, Pattern pattern) {
+        return pattern.matcher(source).find();
+    }
+
+    private static String wherewindsblow$insertAfter(String source, Pattern marker, String addition) {
+        Matcher matcher = marker.matcher(source);
+        if (!matcher.find()) {
+            return source;
+        }
+
+        int lineEnd = source.indexOf('\n', matcher.end());
+        int insertion = lineEnd < 0 ? matcher.end() : lineEnd;
+        return source.substring(0, insertion) + addition + source.substring(insertion);
+    }
+
+    private static String wherewindsblow$insertBefore(String source, Pattern marker, String addition) {
+        Matcher matcher = marker.matcher(source);
+        if (!matcher.find()) {
+            return source;
+        }
+
+        return source.substring(0, matcher.start()) + addition + source.substring(matcher.start());
     }
 }
