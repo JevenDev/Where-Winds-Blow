@@ -302,26 +302,17 @@ public final class SodiumFoliageShaderSource {
                 float across = dot(windAnchor, crossDir);
                 float seed = wwb_grass_variation_seed(floor(windAnchor), vec2(91.7, 53.3));
                 float phase = seed * 6.2831853;
-                float linkLag = 0.24;
-                float swingTime = t - linkLag;
-                float primarySwing = sin(swingTime * 1.08 + along * 0.13 + phase)
-                        + sin(swingTime * 1.62 + across * 0.17 + phase * 1.71) * 0.34;
-                float crossSwing = sin(swingTime * 0.82 + across * 0.12 + phase * 1.37) * 0.46;
-                float recoil = sin((t + linkLag * 0.65) * 2.24 + along * 0.055 + phase * 2.17) * 0.13;
-                float gust = 0.68 + 0.32 * wwb_smooth_curve(sin(along * 0.10 - t * 0.36 + phase * 0.5) * 0.5 + 0.5);
-                float directionNoise = sin(across * 0.18 + t * 0.42 + phase) * 0.16;
-                vec2 baseDir = normalize(windDir + crossDir * directionNoise);
-                vec2 swing = baseDir * (primarySwing + recoil) + crossDir * crossSwing * 0.48;
-                float swingLength = length(swing);
-                if (swingLength <= 0.001) {
-                    return position;
-                }
-
-                vec2 swingDir = swing / swingLength;
-                vec3 axis = normalize(vec3(-swingDir.y, 0.0, swingDir.x));
                 float lanternWeatherPower = markerStrength <= 0.15 ? 0.0 : u_WwbWeatherWindPower;
-                float chainAngle = clamp(swingLength * (0.072 + lanternWeatherPower * 0.026) * u_WwbLanternSwayStrength * gust, 0.0, 0.18);
-                float bodyAngle = clamp(swingLength * (0.094 + lanternWeatherPower * 0.034) * u_WwbLanternSwayStrength * gust, 0.0, 0.24);
+                float slowGust = wwb_smooth_curve(sin(t * 0.42 + along * 0.07 + phase) * 0.5 + 0.5);
+                float flutter = sin(t * 1.17 + across * 0.11 + phase * 1.71);
+                float windForce = 0.70 + slowGust * 0.38 + flutter * 0.09;
+                float directionNoise = sin(across * 0.12 + t * 0.31 + phase) * (0.07 + lanternWeatherPower * 0.018);
+                vec2 baseDir = normalize(windDir + crossDir * directionNoise);
+                float crossDrift = sin(t * 0.73 + across * 0.09 + phase * 1.37) * (0.05 + lanternWeatherPower * 0.02);
+                vec2 swingDir = normalize(baseDir + crossDir * crossDrift);
+                vec3 axis = normalize(vec3(-swingDir.y, 0.0, swingDir.x));
+                float chainAngle = clamp((0.0125 + lanternWeatherPower * 0.039) * u_WwbLanternSwayStrength * windForce, 0.0, 0.22);
+                float bodyAngle = clamp((0.015 + lanternWeatherPower * 0.044) * u_WwbLanternSwayStrength * windForce, 0.0, 0.25);
                 vec3 chainEndOffset = wwb_rotate_around_axis(vec3(0.0, -1.0, 0.0), axis, chainAngle) - vec3(0.0, -1.0, 0.0);
 
                 float localY = fract(windPosition.y);
@@ -337,7 +328,7 @@ public final class SodiumFoliageShaderSource {
                 vec3 local = vec3(windPosition.x - windAnchor.x, localY - 1.0, windPosition.z - windAnchor.y);
                 vec3 rotated = wwb_rotate_around_axis(local, axis, bodyAngle * markerStrength);
 
-                float yaw = sin(swingTime * 1.46 + phase * 2.3 + across * 0.05) * (0.020 + lanternWeatherPower * 0.005) * u_WwbLanternSwayStrength * markerStrength;
+                float yaw = sin(t * 0.49 + phase * 2.3 + across * 0.05) * (0.003 + lanternWeatherPower * 0.0056) * u_WwbLanternSwayStrength * markerStrength;
                 float yawCos = cos(yaw);
                 float yawSin = sin(yaw);
                 rotated.xz = vec2(

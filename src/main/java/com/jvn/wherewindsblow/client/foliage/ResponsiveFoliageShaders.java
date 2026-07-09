@@ -197,6 +197,10 @@ public final class ResponsiveFoliageShaders {
         return (Mth.clamp(interactorCount, 0, MAX_FOLIAGE_INTERACTORS) + 3) / 4;
     }
 
+    /**
+     * Returns a pause-aware phase clock with weather-dependent speed integrated over time.
+     * Consumers should apply only fixed frequency multipliers so weather transitions remain continuous.
+     */
     public static float windTime() {
         updateWeatherWindState();
         return windTimeSeconds;

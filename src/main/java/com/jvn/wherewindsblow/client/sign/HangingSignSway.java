@@ -19,7 +19,7 @@ public final class HangingSignSway {
     private HangingSignSway() {
     }
 
-    public static float angleDegrees(SignBlockEntity blockEntity, float partialTick) {
+    public static float angleDegrees(SignBlockEntity blockEntity) {
         if (!ClientConfig.ENABLE_WIND_HANGING_SIGN_SWAY.getAsBoolean()) {
             return 0.0F;
         }
@@ -38,6 +38,7 @@ public final class HangingSignSway {
         BlockPos pos = blockEntity.getBlockPos();
         boolean windExposed = ResponsiveFoliage.isWindExposed(level, pos);
         float exposureScale = windExposed ? 1.0F : ENCLOSED_SWAY_SCALE;
+        float windTime = ResponsiveFoliageShaders.windTime();
         float weatherPower = windExposed ? ResponsiveFoliageShaders.weatherWindPower() : 0.0F;
         WindDirection.WindVector wind = WindDirection.current();
 
@@ -51,10 +52,9 @@ public final class HangingSignSway {
                 1.0F
         );
 
-        float tickTime = level.getGameTime() + partialTick;
         float alongWind = pos.getX() * wind.xFloat() + pos.getZ() * wind.zFloat();
         float phase = randomPhase(pos);
-        float time = tickTime * 0.045F * (1.0F + weatherPower * 0.55F);
+        float time = windTime * 0.9F;
         float primary = Mth.sin(time + alongWind * 0.12F + phase);
         float secondary = Mth.sin(time * 1.67F + phase * 1.83F) * 0.28F;
         float gust = 0.72F + 0.28F * smoothStep(

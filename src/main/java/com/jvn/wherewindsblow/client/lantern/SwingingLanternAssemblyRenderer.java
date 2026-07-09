@@ -49,6 +49,8 @@ public final class SwingingLanternAssemblyRenderer {
     private static final double LANTERN_COLLISION_WIDTH = 0.42D;
     private static final double LANTERN_COLLISION_HEIGHT = 0.72D;
     private static final float ENCLOSED_SWAY_SCALE = 0.12F;
+    private static final float MAX_TARGET_SWAY_DEGREES = 14.0F;
+    private static final float MAX_SIMULATED_SWAY_DEGREES = 18.0F;
     private static final ModelData ASSEMBLY_MODEL_DATA = ModelData.of(LanternModelData.RENDERING_ASSEMBLY, Boolean.TRUE);
     private static final Map<Long, SwingState> SWING_STATES = new ConcurrentHashMap<>();
     private static final Map<Long, LanternChunkCache> LANTERN_CHUNK_CACHE = new ConcurrentHashMap<>();
@@ -176,7 +178,8 @@ public final class SwingingLanternAssemblyRenderer {
     ) {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         float tickTime = level.getGameTime() + partialTick;
-        Swing targetSwing = windSwingFor(lanternPos, chainHeight, tickTime, ResponsiveFoliage.isWindExposed(level, lanternPos));
+        float windTime = ResponsiveFoliageShaders.windTime();
+        Swing targetSwing = windSwingFor(lanternPos, chainHeight, windTime, ResponsiveFoliage.isWindExposed(level, lanternPos));
         Swing swing = updateSwingState(level, lanternPos, chainHeight, targetSwing, tickTime);
 
         poseStack.pushPose();
@@ -216,11 +219,11 @@ public final class SwingingLanternAssemblyRenderer {
         poseStack.popPose();
     }
 
-    private static Swing windSwingFor(BlockPos lanternPos, int chainHeight, float tickTime, boolean windExposed) {
+    private static Swing windSwingFor(BlockPos lanternPos, int chainHeight, float windTime, boolean windExposed) {
         float weatherPower = windExposed ? ResponsiveFoliageShaders.weatherWindPower() : 0.0F;
         float strength = (float) ClientConfig.WIND_LANTERN_SWAY_STRENGTH.getAsDouble() * (windExposed ? 1.0F : ENCLOSED_SWAY_SCALE);
-        float longChainScale = Mth.clamp(1.0F / (1.0F + chainHeight * 0.12F), 0.3F, 1.0F);
-        float speedScale = Mth.clamp(1.0F / Mth.sqrt(1.0F + Math.min(chainHeight, 6) * 0.25F), 0.35F, 1.0F);
+        float longChainDrive = Mth.clamp(0.9F + Math.min(chainHeight, 8) * 0.045F, 0.9F, 1.25F);
+        float speedScale = Mth.clamp(1.0F / Mth.sqrt(1.0F + Math.min(chainHeight, 12) * 0.18F), 0.45F, 0.92F);
 
         WindDirection.WindVector wind = WindDirection.current();
         float windX = wind.xFloat();
@@ -230,14 +233,12 @@ public final class SwingingLanternAssemblyRenderer {
         float along = lanternPos.getX() * windX + lanternPos.getZ() * windZ;
         float across = lanternPos.getX() * crossX + lanternPos.getZ() * crossZ;
         float phase = randomPhase(lanternPos);
-        float weatherSpeed = 1.0F + weatherPower * 1.15F;
-        float t = tickTime * 0.05F * speedScale * weatherSpeed;
+        float t = windTime * speedScale;
 
-        float primary = Mth.sin(t * 1.08F + along * 0.13F + phase)
-                + Mth.sin(t * 1.62F + across * 0.17F + phase * 1.71F) * 0.34F;
-        float cross = Mth.sin(t * 0.82F + across * 0.12F + phase * 1.37F) * 0.46F;
-        float gust = 0.68F + 0.32F * smoothStep(Mth.sin(along * 0.10F - t * 0.36F + phase * 0.5F) * 0.5F + 0.5F);
-        float directionNoise = Mth.sin(across * 0.18F + t * 0.42F + phase) * 0.16F;
+        float slowGust = smoothStep(Mth.sin(t * 0.42F + along * 0.07F + phase) * 0.5F + 0.5F);
+        float flutter = Mth.sin(t * 1.17F + across * 0.11F + phase * 1.71F);
+        float windForce = 0.70F + slowGust * 0.38F + flutter * 0.09F;
+        float directionNoise = Mth.sin(across * 0.12F + t * 0.31F + phase) * (0.07F + weatherPower * 0.018F);
         float baseX = windX + crossX * directionNoise;
         float baseZ = windZ + crossZ * directionNoise;
         float baseLength = Mth.sqrt(baseX * baseX + baseZ * baseZ);
@@ -246,18 +247,17 @@ public final class SwingingLanternAssemblyRenderer {
             baseZ /= baseLength;
         }
 
-        float swingX = baseX * primary + crossX * cross * 0.48F;
-        float swingZ = baseZ * primary + crossZ * cross * 0.48F;
+        float crossDrift = Mth.sin(t * 0.73F + across * 0.09F + phase * 1.37F) * (0.05F + weatherPower * 0.02F);
+        float swingX = baseX + crossX * crossDrift;
+        float swingZ = baseZ + crossZ * crossDrift;
         float angle = Mth.clamp(
-                Mth.sqrt(swingX * swingX + swingZ * swingZ)
-                        * (1.65F + weatherPower * 4.25F)
-                        * strength
-                        * longChainScale
-                        * gust,
+                (0.72F + weatherPower * 2.25F) * strength * longChainDrive * windForce,
                 0.0F,
-                3.25F + weatherPower * 8.75F
+                MAX_TARGET_SWAY_DEGREES
         );
-        float yaw = Mth.sin(t * 1.46F + phase * 2.3F + across * 0.05F) * (0.45F + weatherPower * 0.9F) * strength;
+        float yaw = Mth.sin(t * 0.49F + phase * 2.3F + across * 0.05F)
+                * (0.18F + weatherPower * 0.32F)
+                * strength;
         return new Swing(swingX, swingZ, angle, yaw);
     }
 
@@ -273,19 +273,22 @@ public final class SwingingLanternAssemblyRenderer {
         targetZ *= windResponse;
         targetYaw *= windResponse;
 
-        float spring = 0.075F * deltaTicks;
-        state.velocityX += (targetX - state.angleX) * spring;
-        state.velocityZ += (targetZ - state.angleZ) * spring;
-        state.yawVelocity += (targetYaw - state.yaw) * 0.055F * deltaTicks;
+        float lengthScale = Mth.sqrt(1.0F + Math.min(chainHeight, 12) * 0.18F);
+        float spring = 0.020F / lengthScale;
+        float yawSpring = 0.012F / lengthScale;
+        state.velocityX += (targetX - state.angleX) * spring * deltaTicks;
+        state.velocityZ += (targetZ - state.angleZ) * spring * deltaTicks;
+        state.yawVelocity += (targetYaw - state.yaw) * yawSpring * deltaTicks;
 
-        float damping = (float) Math.pow(0.82F, deltaTicks);
+        float damping = (float) Math.pow(Mth.lerp(Math.min(chainHeight, 12) / 12.0F, 0.94F, 0.958F), deltaTicks);
         state.velocityX *= damping;
         state.velocityZ *= damping;
-        state.yawVelocity *= (float) Math.pow(0.76F, deltaTicks);
+        state.yawVelocity *= (float) Math.pow(0.93F, deltaTicks);
         state.angleX += state.velocityX * deltaTicks;
         state.angleZ += state.velocityZ * deltaTicks;
         state.yaw += state.yawVelocity * deltaTicks;
         state.windSuppression *= (float) Math.pow(0.90F, deltaTicks);
+        limitSwing(state);
 
         Swing swing = swingFromTilt(state.angleX, state.angleZ, state.yaw);
         if (swing.angleDegrees() > 0.001F && collidesWithEnvironment(level, lanternPos, chainHeight, swing, 1.0F)) {
@@ -299,8 +302,8 @@ public final class SwingingLanternAssemblyRenderer {
                 float normalZ = state.angleZ / length;
                 float outwardVelocity = state.velocityX * normalX + state.velocityZ * normalZ;
                 if (outwardVelocity > 0.0F) {
-                    state.velocityX -= normalX * outwardVelocity * 1.35F;
-                    state.velocityZ -= normalZ * outwardVelocity * 1.35F;
+                    state.velocityX -= normalX * outwardVelocity * 1.05F;
+                    state.velocityZ -= normalZ * outwardVelocity * 1.05F;
                 }
 
                 float pushBack = Mth.clamp((1.0F - scale) * 0.025F, 0.0F, 0.010F);
@@ -314,6 +317,24 @@ public final class SwingingLanternAssemblyRenderer {
         }
 
         return swing;
+    }
+
+    private static void limitSwing(SwingState state) {
+        float angle = Mth.sqrt(state.angleX * state.angleX + state.angleZ * state.angleZ);
+        if (angle <= MAX_SIMULATED_SWAY_DEGREES) {
+            return;
+        }
+
+        float normalX = state.angleX / angle;
+        float normalZ = state.angleZ / angle;
+        float scale = MAX_SIMULATED_SWAY_DEGREES / angle;
+        state.angleX *= scale;
+        state.angleZ *= scale;
+        float outwardVelocity = state.velocityX * normalX + state.velocityZ * normalZ;
+        if (outwardVelocity > 0.0F) {
+            state.velocityX -= normalX * outwardVelocity;
+            state.velocityZ -= normalZ * outwardVelocity;
+        }
     }
 
     private static Swing swingFromTilt(float tiltX, float tiltZ, float yaw) {

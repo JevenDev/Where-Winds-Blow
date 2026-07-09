@@ -35,7 +35,7 @@ public abstract class HangingSignRendererMixin {
             int packedOverlay,
             CallbackInfo ci
     ) {
-        this.wherewindsblow$swayDegrees = HangingSignSway.angleDegrees(blockEntity, partialTick);
+        this.wherewindsblow$swayDegrees = HangingSignSway.angleDegrees(blockEntity);
     }
 
     @Inject(method = "translateSign", at = @At("TAIL"), require = 1)
