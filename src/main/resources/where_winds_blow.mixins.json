@@ -8,9 +8,7 @@
     "client.CampfireSmokeParticleMixin",
     "client.GameRendererMixin",
     "client.compat.sodium.SodiumShaderLoaderMixin",
-    "client.compat.sodium.SodiumShaderChunkRendererMixin",
-    "client.compat.iris.IrisSodiumProgramsMixin",
-    "client.compat.iris.IrisSodiumShaderMixin"
+    "client.compat.sodium.SodiumShaderChunkRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 0

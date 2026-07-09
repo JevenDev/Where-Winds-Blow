@@ -72,7 +72,7 @@ public final class ResponsiveFoliageShaders {
             return false;
         }
 
-        return ClientConfig.FORCE_WWB_WIND_WITH_SHADER_PACKS.getAsBoolean() || !isExternalShaderPackActive();
+        return !isExternalShaderPackActive();
     }
 
     public static boolean shouldPatchSodiumShaders() {

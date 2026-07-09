@@ -195,7 +195,6 @@ public final class WhereWindsBlowConfigScreen {
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.compatibility"))
                         .description(description("group.compatibility.description"))
-                        .option(booleanOption(ClientConfig.FORCE_WWB_WIND_WITH_SHADER_PACKS, true, WhereWindsBlowConfigScreen::rebuildFoliage))
                         .option(booleanOption(ClientConfig.ENABLE_SODIUM_SHADER_PATCH, true))
                         .build())
                 .build();

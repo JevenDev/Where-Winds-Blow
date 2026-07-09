@@ -82,8 +82,6 @@
   "where_winds_blow.config.windLanternSwayStrength.tooltip": "Scales how strongly hanging lanterns and vertical chains respond to wind.",
   "where_winds_blow.config.enableStandaloneChainSway": "Standalone Chain Sway",
   "where_winds_blow.config.enableStandaloneChainSway.tooltip": "Lets vertical chain stacks sway even when they do not end in a hanging lantern.",
-  "where_winds_blow.config.forceWwbWindWithShaderPacks": "Use WWB Wind With Shader Packs",
-  "where_winds_blow.config.forceWwbWindWithShaderPacks.tooltip": "Keeps Where Winds Blow sway and sheen active even when an Iris shader pack is currently rendering.",
   "where_winds_blow.config.enableSodiumShaderPatch": "Sodium Wind Patch",
   "where_winds_blow.config.enableSodiumShaderPatch.tooltip": "Adds Where Winds Blow wind uniforms and source injections to Sodium's own terrain shader.",
   "where_winds_blow.config.enableWindFoliageSway": "Wind Foliage Sway",

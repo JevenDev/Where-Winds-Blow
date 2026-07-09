@@ -114,10 +114,6 @@ public final class ClientConfig {
             .comment("Lets vertical chain blocks sway even when their connected stack does not end in a hanging lantern.")
             .define("enableStandaloneChainSway", false);
 
-    public static final ModConfigSpec.BooleanValue FORCE_WWB_WIND_WITH_SHADER_PACKS = BUILDER
-            .comment("Keeps Where Winds Blow wind sway and sheen active even while an Iris shader pack is in use.")
-            .define("forceWwbWindWithShaderPacks", true);
-
     public static final ModConfigSpec.BooleanValue ENABLE_SODIUM_SHADER_PATCH = BUILDER
             .comment("Adds Where Winds Blow wind uniforms and source injections to Sodium's own terrain shader.")
             .define("enableSodiumShaderPatch", true);
