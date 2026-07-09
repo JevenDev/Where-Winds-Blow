@@ -25,6 +25,8 @@ public final class ClientConfig {
     public static final double WIND_SMOKE_STRENGTH_MAX = 4.0D;
     public static final double WIND_LANTERN_SWAY_STRENGTH_MIN = 0.0D;
     public static final double WIND_LANTERN_SWAY_STRENGTH_MAX = 2.0D;
+    public static final double WIND_HANGING_SIGN_SWAY_STRENGTH_MIN = 0.0D;
+    public static final double WIND_HANGING_SIGN_SWAY_STRENGTH_MAX = 2.0D;
     public static final double WIND_FOLIAGE_SWAY_STRENGTH_MIN = 0.0D;
     public static final double WIND_FOLIAGE_SWAY_STRENGTH_MAX = 2.0D;
     public static final double WIND_PLANT_SWAY_START_HEIGHT_MIN = 0.0D;
@@ -109,6 +111,14 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_LANTERN_SWAY_STRENGTH = BUILDER
             .comment("Scales how strongly hanging lanterns sway with the wind.")
             .defineInRange("windLanternSwayStrength", 1.0D, WIND_LANTERN_SWAY_STRENGTH_MIN, WIND_LANTERN_SWAY_STRENGTH_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_HANGING_SIGN_SWAY = BUILDER
+            .comment("Lets hanging signs sway back and forth with the wind.")
+            .define("enableWindHangingSignSway", true);
+
+    public static final ModConfigSpec.DoubleValue WIND_HANGING_SIGN_SWAY_STRENGTH = BUILDER
+            .comment("Scales how strongly hanging signs sway with the wind.")
+            .defineInRange("windHangingSignSwayStrength", 1.0D, WIND_HANGING_SIGN_SWAY_STRENGTH_MIN, WIND_HANGING_SIGN_SWAY_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_STANDALONE_CHAIN_SWAY = BUILDER
             .comment("Lets vertical chain blocks sway even when their connected stack does not end in a hanging lantern.")

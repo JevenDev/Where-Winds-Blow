@@ -61,6 +61,7 @@ Grass generation is split into separate families so packs can tune biome coverag
 On the client, Where Winds Blow can wrap supported foliage models with responsive movement behavior so grassy areas and leaf canopies feel less static.
 This is meant to stay lightweight and still look like Minecraft, not turn the game into a completely different rendering style.
 Wind sway can be toggled separately for grass/plants and leaf blocks.
+Hanging lanterns, chains, and hanging signs can also react to the same weather-driven wind, with separate strength controls for lanterns and signs.
 
 ## Configuration
 

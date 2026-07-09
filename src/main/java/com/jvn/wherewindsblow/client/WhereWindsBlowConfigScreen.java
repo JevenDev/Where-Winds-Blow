@@ -177,6 +177,13 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_LANTERN_SWAY_STRENGTH_MAX,
                                 SMALL_STEP
                         ))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_HANGING_SIGN_SWAY))
+                        .option(doubleOption(
+                                ClientConfig.WIND_HANGING_SIGN_SWAY_STRENGTH,
+                                ClientConfig.WIND_HANGING_SIGN_SWAY_STRENGTH_MIN,
+                                ClientConfig.WIND_HANGING_SIGN_SWAY_STRENGTH_MAX,
+                                SMALL_STEP
+                        ))
                         .option(booleanOption(ClientConfig.ENABLE_STANDALONE_CHAIN_SWAY, WhereWindsBlowConfigScreen::rebuildFoliage))
                         .build())
                 .group(OptionGroup.createBuilder()

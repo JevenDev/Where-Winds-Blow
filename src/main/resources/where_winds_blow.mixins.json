@@ -7,6 +7,7 @@
     "client.CampfireBlockEntityMixin",
     "client.CampfireSmokeParticleMixin",
     "client.GameRendererMixin",
+    "client.HangingSignRendererMixin",
     "client.ParticleEngineMixin",
     "client.compat.sodium.SodiumShaderLoaderMixin",
     "client.compat.sodium.SodiumShaderChunkRendererMixin"
