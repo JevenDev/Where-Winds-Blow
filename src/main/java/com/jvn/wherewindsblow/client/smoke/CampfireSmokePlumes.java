@@ -1,10 +1,13 @@
 package com.jvn.wherewindsblow.client.smoke;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -26,6 +29,9 @@ public final class CampfireSmokePlumes {
     private static final int PARTICLE_SOURCE_SEARCH_RADIUS = 4;
     private static final int PARTICLE_SOURCE_SEARCH_DEPTH = 5;
     private static final ThreadLocal<SpawnContext> ACTIVE_SPAWN_CONTEXT = new ThreadLocal<>();
+    private static final Map<BlockPos, SmokeCluster> CLUSTER_CACHE = new HashMap<>();
+    private static WeakReference<Level> clusterCacheLevel = new WeakReference<>(null);
+    private static long clusterCacheGameTime = Long.MIN_VALUE;
 
     private CampfireSmokePlumes() {
     }
@@ -39,6 +45,12 @@ public final class CampfireSmokePlumes {
     public static SmokeCluster findCluster(Level level, BlockPos pos) {
         if (!isOpenLitCampfire(level, pos)) {
             return null;
+        }
+
+        refreshClusterCache(level);
+        SmokeCluster cachedCluster = CLUSTER_CACHE.get(pos);
+        if (cachedCluster != null) {
+            return cachedCluster;
         }
 
         List<BlockPos> sources = new ArrayList<>();
@@ -61,7 +73,13 @@ public final class CampfireSmokePlumes {
             }
         }
 
-        return createCluster(level, sources);
+        SmokeCluster cluster = createCluster(level, sources);
+        if (cluster != null) {
+            for (BlockPos source : sources) {
+                CLUSTER_CACHE.put(source, cluster);
+            }
+        }
+        return cluster;
     }
 
     public static SpawnContext findSpawnContextNear(Level level, double x, double y, double z) {
@@ -205,6 +223,17 @@ public final class CampfireSmokePlumes {
                 signalFire,
                 soulFire
         );
+    }
+
+    private static void refreshClusterCache(Level level) {
+        long gameTime = level.getGameTime();
+        if (clusterCacheLevel.get() == level && clusterCacheGameTime == gameTime) {
+            return;
+        }
+
+        CLUSTER_CACHE.clear();
+        clusterCacheLevel = new WeakReference<>(level);
+        clusterCacheGameTime = gameTime;
     }
 
     private static boolean isOpenLitCampfire(Level level, BlockPos pos) {
