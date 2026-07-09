@@ -21,6 +21,10 @@ import org.jetbrains.annotations.Nullable;
 final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final float INTERACTION_BASE_THRESHOLD = 0.08F;
     private static final float MIN_PLANT_SWAY_HEIGHT_RANGE = 0.001F;
+    private static final float TALL_INTERACTION_DAMP_START_HEIGHT = 2.0F;
+    private static final float TALL_INTERACTION_DAMPING_SCALE = 1.9F;
+    private static final float TALL_INTERACTION_MIN_DAMPING = 0.34F;
+    private static final float TALL_INTERACTION_MAX_DAMPING = 0.68F;
     private static final int PLANT_ALPHA_MIN = 17;
     private static final int PLANT_ALPHA_MAX = 44;
     private static final int PLANT_WIND_ALPHA_LEVELS = 7;
@@ -40,16 +44,29 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
 
     @Override
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
-        if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()
-                || !isResponsiveState(state)) {
-            return originalModel.getModelData(level, pos, state, modelData);
+        ModelData originalData = originalModel.getModelData(level, pos, state, modelData);
+        if (!isResponsiveState(state)) {
+            return originalData;
         }
 
-        var builder = originalModel.getModelData(level, pos, state, modelData)
-                .derive()
-                .with(FoliageModelData.WIND_EXPOSED, ResponsiveFoliage.isWindExposed(level, pos));
-        if (isPlantFoliage()) {
+        boolean encodeVertexMarkers = ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers();
+        boolean plantFoliage = isPlantFoliage();
+        FoliageModelData.InteractionImpulse interactionImpulse = plantFoliage && !encodeVertexMarkers
+                ? ResponsiveFoliagePhysics.interactionAt(pos)
+                : null;
+        if (!encodeVertexMarkers && interactionImpulse == null) {
+            return originalData;
+        }
+
+        var builder = originalData.derive();
+        if (encodeVertexMarkers) {
+            builder.with(FoliageModelData.WIND_EXPOSED, ResponsiveFoliage.isWindExposed(level, pos));
+        }
+        if (plantFoliage) {
             builder.with(FoliageModelData.COLUMN_SEGMENT, ResponsiveFoliage.columnSegment(level, pos, state));
+            if (interactionImpulse != null) {
+                builder.with(FoliageModelData.INTERACTION_IMPULSE, interactionImpulse);
+            }
         }
 
         return builder.build();
@@ -58,15 +75,20 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     @Override
     public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, RandomSource rand, ModelData extraData, @Nullable RenderType renderType) {
         List<BakedQuad> quads = originalModel.getQuads(state, side, rand, extraData, renderType);
-        if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()
-                || state == null
+        if (state == null
                 || !isResponsiveState(state)) {
             return quads;
         }
 
-        boolean windExposed = windExposed(extraData);
+        boolean encodeVertexMarkers = ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers();
+        FoliageModelData.InteractionImpulse interactionImpulse = interactionImpulse(extraData);
+        if (!encodeVertexMarkers && interactionImpulse == null) {
+            return quads;
+        }
+
+        boolean windExposed = encodeVertexMarkers && windExposed(extraData);
         if (foliageType == ResponsiveFoliageType.LEAF) {
-            if (!windExposed) {
+            if (!encodeVertexMarkers || !windExposed) {
                 return quads;
             }
 
@@ -81,36 +103,71 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         if (!extraData.has(FoliageModelData.COLUMN_SEGMENT)) {
             return quads;
         }
+        boolean encodeInteractionMarker = encodeVertexMarkers && ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY.getAsBoolean();
+        if (!windExposed && !encodeInteractionMarker && interactionImpulse == null) {
+            return quads;
+        }
 
         FoliageModelData.ColumnSegment segment = extraData.get(FoliageModelData.COLUMN_SEGMENT);
         int swayStartHeightBits = Float.floatToIntBits(plantSwayStartHeight());
         List<BakedQuad> transformed = new ArrayList<>(quads.size());
         for (BakedQuad quad : quads) {
-            PlantQuadKey key = new PlantQuadKey(quad, segment.offset(), segment.height(), swayStartHeightBits, windExposed);
-            transformed.add(plantQuadCache.computeIfAbsent(key, ResponsiveFoliageModel::transformPlantQuad));
+            if (interactionImpulse != null) {
+                transformed.add(transformPlantQuad(quad, segment.offset(), segment.height(), Float.intBitsToFloat(swayStartHeightBits), windExposed, false, interactionImpulse));
+            } else {
+                PlantQuadKey key = new PlantQuadKey(quad, segment.offset(), segment.height(), swayStartHeightBits, windExposed, encodeInteractionMarker);
+                transformed.add(plantQuadCache.computeIfAbsent(key, ResponsiveFoliageModel::transformPlantQuad));
+            }
         }
 
         return transformed;
     }
 
     private static BakedQuad transformPlantQuad(PlantQuadKey key) {
-        return transformPlantQuad(key.quad(), key.segmentOffset(), key.segmentHeight(), Float.intBitsToFloat(key.swayStartHeightBits()), key.windExposed());
+        return transformPlantQuad(
+                key.quad(),
+                key.segmentOffset(),
+                key.segmentHeight(),
+                Float.intBitsToFloat(key.swayStartHeightBits()),
+                key.windExposed(),
+                key.encodeInteractionMarker(),
+                null
+        );
     }
 
-    private static BakedQuad transformPlantQuad(BakedQuad quad, int segmentOffset, int segmentHeight, float swayStartHeight, boolean windExposed) {
+    private static BakedQuad transformPlantQuad(
+            BakedQuad quad,
+            int segmentOffset,
+            int segmentHeight,
+            float swayStartHeight,
+            boolean windExposed,
+            boolean encodeInteractionMarker,
+            @Nullable FoliageModelData.InteractionImpulse interactionImpulse
+    ) {
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
+        boolean hasInteraction = interactionImpulse != null && interactionImpulse.isVisible();
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * stride;
+            float x = Float.intBitsToFloat(vertices[offset]);
             float y = Float.intBitsToFloat(vertices[offset + 1]);
+            float z = Float.intBitsToFloat(vertices[offset + 2]);
             float columnY = segmentOffset + y;
             float windWeight = windExposed ? plantBendWeight(columnY, segmentHeight, swayStartHeight) : 0.0F;
-            float interactionWeight = plantBendWeight(columnY, segmentHeight, INTERACTION_BASE_THRESHOLD);
-            if (windWeight <= 0.0F && interactionWeight <= 0.0F) {
+            float interactionWeight = plantInteractionWeight(columnY, segmentHeight);
+            float bakedInteractionWeight = hasInteraction ? smoothCurve(interactionWeight) : 0.0F;
+            float markerInteractionWeight = encodeInteractionMarker ? interactionWeight : 0.0F;
+            if (windWeight <= 0.0F && bakedInteractionWeight <= 0.0F && markerInteractionWeight <= 0.0F) {
                 continue;
             }
 
-            vertices[offset + 3] = packPlantAlpha(vertices[offset + 3], windWeight, interactionWeight);
+            if (bakedInteractionWeight > 0.0F) {
+                vertices[offset] = Float.floatToRawIntBits(x + interactionImpulse.offsetX() * bakedInteractionWeight);
+                vertices[offset + 2] = Float.floatToRawIntBits(z + interactionImpulse.offsetZ() * bakedInteractionWeight);
+            }
+            if (windWeight > 0.0F || markerInteractionWeight > 0.0F) {
+                vertices[offset + 3] = packPlantAlpha(vertices[offset + 3], windWeight, markerInteractionWeight);
+            }
         }
 
         return new BakedQuad(
@@ -158,6 +215,27 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return Mth.clamp((columnY - startHeight) / bendHeightRange, 0.0F, 1.0F);
     }
 
+    private static float plantInteractionWeight(float columnY, int columnHeight) {
+        float weight = plantBendWeight(columnY, columnHeight, INTERACTION_BASE_THRESHOLD);
+        if (columnHeight <= 2 || columnY <= TALL_INTERACTION_DAMP_START_HEIGHT) {
+            return weight;
+        }
+
+        float tallRange = Math.max(columnHeight - TALL_INTERACTION_DAMP_START_HEIGHT, MIN_PLANT_SWAY_HEIGHT_RANGE);
+        float tallProgress = smoothCurve((columnY - TALL_INTERACTION_DAMP_START_HEIGHT) / tallRange);
+        float topDamping = Mth.clamp(
+                TALL_INTERACTION_DAMPING_SCALE / columnHeight,
+                TALL_INTERACTION_MIN_DAMPING,
+                TALL_INTERACTION_MAX_DAMPING
+        );
+        return weight * Mth.lerp(tallProgress, 1.0F, topDamping);
+    }
+
+    private static float smoothCurve(float value) {
+        value = Mth.clamp(value, 0.0F, 1.0F);
+        return value * value * (3.0F - 2.0F * value);
+    }
+
     private static int packPlantAlpha(int color, float windWeight, float interactionWeight) {
         int windLevel = encodeLevel(windWeight, PLANT_WIND_ALPHA_LEVELS);
         int interactionLevel = encodeLevel(interactionWeight, PLANT_INTERACTION_ALPHA_LEVELS);
@@ -195,6 +273,13 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return !extraData.has(FoliageModelData.WIND_EXPOSED) || Boolean.TRUE.equals(extraData.get(FoliageModelData.WIND_EXPOSED));
     }
 
-    private record PlantQuadKey(BakedQuad quad, int segmentOffset, int segmentHeight, int swayStartHeightBits, boolean windExposed) {
+    @Nullable
+    private static FoliageModelData.InteractionImpulse interactionImpulse(ModelData extraData) {
+        return extraData.has(FoliageModelData.INTERACTION_IMPULSE)
+                ? extraData.get(FoliageModelData.INTERACTION_IMPULSE)
+                : null;
+    }
+
+    private record PlantQuadKey(BakedQuad quad, int segmentOffset, int segmentHeight, int swayStartHeightBits, boolean windExposed, boolean encodeInteractionMarker) {
     }
 }

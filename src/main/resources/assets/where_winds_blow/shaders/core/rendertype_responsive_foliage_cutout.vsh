@@ -139,9 +139,9 @@ float foliageInteractorStrengthAt(int index) {
     return FoliageInteractorStrengths3[index - 12];
 }
 
-vec3 applyFoliageInteractors(vec3 pos, vec2 anchor, float bend) {
+vec3 foliageInteractionOffset(vec3 pos, vec2 anchor, float bend) {
     if (FoliageInteractorCount <= 0 || bend <= 0.0) {
-        return pos;
+        return vec3(0.0);
     }
 
     vec2 totalOffset = vec2(0.0);
@@ -170,10 +170,11 @@ vec3 applyFoliageInteractors(vec3 pos, vec2 anchor, float bend) {
     float offsetLength = length(totalOffset);
     if (offsetLength > 1.0) {
         totalOffset /= offsetLength;
+        offsetLength = 1.0;
     }
 
-    pos.xz += totalOffset * bend * 0.34;
-    return pos;
+    float pushBlend = smoothCurve(clamp(offsetLength * bend * 1.35, 0.0, 1.0));
+    return vec3(totalOffset * bend * 0.34, pushBlend);
 }
 
 float grassVariationSeed(vec2 cell, vec2 salt) {
@@ -318,8 +319,10 @@ void main() {
 
         if (interactionMarker) {
             vec2 plantAnchor = floor(Position.xz) + vec2(0.5) + ChunkOffset.xz + CameraPosition.xz;
-            vec3 interactedPos = applyFoliageInteractors(worldBasePos, plantAnchor, interactionBend);
-            pos.xz += interactedPos.xz - worldBasePos.xz;
+            vec3 interaction = foliageInteractionOffset(worldBasePos, plantAnchor, interactionBend);
+            vec2 windOffset = pos.xz - basePos.xz;
+            float windKeep = mix(1.0, 0.18, interaction.z);
+            pos.xz = basePos.xz + interaction.xy + windOffset * windKeep;
         }
     }
 

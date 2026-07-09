@@ -20,6 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 public final class ResponsiveFoliageShaders {
     private static final String IRIS_API_CLASS_NAME = "net.irisshaders.iris.api.v0.IrisApi";
+    private static final String SODIUM_MOD_ID = "sodium";
     private static final String[] SHADER_RENDERER_MOD_IDS = {"iris", "oculus"};
     private static final String[] INCOMPATIBLE_RENDERER_MOD_IDS = {"chunksfadein"};
     private static final long SHADER_PACK_STATE_CACHE_MILLIS = 250L;
@@ -79,6 +80,14 @@ public final class ResponsiveFoliageShaders {
         return shouldUseCustomFoliageShaders()
                 && ClientConfig.ENABLE_SODIUM_SHADER_PATCH.getAsBoolean()
                 && !sodiumShaderPatchDisabled;
+    }
+
+    public static boolean shouldEncodeFoliageVertexMarkers() {
+        if (!shouldUseCustomFoliageShaders()) {
+            return false;
+        }
+
+        return !isModLoaded(SODIUM_MOD_ID) || shouldPatchSodiumShaders();
     }
 
     public static void setFoliageInteractors(int interactorCount, FoliageInteractorWriter writer) {

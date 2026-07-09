@@ -185,9 +185,9 @@ public final class SodiumFoliageShaderSource {
                 return u_WwbInteractorStrengths3[index - 12];
             }
 
-            vec3 wwb_apply_foliage_interactors(vec3 position, vec2 anchor, float bend) {
+            vec3 wwb_foliage_interaction_offset(vec3 position, vec2 anchor, float bend) {
                 if (u_WwbInteractorCount <= 0 || bend <= 0.0) {
-                    return position;
+                    return vec3(0.0);
                 }
 
                 vec2 totalOffset = vec2(0.0);
@@ -216,10 +216,11 @@ public final class SodiumFoliageShaderSource {
                 float offsetLength = length(totalOffset);
                 if (offsetLength > 1.0) {
                     totalOffset /= offsetLength;
+                    offsetLength = 1.0;
                 }
 
-                position.xz += totalOffset * bend * 0.34;
-                return position;
+                float pushBlend = wwb_smooth_curve(clamp(offsetLength * bend * 1.35, 0.0, 1.0));
+                return vec3(totalOffset * bend * 0.34, pushBlend);
             }
 
             vec3 wwb_apply_foliage_interaction(vec3 currentPosition, vec3 basePosition, vec2 anchor, float alpha) {
@@ -228,8 +229,10 @@ public final class SodiumFoliageShaderSource {
                 }
 
                 float bend = wwb_smooth_curve(wwb_decode_plant_interaction_alpha(alpha));
-                vec3 interactedPosition = wwb_apply_foliage_interactors(basePosition, anchor, bend);
-                currentPosition.xz += interactedPosition.xz - basePosition.xz;
+                vec3 interaction = wwb_foliage_interaction_offset(basePosition, anchor, bend);
+                vec2 windOffset = currentPosition.xz - basePosition.xz;
+                float windKeep = mix(1.0, 0.18, interaction.z);
+                currentPosition.xz = basePosition.xz + interaction.xy + windOffset * windKeep;
                 return currentPosition;
             }
 
@@ -359,7 +362,7 @@ public final class SodiumFoliageShaderSource {
                 position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbPlantAnchor, wwbFoliageAlpha);""";
 
     private static final String WIND_COLOR_INJECTION = """
-                if (wwb_should_apply_foliage_wind(wwbFoliageAlpha) || wwb_should_apply_lantern_wind(wwbFoliageAlpha)) {
+                if (wwb_is_foliage_wind_vertex(wwbFoliageAlpha) || wwb_is_lantern_wind_vertex(wwbFoliageAlpha) || wwb_is_chain_wind_vertex(wwbFoliageAlpha)) {
                     v_Color.a = 1.0;
                 }
                 v_Color.rgb += vec3(wwbWindSheen * 0.44);""";
