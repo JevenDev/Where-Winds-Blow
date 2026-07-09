@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.texture.TextureManager;
 public final class CampfireSmokeRenderTypes {
     public static final ParticleRenderType MERGED_PLUME = new ParticleRenderType() {
         @Override
+        @SuppressWarnings("deprecation") // Minecraft 1.21.1 still exposes the particle atlas through this constant.
         public BufferBuilder begin(Tesselator tesselator, TextureManager textureManager) {
             RenderSystem.setShader(GameRenderer::getParticleShader);
             RenderSystem.setShaderTexture(0, TextureAtlas.LOCATION_PARTICLES);

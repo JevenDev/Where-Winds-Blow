@@ -28,9 +28,6 @@ public final class WhereWindsBlowMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.contains(".compat.sodium.")) {
             return isModLoaded("sodium") && classExists(targetClassName);
         }
-        if (mixinClassName.contains(".compat.iris.")) {
-            return isModLoaded("iris") && isModLoaded("sodium") && classExists(targetClassName);
-        }
 
         return true;
     }
