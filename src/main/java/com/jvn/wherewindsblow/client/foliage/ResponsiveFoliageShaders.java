@@ -163,7 +163,8 @@ public final class ResponsiveFoliageShaders {
         shader.safeGetUniform("LanternWindSwayStrength").set(lanternWindSwayStrength());
         shader.safeGetUniform("PlantWindSheenStrength").set(plantWindSheenStrength());
         shader.safeGetUniform("LeafWindSheenStrength").set(leafWindSheenStrength());
-        shader.safeGetUniform("WindDirection").set(WindDirection.x(), WindDirection.z());
+        WindDirection.WindVector wind = WindDirection.current();
+        shader.safeGetUniform("WindDirection").set(wind.xFloat(), wind.zFloat());
         Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         shader.safeGetUniform("CameraPosition").set((float) cameraPosition.x, (float) cameraPosition.y, (float) cameraPosition.z);
         shader.safeGetUniform("FoliageInteractorCount").set(foliageInteractorCount);

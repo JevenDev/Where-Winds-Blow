@@ -222,8 +222,9 @@ public final class SwingingLanternAssemblyRenderer {
         float longChainScale = Mth.clamp(1.0F / (1.0F + chainHeight * 0.12F), 0.3F, 1.0F);
         float speedScale = Mth.clamp(1.0F / Mth.sqrt(1.0F + Math.min(chainHeight, 6) * 0.25F), 0.35F, 1.0F);
 
-        float windX = WindDirection.x();
-        float windZ = WindDirection.z();
+        WindDirection.WindVector wind = WindDirection.current();
+        float windX = wind.xFloat();
+        float windZ = wind.zFloat();
         float crossX = -windZ;
         float crossZ = windX;
         float along = lanternPos.getX() * windX + lanternPos.getZ() * windZ;

@@ -3,40 +3,43 @@ package com.jvn.wherewindsblow.client.wind;
 import com.jvn.wherewindsblow.config.ClientConfig;
 
 public final class WindDirection {
-    public static final double DEFAULT_DEGREES = 125.0D;
+    private static volatile WindVector cachedVector = new WindVector(Double.NaN, 0.0D, -1.0D);
 
     private WindDirection() {
     }
 
-    public static double degrees() {
+    private static double degrees() {
         return ClientConfig.WIND_DIRECTION_DEGREES.getAsDouble();
     }
 
-    public static float x() {
-        return (float) xDouble();
+    public static WindVector current() {
+        double degrees = degrees();
+        WindVector vector = cachedVector;
+        if (Double.compare(vector.degrees(), degrees) == 0) {
+            return vector;
+        }
+
+        double radians = Math.toRadians(degrees);
+        vector = new WindVector(degrees, Math.sin(radians), -Math.cos(radians));
+        cachedVector = vector;
+        return vector;
     }
 
-    public static float z() {
-        return (float) zDouble();
-    }
+    public record WindVector(double degrees, double x, double z) {
+        public float xFloat() {
+            return (float) x;
+        }
 
-    public static double xDouble() {
-        return Math.sin(radians());
-    }
+        public float zFloat() {
+            return (float) z;
+        }
 
-    public static double zDouble() {
-        return -Math.cos(radians());
-    }
+        public double crossX() {
+            return -z;
+        }
 
-    public static double crossXDouble() {
-        return -zDouble();
-    }
-
-    public static double crossZDouble() {
-        return xDouble();
-    }
-
-    private static double radians() {
-        return Math.toRadians(degrees());
+        public double crossZ() {
+            return x;
+        }
     }
 }

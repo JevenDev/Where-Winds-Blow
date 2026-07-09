@@ -159,8 +159,9 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
                 * targetSpeed;
         double curl = Math.sin(this.wherewindsblow$windSeed + this.age * 0.055D + windTime * 0.7F)
                 * (0.18D + ageRamp * 0.28D + clusterRamp * 0.22D);
-        double targetX = WindDirection.xDouble() * (targetSpeed + gust) + WindDirection.crossXDouble() * curl * targetSpeed;
-        double targetZ = WindDirection.zDouble() * (targetSpeed + gust) + WindDirection.crossZDouble() * curl * targetSpeed;
+        WindDirection.WindVector wind = WindDirection.current();
+        double targetX = wind.x() * (targetSpeed + gust) + wind.crossX() * curl * targetSpeed;
+        double targetZ = wind.z() * (targetSpeed + gust) + wind.crossZ() * curl * targetSpeed;
         double response = 0.035D + weatherBoost * 0.025D + clusterRamp * 0.018D;
         this.xd += (targetX - this.xd) * response;
         this.zd += (targetZ - this.zd) * response;

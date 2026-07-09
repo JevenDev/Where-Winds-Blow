@@ -101,7 +101,8 @@ public final class SodiumFoliageUniforms {
 
     private static void uploadWindDirectionUniform(int location) {
         if (location >= 0) {
-            GL20C.glUniform2f(location, WindDirection.x(), WindDirection.z());
+            WindDirection.WindVector wind = WindDirection.current();
+            GL20C.glUniform2f(location, wind.xFloat(), wind.zFloat());
         }
     }
 

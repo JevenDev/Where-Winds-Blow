@@ -1415,19 +1415,19 @@ public final class WindStreakRenderer {
     }
 
     private static double windX() {
-        return WindDirection.xDouble();
+        return WindDirection.current().x();
     }
 
     private static double windZ() {
-        return WindDirection.zDouble();
+        return WindDirection.current().z();
     }
 
     private static double crossX() {
-        return WindDirection.crossXDouble();
+        return WindDirection.current().crossX();
     }
 
     private static double crossZ() {
-        return WindDirection.crossZDouble();
+        return WindDirection.current().crossZ();
     }
 
     private static final class WindStreak {
