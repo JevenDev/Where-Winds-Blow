@@ -3,11 +3,13 @@ package com.jvn.wherewindsblow.mixin.client;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokePlumes;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokePlumes.SpawnContext;
+import com.jvn.wherewindsblow.client.smoke.CampfireSmokeRenderTypes;
 import com.jvn.wherewindsblow.client.wind.WindDirection;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.CampfireSmokeParticle;
+import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.TextureSheetParticle;
 import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,6 +17,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(CampfireSmokeParticle.class)
 public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
@@ -52,6 +55,13 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
 
     protected CampfireSmokeParticleMixin(ClientLevel level, double x, double y, double z) {
         super(level, x, y, z);
+    }
+
+    @Inject(method = "getRenderType", at = @At("HEAD"), cancellable = true)
+    private void wherewindsblow$useMergedPlumeRenderType(CallbackInfoReturnable<ParticleRenderType> cir) {
+        if (this.wherewindsblow$plumeContext != null && this.wherewindsblow$plumeContext.clustered()) {
+            cir.setReturnValue(CampfireSmokeRenderTypes.MERGED_PLUME);
+        }
     }
 
     @Inject(method = "<init>", at = @At("RETURN"))
