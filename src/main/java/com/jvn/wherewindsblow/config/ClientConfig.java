@@ -21,6 +21,18 @@ public final class ClientConfig {
     public static final double WIND_STREAK_THICKNESS_MAX = 4.0D;
     public static final double WIND_DIRECTION_DEGREES_MIN = 0.0D;
     public static final double WIND_DIRECTION_DEGREES_MAX = 360.0D;
+    public static final double OVERALL_WIND_STRENGTH_MIN = 0.0D;
+    public static final double OVERALL_WIND_STRENGTH_MAX = 3.0D;
+    public static final double DYNAMIC_DIRECTION_VARIATION_MIN = 0.0D;
+    public static final double DYNAMIC_DIRECTION_VARIATION_MAX = 2.0D;
+    public static final double DIRECTION_HOLD_TIME_MIN = 30.0D;
+    public static final double DIRECTION_HOLD_TIME_MAX = 900.0D;
+    public static final double MAX_DIRECTION_CHANGE_MIN = 0.0D;
+    public static final double MAX_DIRECTION_CHANGE_MAX = 180.0D;
+    public static final double LULL_FREQUENCY_MIN = 0.0D;
+    public static final double LULL_FREQUENCY_MAX = 2.0D;
+    public static final double LULL_STRENGTH_MIN = 0.0D;
+    public static final double LULL_STRENGTH_MAX = 1.0D;
     public static final double WIND_SMOKE_STRENGTH_MIN = 0.0D;
     public static final double WIND_SMOKE_STRENGTH_MAX = 4.0D;
     public static final double WIND_LANTERN_SWAY_STRENGTH_MIN = 0.0D;
@@ -93,8 +105,48 @@ public final class ClientConfig {
             .defineInRange("windStreakThickness", 3.0D, WIND_STREAK_THICKNESS_MIN, WIND_STREAK_THICKNESS_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_DIRECTION_DEGREES = BUILDER
-            .comment("Sets the general wind direction in compass degrees clockwise from north. 0 is north, 90 is east, 180 is south, and 270 is west.")
+            .comment("Sets the fixed or prevailing wind direction in compass degrees clockwise from north. 0 is north, 90 is east, 180 is south, and 270 is west.")
             .defineInRange("windDirectionDegrees", 125.0D, WIND_DIRECTION_DEGREES_MIN, WIND_DIRECTION_DEGREES_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_DYNAMIC_WIND = BUILDER
+            .comment("Enables slow ambient wind variation, direction transitions, and calm periods.")
+            .define("enableDynamicWind", true);
+
+    public static final ModConfigSpec.EnumValue<WindDirectionMode> WIND_DIRECTION_MODE = BUILDER
+            .comment("Chooses whether wind direction changes dynamically or stays at the configured compass direction.")
+            .defineEnum("windDirectionMode", WindDirectionMode.DYNAMIC);
+
+    public static final ModConfigSpec.DoubleValue OVERALL_WIND_STRENGTH = BUILDER
+            .comment("Scales the strength produced by the shared wind simulation.")
+            .defineInRange("overallWindStrength", 1.0D, OVERALL_WIND_STRENGTH_MIN, OVERALL_WIND_STRENGTH_MAX);
+
+    public static final ModConfigSpec.DoubleValue DYNAMIC_DIRECTION_VARIATION = BUILDER
+            .comment("Scales how much dynamic wind direction can wander from its prevailing flow.")
+            .defineInRange("dynamicDirectionVariation", 1.0D, DYNAMIC_DIRECTION_VARIATION_MIN, DYNAMIC_DIRECTION_VARIATION_MAX);
+
+    public static final ModConfigSpec.DoubleValue MIN_DIRECTION_HOLD_TIME = BUILDER
+            .comment("Minimum time in seconds before dynamic wind chooses a new direction target.")
+            .defineInRange("minimumDirectionHoldTime", 150.0D, DIRECTION_HOLD_TIME_MIN, DIRECTION_HOLD_TIME_MAX);
+
+    public static final ModConfigSpec.DoubleValue MAX_DIRECTION_HOLD_TIME = BUILDER
+            .comment("Maximum time in seconds before dynamic wind chooses a new direction target.")
+            .defineInRange("maximumDirectionHoldTime", 360.0D, DIRECTION_HOLD_TIME_MIN, DIRECTION_HOLD_TIME_MAX);
+
+    public static final ModConfigSpec.DoubleValue MAX_ORDINARY_DIRECTION_CHANGE = BUILDER
+            .comment("Largest normal direction change in degrees. Storms can rarely exceed this value.")
+            .defineInRange("maximumOrdinaryDirectionChange", 38.0D, MAX_DIRECTION_CHANGE_MIN, MAX_DIRECTION_CHANGE_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_LULLS = BUILDER
+            .comment("Allows smooth calm periods that reduce the shared wind strength.")
+            .define("enableWindLulls", true);
+
+    public static final ModConfigSpec.DoubleValue WIND_LULL_FREQUENCY = BUILDER
+            .comment("Scales how often calm periods occur. Zero disables them even when the toggle is on.")
+            .defineInRange("windLullFrequency", 1.0D, LULL_FREQUENCY_MIN, LULL_FREQUENCY_MAX);
+
+    public static final ModConfigSpec.DoubleValue WIND_LULL_STRENGTH = BUILDER
+            .comment("Sets the fraction of normal ambient wind retained at the deepest point of a lull.")
+            .defineInRange("windLullStrength", 0.3D, LULL_STRENGTH_MIN, LULL_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_SMOKE = BUILDER
             .comment("Lets campfire smoke drift, curl, and merge into larger wind-shaped plumes.")
@@ -185,6 +237,11 @@ public final class ClientConfig {
             .defineInRange("thunderWeatherSheenStrength", 2.0D, WEATHER_SHEEN_STRENGTH_MIN, WEATHER_SHEEN_STRENGTH_MAX);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
+
+    public enum WindDirectionMode {
+        DYNAMIC,
+        FIXED
+    }
 
     private ClientConfig() {
     }

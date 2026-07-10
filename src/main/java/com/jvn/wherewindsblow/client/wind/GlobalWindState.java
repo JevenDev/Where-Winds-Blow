@@ -20,6 +20,7 @@ public record GlobalWindState(
         float weatherPower,
         float rainLevel,
         float thunderLevel,
+        float lullAmount,
         float transitionProgress
 ) {
     public float directionDegrees() {

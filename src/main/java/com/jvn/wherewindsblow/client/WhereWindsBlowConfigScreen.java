@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client;
 
+import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.jvn.wherewindsblow.config.CommonConfig;
 import dev.isxander.yacl3.api.ConfigCategory;
@@ -10,6 +11,7 @@ import dev.isxander.yacl3.api.StateManager;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.controller.BooleanControllerBuilder;
 import dev.isxander.yacl3.api.controller.DoubleSliderControllerBuilder;
+import dev.isxander.yacl3.api.controller.EnumControllerBuilder;
 import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -29,10 +31,93 @@ public final class WhereWindsBlowConfigScreen {
         return YetAnotherConfigLib.createBuilder()
                 .title(translatable("title"))
                 .category(terrainCategory())
+                .category(windCategory())
                 .category(renderingCategory())
                 .save(WhereWindsBlowConfigScreen::saveAll)
                 .build()
                 .generateScreen(parent);
+    }
+
+    private static ConfigCategory windCategory() {
+        return ConfigCategory.createBuilder()
+                .name(translatable("wind"))
+                .tooltip(translatable("wind.tooltip"))
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.windSimulation"))
+                        .description(description("group.windSimulation.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_DYNAMIC_WIND, DynamicWindManager::reloadConfiguration))
+                        .option(enumOption(
+                                ClientConfig.WIND_DIRECTION_MODE,
+                                ClientConfig.WindDirectionMode.class,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.OVERALL_WIND_STRENGTH,
+                                ClientConfig.OVERALL_WIND_STRENGTH_MIN,
+                                ClientConfig.OVERALL_WIND_STRENGTH_MAX,
+                                SMALL_STEP,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.WIND_DIRECTION_DEGREES,
+                                ClientConfig.WIND_DIRECTION_DEGREES_MIN,
+                                ClientConfig.WIND_DIRECTION_DEGREES_MAX,
+                                1.0D,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.dynamicDirection"))
+                        .description(description("group.dynamicDirection.description"))
+                        .option(doubleOption(
+                                ClientConfig.DYNAMIC_DIRECTION_VARIATION,
+                                ClientConfig.DYNAMIC_DIRECTION_VARIATION_MIN,
+                                ClientConfig.DYNAMIC_DIRECTION_VARIATION_MAX,
+                                SMALL_STEP,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.MIN_DIRECTION_HOLD_TIME,
+                                ClientConfig.DIRECTION_HOLD_TIME_MIN,
+                                ClientConfig.DIRECTION_HOLD_TIME_MAX,
+                                5.0D,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.MAX_DIRECTION_HOLD_TIME,
+                                ClientConfig.DIRECTION_HOLD_TIME_MIN,
+                                ClientConfig.DIRECTION_HOLD_TIME_MAX,
+                                5.0D,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.MAX_ORDINARY_DIRECTION_CHANGE,
+                                ClientConfig.MAX_DIRECTION_CHANGE_MIN,
+                                ClientConfig.MAX_DIRECTION_CHANGE_MAX,
+                                1.0D,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.lulls"))
+                        .description(description("group.lulls.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_LULLS, DynamicWindManager::reloadConfiguration))
+                        .option(doubleOption(
+                                ClientConfig.WIND_LULL_FREQUENCY,
+                                ClientConfig.LULL_FREQUENCY_MIN,
+                                ClientConfig.LULL_FREQUENCY_MAX,
+                                SMALL_STEP,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.WIND_LULL_STRENGTH,
+                                ClientConfig.LULL_STRENGTH_MIN,
+                                ClientConfig.LULL_STRENGTH_MAX,
+                                SMALL_STEP,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .build())
+                .build();
     }
 
     private static ConfigCategory terrainCategory() {
@@ -157,12 +242,6 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_STREAK_THICKNESS_MAX,
                                 SMALL_STEP
                         ))
-                        .option(doubleOption(
-                                ClientConfig.WIND_DIRECTION_DEGREES,
-                                ClientConfig.WIND_DIRECTION_DEGREES_MIN,
-                                ClientConfig.WIND_DIRECTION_DEGREES_MAX,
-                                1.0D
-                        ))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_SMOKE))
                         .option(doubleOption(
                                 ClientConfig.WIND_SMOKE_STRENGTH,
@@ -215,6 +294,26 @@ public final class WhereWindsBlowConfigScreen {
 
     private static Option<Double> worldgenOption(ModConfigSpec.DoubleValue value) {
         return doubleOption(value, WORLDGEN_MIN, WORLDGEN_MAX, WORLDGEN_STEP);
+    }
+
+    private static <T extends Enum<T>> Option<T> enumOption(
+            ModConfigSpec.EnumValue<T> value,
+            Class<T> enumClass,
+            Runnable afterChange
+    ) {
+        String path = path(value);
+        return Option.<T>createBuilder()
+                .name(translatable(path))
+                .description(description(path + ".tooltip"))
+                .stateManager(StateManager.createInstant(value.getDefault(), value::get, newValue -> {
+                    value.set(newValue);
+                    value.save();
+                    afterChange.run();
+                }))
+                .controller(option -> EnumControllerBuilder.create(option)
+                        .enumClass(enumClass)
+                        .formatValue(enumValue -> translatable(path + "." + enumValue.name().toLowerCase(Locale.ROOT))))
+                .build();
     }
 
     private static Option<Double> weatherWindPowerOption(ModConfigSpec.DoubleValue value) {

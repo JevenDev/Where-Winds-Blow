@@ -204,7 +204,7 @@ public final class ResponsiveFoliageShaders {
     }
 
     public static float weatherWindPower() {
-        return DynamicWindManager.currentState().weatherPower();
+        return DynamicWindManager.currentState().strength();
     }
 
     public static void onClientPauseChange(ClientPauseChangeEvent.Post event) {
