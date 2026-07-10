@@ -1,26 +1,22 @@
 package com.jvn.wherewindsblow.client.wind;
 
-import com.jvn.wherewindsblow.config.ClientConfig;
-
 public final class WindDirection {
     private static volatile WindVector cachedVector = new WindVector(Double.NaN, 0.0D, -1.0D);
 
     private WindDirection() {
     }
 
-    private static double degrees() {
-        return ClientConfig.WIND_DIRECTION_DEGREES.getAsDouble();
-    }
-
     public static WindVector current() {
-        double degrees = degrees();
+        GlobalWindState state = DynamicWindManager.currentState();
+        double degrees = state.directionDegrees();
         WindVector vector = cachedVector;
-        if (Double.compare(vector.degrees(), degrees) == 0) {
+        if (Double.compare(vector.degrees(), degrees) == 0
+                && Double.compare(vector.x(), state.directionX()) == 0
+                && Double.compare(vector.z(), state.directionZ()) == 0) {
             return vector;
         }
 
-        double radians = Math.toRadians(degrees);
-        vector = new WindVector(degrees, Math.sin(radians), -Math.cos(radians));
+        vector = new WindVector(degrees, state.directionX(), state.directionZ());
         cachedVector = vector;
         return vector;
     }

@@ -1,6 +1,8 @@
 package com.jvn.wherewindsblow.client.foliage;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
+import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
+import com.jvn.wherewindsblow.client.wind.GlobalWindState;
 import com.jvn.wherewindsblow.client.wind.WindDirection;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -30,7 +32,6 @@ public final class ResponsiveFoliageShaders {
             WhereWindsBlow.MOD_ID,
             "rendertype_responsive_foliage_cutout"
     );
-    private static final float WEATHER_SPEED_SCALE = 0.34F;
     private static boolean irisApiLookupAttempted;
     @Nullable
     private static Method irisGetInstanceMethod;
@@ -43,9 +44,6 @@ public final class ResponsiveFoliageShaders {
     private static volatile boolean customShaderDisabled;
     private static volatile boolean sodiumShaderPatchDisabled;
     private static boolean incompatibleRendererWarningLogged;
-    private static long lastWeatherUpdateMillis;
-    private static float smoothedWeatherWindPower;
-    private static float windTimeSeconds;
     private static int foliageInteractorCount;
     private static final float[] foliageInteractors = new float[MAX_FOLIAGE_INTERACTORS * 4];
     private static final float[] foliageInteractorStrengths = new float[MAX_FOLIAGE_INTERACTORS];
@@ -155,9 +153,9 @@ public final class ResponsiveFoliageShaders {
         }
 
         ResponsiveFoliagePhysics.updateShaderInteractors();
-        updateWeatherWindState();
-        shader.safeGetUniform("WindTime").set(windTimeSeconds);
-        shader.safeGetUniform("WeatherWindPower").set(smoothedWeatherWindPower);
+        GlobalWindState windState = DynamicWindManager.currentState();
+        shader.safeGetUniform("WindTime").set(DynamicWindManager.simulationTime());
+        shader.safeGetUniform("WeatherWindPower").set(windState.weatherPower());
         shader.safeGetUniform("PlantWindSwayStrength").set(plantWindSwayStrength());
         shader.safeGetUniform("LeafWindSwayStrength").set(leafWindSwayStrength());
         shader.safeGetUniform("LanternWindSwayStrength").set(lanternWindSwayStrength());
@@ -202,17 +200,15 @@ public final class ResponsiveFoliageShaders {
      * Consumers should apply only fixed frequency multipliers so weather transitions remain continuous.
      */
     public static float windTime() {
-        updateWeatherWindState();
-        return windTimeSeconds;
+        return DynamicWindManager.simulationTime();
     }
 
     public static float weatherWindPower() {
-        updateWeatherWindState();
-        return smoothedWeatherWindPower;
+        return DynamicWindManager.currentState().weatherPower();
     }
 
     public static void onClientPauseChange(ClientPauseChangeEvent.Post event) {
-        lastWeatherUpdateMillis = Util.getMillis();
+        DynamicWindManager.onClientPauseChange(event);
     }
 
     public static float windSwayStrength() {
@@ -247,46 +243,6 @@ public final class ResponsiveFoliageShaders {
 
     public static float leafWindSheenStrength() {
         return 0.0F;
-    }
-
-    private static void updateWeatherWindState() {
-        long now = Util.getMillis();
-        if (lastWeatherUpdateMillis == 0L) {
-            lastWeatherUpdateMillis = now;
-            windTimeSeconds = now * 0.001F;
-            smoothedWeatherWindPower = targetWeatherWindPower();
-            return;
-        }
-
-        if (Minecraft.getInstance().isPaused()) {
-            lastWeatherUpdateMillis = now;
-            return;
-        }
-
-        float deltaSeconds = Mth.clamp((now - lastWeatherUpdateMillis) * 0.001F, 0.0F, 0.25F);
-        if (deltaSeconds <= 0.0F) {
-            return;
-        }
-
-        lastWeatherUpdateMillis = now;
-        float target = targetWeatherWindPower();
-        float response = target > smoothedWeatherWindPower ? 1.7F : 1.05F;
-        float blend = 1.0F - (float) Math.exp(-deltaSeconds * response);
-        smoothedWeatherWindPower += (target - smoothedWeatherWindPower) * blend;
-        windTimeSeconds += deltaSeconds * (1.0F + smoothedWeatherWindPower * WEATHER_SPEED_SCALE);
-    }
-
-    private static float targetWeatherWindPower() {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null) {
-            return 0.0F;
-        }
-
-        return currentWeatherValue(
-                ClientConfig.CLEAR_WEATHER_WIND_POWER.getAsDouble(),
-                ClientConfig.RAIN_WEATHER_WIND_POWER.getAsDouble(),
-                ClientConfig.THUNDER_WEATHER_WIND_POWER.getAsDouble()
-        );
     }
 
     private static float weatherDrivenSheenStrength() {

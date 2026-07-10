@@ -6,6 +6,7 @@ import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.lantern.LanternSway;
 import com.jvn.wherewindsblow.client.lantern.SwingingLanternAssemblyRenderer;
+import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindStreakRenderer;
 import com.jvn.wherewindsblow.client.wind.WindVisualShaders;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -34,6 +35,7 @@ public final class WhereWindsBlowClient {
         modEventBus.addListener(WhereWindsBlowClient::registerShaders);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onClientTick);
+        NeoForge.EVENT_BUS.addListener(DynamicWindManager::onClientTick);
         NeoForge.EVENT_BUS.addListener(WhereWindsBlowClient::onClientPauseChange);
         NeoForge.EVENT_BUS.addListener(SwingingLanternAssemblyRenderer::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onRenderLevelStage);
@@ -73,7 +75,7 @@ public final class WhereWindsBlowClient {
     }
 
     private static void onClientPauseChange(ClientPauseChangeEvent.Post event) {
-        ResponsiveFoliageShaders.onClientPauseChange(event);
+        DynamicWindManager.onClientPauseChange(event);
         ResponsiveFoliagePhysics.onClientPauseChange(event);
     }
 }
