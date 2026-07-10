@@ -117,6 +117,51 @@ public final class WhereWindsBlowConfigScreen {
                                 DynamicWindManager::reloadConfiguration
                         ))
                         .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.gusts"))
+                        .description(description("group.gusts.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_GUST_FRONTS, DynamicWindManager::reloadConfiguration))
+                        .option(doubleOption(
+                                ClientConfig.GUST_FREQUENCY,
+                                ClientConfig.GUST_FREQUENCY_MIN,
+                                ClientConfig.GUST_FREQUENCY_MAX,
+                                SMALL_STEP,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.GUST_STRENGTH,
+                                ClientConfig.GUST_STRENGTH_MIN,
+                                ClientConfig.GUST_STRENGTH_MAX,
+                                SMALL_STEP,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.GUST_TRAVEL_SPEED,
+                                ClientConfig.GUST_TRAVEL_SPEED_MIN,
+                                ClientConfig.GUST_TRAVEL_SPEED_MAX,
+                                0.5D,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.GUST_WIDTH,
+                                ClientConfig.GUST_WIDTH_MIN,
+                                ClientConfig.GUST_WIDTH_MAX,
+                                1.0D,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.TURBULENCE_STRENGTH,
+                                ClientConfig.TURBULENCE_STRENGTH_MIN,
+                                ClientConfig.TURBULENCE_STRENGTH_MAX,
+                                SMALL_STEP,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.advanced"))
+                        .description(description("group.advanced.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_DEBUG_OVERLAY))
+                        .build())
                 .build();
     }
 

@@ -18,6 +18,7 @@ import org.jetbrains.annotations.Nullable;
  * but state transitions advance at most once per client tick.
  */
 public final class DynamicWindManager {
+    public static final int MAX_ACTIVE_GUSTS = 3;
     private static final float WEATHER_SPEED_SCALE = 0.34F;
     private static final float MAX_UPDATE_DELTA_SECONDS = 0.25F;
     private static final GlobalWindState STILL_STATE = new GlobalWindState(
@@ -30,6 +31,7 @@ public final class DynamicWindManager {
             0.0F,
             1.0F
     );
+    private static final GustFrontState[] ACTIVE_GUSTS = new GustFrontState[MAX_ACTIVE_GUSTS];
 
     @Nullable
     private static ClientLevel activeLevel;
@@ -53,6 +55,8 @@ public final class DynamicWindManager {
     private static float lullElapsed;
     private static float lullDuration;
     private static float lullDepth;
+    private static float gustSpawnCountdown;
+    private static int activeGustCount;
 
     private DynamicWindManager() {
     }
@@ -72,13 +76,25 @@ public final class DynamicWindManager {
 
     public static WindSample sampleWind(double x, double y, double z) {
         GlobalWindState current = currentState();
+        GustContribution gust = sampleGustContribution(x, z, simulationTime());
+        float directionX = current.directionX() * current.ambientStrength() + gust.directionX();
+        float directionZ = current.directionZ() * current.ambientStrength() + gust.directionZ();
+        float directionLength = Mth.sqrt(directionX * directionX + directionZ * directionZ);
+        if (directionLength > 0.0001F) {
+            directionX /= directionLength;
+            directionZ /= directionLength;
+        } else {
+            directionX = current.directionX();
+            directionZ = current.directionZ();
+        }
+
         return new WindSample(
-                current.directionX(),
-                current.directionZ(),
-                current.strength(),
+                directionX,
+                directionZ,
+                current.ambientStrength() + gust.strength(),
                 current.ambientStrength(),
-                current.gustStrength(),
-                current.turbulence(),
+                gust.strength(),
+                current.turbulence() + gust.turbulence(),
                 1.0F,
                 current.weatherPower()
         );
@@ -111,6 +127,17 @@ public final class DynamicWindManager {
         return simulationSeed;
     }
 
+    public static int activeGustCount() {
+        currentState();
+        return activeGustCount;
+    }
+
+    @Nullable
+    public static GustFrontState gustFront(int index) {
+        currentState();
+        return index >= 0 && index < ACTIVE_GUSTS.length ? ACTIVE_GUSTS[index] : null;
+    }
+
     public static void reset() {
         reset(null);
     }
@@ -124,6 +151,11 @@ public final class DynamicWindManager {
             lullDepth = 0.0F;
         } else if (activeLevel != null && lullDuration <= 0.0F && lullCountdown <= 0.0F) {
             lullCountdown = randomLullInterval(state.weatherPower());
+        }
+        if (!ClientConfig.ENABLE_GUST_FRONTS.getAsBoolean()) {
+            clearGusts();
+        } else if (activeLevel != null && gustSpawnCountdown <= 0.0F) {
+            gustSpawnCountdown = randomGustInterval(state.rainLevel(), state.thunderLevel());
         }
     }
 
@@ -168,6 +200,14 @@ public final class DynamicWindManager {
         float ambientBlend = 1.0F - (float) Math.exp(-deltaSeconds * ambientResponse);
         ambientStrength = Mth.lerp(ambientBlend, ambientStrength, ambientTarget);
         float instability = dynamicWind ? Mth.clamp(rainLevel * 0.18F + thunderLevel * 0.62F, 0.0F, 1.0F) : 0.0F;
+        updateGusts(deltaSeconds, rainLevel, thunderLevel, lullAmount, dynamicWind);
+        float baseTurbulence = dynamicWind
+                ? (0.035F + rainLevel * 0.075F + thunderLevel * 0.24F)
+                        * (float) ClientConfig.TURBULENCE_STRENGTH.getAsDouble()
+                : 0.0F;
+        double sampleX = Minecraft.getInstance().player == null ? 0.0D : Minecraft.getInstance().player.getX();
+        double sampleZ = Minecraft.getInstance().player == null ? 0.0D : Minecraft.getInstance().player.getZ();
+        GustContribution localGust = sampleGustContribution(sampleX, sampleZ, simulationTimeSeconds);
         Direction baseDirection = directionFromDegrees(prevailingDirectionDegrees);
         Direction targetDirection = directionFromDegrees(targetDirectionDegrees);
         float transitionProgress = directionTransitionDuration <= 0.0F
@@ -177,8 +217,8 @@ public final class DynamicWindManager {
                 baseDirection.x(), baseDirection.z(),
                 direction.x(), direction.z(),
                 targetDirection.x(), targetDirection.z(),
-                ambientStrength, ambientTarget, ambientStrength,
-                0.0F, 0.0F, instability,
+                ambientStrength + localGust.strength(), ambientTarget, ambientStrength,
+                localGust.strength(), baseTurbulence + localGust.turbulence(), instability,
                 weatherPower, rainLevel, thunderLevel,
                 lullAmount,
                 transitionProgress
@@ -217,6 +257,8 @@ public final class DynamicWindManager {
         lullElapsed = 0.0F;
         lullDuration = 0.0F;
         lullDepth = 0.0F;
+        gustSpawnCountdown = 0.0F;
+        clearGusts();
 
         if (level == null) {
             state = STILL_STATE;
@@ -235,6 +277,7 @@ public final class DynamicWindManager {
         randomState = simulationSeed == 0L ? 0x9e3779b97f4a7c15L : simulationSeed;
         directionChangeCountdown = randomDirectionHoldTime();
         lullCountdown = randomLullInterval(weatherPower);
+        gustSpawnCountdown = randomGustInterval(level.getRainLevel(1.0F), level.getThunderLevel(1.0F));
         state = new GlobalWindState(
                 direction.x(), direction.z(),
                 direction.x(), direction.z(),
@@ -376,6 +419,151 @@ public final class DynamicWindManager {
         return Math.max(0.0F, baseline * overallStrength * lullMultiplier);
     }
 
+    private static void updateGusts(
+            float deltaSeconds,
+            float rainLevel,
+            float thunderLevel,
+            float lullAmount,
+            boolean dynamicWind
+    ) {
+        float time = simulationTimeSeconds;
+        activeGustCount = 0;
+        for (int index = 0; index < ACTIVE_GUSTS.length; index++) {
+            GustFrontState gust = ACTIVE_GUSTS[index];
+            if (gust != null && !gust.isAlive(time)) {
+                ACTIVE_GUSTS[index] = null;
+                gust = null;
+            }
+            if (gust != null) {
+                activeGustCount++;
+            }
+        }
+
+        boolean gustsEnabled = dynamicWind
+                && ClientConfig.ENABLE_GUST_FRONTS.getAsBoolean()
+                && ClientConfig.GUST_FREQUENCY.getAsDouble() > 0.0D
+                && ClientConfig.GUST_STRENGTH.getAsDouble() > 0.0D;
+        if (!gustsEnabled) {
+            clearGusts();
+            return;
+        }
+
+        gustSpawnCountdown -= deltaSeconds;
+        if (gustSpawnCountdown > 0.0F || activeGustCount >= MAX_ACTIVE_GUSTS || lullAmount > 0.42F) {
+            return;
+        }
+
+        spawnGust(rainLevel, thunderLevel);
+        gustSpawnCountdown = randomGustInterval(rainLevel, thunderLevel);
+    }
+
+    private static void spawnGust(float rainLevel, float thunderLevel) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null) {
+            return;
+        }
+
+        int slot = firstFreeGustSlot();
+        if (slot < 0) {
+            return;
+        }
+
+        float directionOffset = randomSigned() * (7.0F + rainLevel * 5.0F + thunderLevel * 13.0F);
+        Direction direction = directionFromDegrees(currentDirectionDegrees + directionOffset);
+        float crossX = -direction.z();
+        float crossZ = direction.x();
+        float spawnDistance = 62.0F + nextRandomFloat() * 52.0F;
+        float crossOffset = randomSigned() * 28.0F;
+        float originX = (float) minecraft.player.getX() - direction.x() * spawnDistance + crossX * crossOffset;
+        float originZ = (float) minecraft.player.getZ() - direction.z() * spawnDistance + crossZ * crossOffset;
+        float configuredSpeed = (float) ClientConfig.GUST_TRAVEL_SPEED.getAsDouble();
+        float speed = configuredSpeed * (0.84F + nextRandomFloat() * 0.34F);
+        float width = (float) ClientConfig.GUST_WIDTH.getAsDouble() * (0.82F + nextRandomFloat() * 0.36F);
+        float weatherScale = 1.0F + rainLevel * 0.72F + thunderLevel * 1.35F;
+        float peakStrength = (0.16F + nextRandomFloat() * 0.24F)
+                * weatherScale
+                * (float) ClientConfig.GUST_STRENGTH.getAsDouble()
+                * (float) ClientConfig.OVERALL_WIND_STRENGTH.getAsDouble();
+        if (thunderLevel > 0.72F && nextRandomFloat() < 0.18F) {
+            peakStrength *= 1.25F + nextRandomFloat() * 0.35F;
+        }
+        float turbulence = (0.06F + rainLevel * 0.07F + thunderLevel * 0.21F)
+                * (0.82F + nextRandomFloat() * 0.38F)
+                * (float) ClientConfig.TURBULENCE_STRENGTH.getAsDouble();
+        float duration = (spawnDistance + 150.0F + width * 2.0F) / Math.max(speed, 0.1F);
+        ACTIVE_GUSTS[slot] = new GustFrontState(
+                simulationTimeSeconds,
+                Mth.clamp(duration, 24.0F, 72.0F),
+                0.14F + nextRandomFloat() * 0.08F,
+                0.68F + nextRandomFloat() * 0.12F,
+                originX,
+                originZ,
+                direction.x(),
+                direction.z(),
+                speed,
+                width,
+                peakStrength,
+                turbulence,
+                nextRandomFloat() * Mth.TWO_PI,
+                0.035F + turbulence * 0.24F
+        );
+        activeGustCount++;
+    }
+
+    private static GustContribution sampleGustContribution(double x, double z, float time) {
+        float strength = 0.0F;
+        float directionX = 0.0F;
+        float directionZ = 0.0F;
+        float turbulence = 0.0F;
+        for (GustFrontState gust : ACTIVE_GUSTS) {
+            if (gust == null) {
+                continue;
+            }
+
+            float localStrength = gust.strengthAt(x, z, time);
+            if (localStrength <= 0.0001F) {
+                continue;
+            }
+
+            float crossVariation = gust.crossVariation(x, z, time);
+            float localDirectionX = gust.directionX() + -gust.directionZ() * crossVariation;
+            float localDirectionZ = gust.directionZ() + gust.directionX() * crossVariation;
+            float length = Mth.sqrt(localDirectionX * localDirectionX + localDirectionZ * localDirectionZ);
+            if (length > 0.0001F) {
+                localDirectionX /= length;
+                localDirectionZ /= length;
+            }
+            strength += localStrength;
+            directionX += localDirectionX * localStrength;
+            directionZ += localDirectionZ * localStrength;
+            turbulence += gust.turbulence() * Mth.clamp(localStrength / Math.max(gust.peakStrength(), 0.001F), 0.0F, 1.0F);
+        }
+
+        return new GustContribution(strength, directionX, directionZ, turbulence);
+    }
+
+    private static int firstFreeGustSlot() {
+        for (int index = 0; index < ACTIVE_GUSTS.length; index++) {
+            if (ACTIVE_GUSTS[index] == null) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static void clearGusts() {
+        for (int index = 0; index < ACTIVE_GUSTS.length; index++) {
+            ACTIVE_GUSTS[index] = null;
+        }
+        activeGustCount = 0;
+    }
+
+    private static float randomGustInterval(float rainLevel, float thunderLevel) {
+        float frequency = Math.max(0.05F, (float) ClientConfig.GUST_FREQUENCY.getAsDouble());
+        float weatherFrequency = 1.0F + rainLevel * 0.85F + thunderLevel * 2.25F;
+        return Mth.lerp(nextRandomFloat(), 48.0F, 118.0F) / (frequency * weatherFrequency);
+    }
+
     private static float randomDirectionHoldTime() {
         float minimum = (float) ClientConfig.MIN_DIRECTION_HOLD_TIME.getAsDouble();
         float maximum = Math.max(minimum, (float) ClientConfig.MAX_DIRECTION_HOLD_TIME.getAsDouble());
@@ -441,5 +629,8 @@ public final class DynamicWindManager {
     }
 
     private record Direction(float x, float z) {
+    }
+
+    private record GustContribution(float strength, float directionX, float directionZ, float turbulence) {
     }
 }

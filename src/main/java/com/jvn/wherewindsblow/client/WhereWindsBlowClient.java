@@ -7,6 +7,7 @@ import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.lantern.LanternSway;
 import com.jvn.wherewindsblow.client.lantern.SwingingLanternAssemblyRenderer;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
+import com.jvn.wherewindsblow.client.wind.WindDebugOverlay;
 import com.jvn.wherewindsblow.client.wind.WindStreakRenderer;
 import com.jvn.wherewindsblow.client.wind.WindVisualShaders;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -40,6 +41,7 @@ public final class WhereWindsBlowClient {
         NeoForge.EVENT_BUS.addListener(SwingingLanternAssemblyRenderer::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onClientTick);
+        NeoForge.EVENT_BUS.addListener(WindDebugOverlay::onRenderGui);
     }
 
     private static void registerBlockColors(RegisterColorHandlersEvent.Block event) {

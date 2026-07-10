@@ -33,6 +33,16 @@ public final class ClientConfig {
     public static final double LULL_FREQUENCY_MAX = 2.0D;
     public static final double LULL_STRENGTH_MIN = 0.0D;
     public static final double LULL_STRENGTH_MAX = 1.0D;
+    public static final double GUST_FREQUENCY_MIN = 0.0D;
+    public static final double GUST_FREQUENCY_MAX = 3.0D;
+    public static final double GUST_STRENGTH_MIN = 0.0D;
+    public static final double GUST_STRENGTH_MAX = 3.0D;
+    public static final double GUST_TRAVEL_SPEED_MIN = 1.0D;
+    public static final double GUST_TRAVEL_SPEED_MAX = 24.0D;
+    public static final double GUST_WIDTH_MIN = 3.0D;
+    public static final double GUST_WIDTH_MAX = 48.0D;
+    public static final double TURBULENCE_STRENGTH_MIN = 0.0D;
+    public static final double TURBULENCE_STRENGTH_MAX = 2.0D;
     public static final double WIND_SMOKE_STRENGTH_MIN = 0.0D;
     public static final double WIND_SMOKE_STRENGTH_MAX = 4.0D;
     public static final double WIND_LANTERN_SWAY_STRENGTH_MIN = 0.0D;
@@ -147,6 +157,34 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_LULL_STRENGTH = BUILDER
             .comment("Sets the fraction of normal ambient wind retained at the deepest point of a lull.")
             .defineInRange("windLullStrength", 0.3D, LULL_STRENGTH_MIN, LULL_STRENGTH_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_GUST_FRONTS = BUILDER
+            .comment("Enables a bounded set of travelling gust bands shared by wind-reactive effects.")
+            .define("enableGustFronts", true);
+
+    public static final ModConfigSpec.DoubleValue GUST_FREQUENCY = BUILDER
+            .comment("Scales how often travelling gust fronts form.")
+            .defineInRange("gustFrequency", 1.0D, GUST_FREQUENCY_MIN, GUST_FREQUENCY_MAX);
+
+    public static final ModConfigSpec.DoubleValue GUST_STRENGTH = BUILDER
+            .comment("Scales the additional wind strength carried by travelling gust fronts.")
+            .defineInRange("gustStrength", 1.0D, GUST_STRENGTH_MIN, GUST_STRENGTH_MAX);
+
+    public static final ModConfigSpec.DoubleValue GUST_TRAVEL_SPEED = BUILDER
+            .comment("Sets the average gust-front travel speed in blocks per second.")
+            .defineInRange("gustTravelSpeed", 8.0D, GUST_TRAVEL_SPEED_MIN, GUST_TRAVEL_SPEED_MAX);
+
+    public static final ModConfigSpec.DoubleValue GUST_WIDTH = BUILDER
+            .comment("Sets the average width of a travelling gust front in blocks.")
+            .defineInRange("gustWidth", 14.0D, GUST_WIDTH_MIN, GUST_WIDTH_MAX);
+
+    public static final ModConfigSpec.DoubleValue TURBULENCE_STRENGTH = BUILDER
+            .comment("Scales controlled crosswind, flutter, curl, and tumbling around the prevailing flow.")
+            .defineInRange("turbulenceStrength", 1.0D, TURBULENCE_STRENGTH_MIN, TURBULENCE_STRENGTH_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_DEBUG_OVERLAY = BUILDER
+            .comment("Shows a compact client-side overlay with the current wind simulation state.")
+            .define("enableWindDebugOverlay", false);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_SMOKE = BUILDER
             .comment("Lets campfire smoke drift, curl, and merge into larger wind-shaped plumes.")
