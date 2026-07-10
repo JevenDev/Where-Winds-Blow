@@ -43,6 +43,10 @@ public final class ClientConfig {
     public static final double GUST_WIDTH_MAX = 48.0D;
     public static final double TURBULENCE_STRENGTH_MIN = 0.0D;
     public static final double TURBULENCE_STRENGTH_MAX = 2.0D;
+    public static final double WIND_EXPOSURE_RADIUS_MIN = 2.0D;
+    public static final double WIND_EXPOSURE_RADIUS_MAX = 8.0D;
+    public static final double ALTITUDE_WIND_INFLUENCE_MIN = 0.0D;
+    public static final double ALTITUDE_WIND_INFLUENCE_MAX = 2.0D;
     public static final double WIND_SMOKE_STRENGTH_MIN = 0.0D;
     public static final double WIND_SMOKE_STRENGTH_MAX = 4.0D;
     public static final double WIND_LANTERN_SWAY_STRENGTH_MIN = 0.0D;
@@ -185,6 +189,18 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_DEBUG_OVERLAY = BUILDER
             .comment("Shows a compact client-side overlay with the current wind simulation state.")
             .define("enableWindDebugOverlay", false);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_LOCAL_WIND_EXPOSURE = BUILDER
+            .comment("Uses cached direction-aware shelter sampling for local wind strength.")
+            .define("enableLocalWindExposure", true);
+
+    public static final ModConfigSpec.DoubleValue WIND_EXPOSURE_RADIUS = BUILDER
+            .comment("Sets the radius of the small shelter sampling pattern in blocks.")
+            .defineInRange("windExposureRadius", 5.0D, WIND_EXPOSURE_RADIUS_MIN, WIND_EXPOSURE_RADIUS_MAX);
+
+    public static final ModConfigSpec.DoubleValue ALTITUDE_WIND_INFLUENCE = BUILDER
+            .comment("Scales the subtle wind increase at high elevations using the current dimension's build height.")
+            .defineInRange("altitudeWindInfluence", 0.5D, ALTITUDE_WIND_INFLUENCE_MIN, ALTITUDE_WIND_INFLUENCE_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_SMOKE = BUILDER
             .comment("Lets campfire smoke drift, curl, and merge into larger wind-shaped plumes.")

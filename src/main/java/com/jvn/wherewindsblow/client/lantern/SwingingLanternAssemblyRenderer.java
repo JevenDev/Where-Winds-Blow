@@ -1,8 +1,8 @@
 package com.jvn.wherewindsblow.client.lantern;
 
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
-import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
-import com.jvn.wherewindsblow.client.wind.WindDirection;
+import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
+import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.ArrayList;
@@ -178,8 +178,9 @@ public final class SwingingLanternAssemblyRenderer {
     ) {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         float tickTime = level.getGameTime() + partialTick;
-        float windTime = ResponsiveFoliageShaders.windTime();
-        Swing targetSwing = windSwingFor(lanternPos, chainHeight, windTime, ResponsiveFoliage.isWindExposed(level, lanternPos));
+        float windTime = DynamicWindManager.simulationTime();
+        WindSample wind = DynamicWindManager.sampleWind(level, lanternPos);
+        Swing targetSwing = windSwingFor(lanternPos, chainHeight, windTime, wind);
         Swing swing = updateSwingState(level, lanternPos, chainHeight, targetSwing, tickTime);
 
         poseStack.pushPose();
@@ -219,15 +220,15 @@ public final class SwingingLanternAssemblyRenderer {
         poseStack.popPose();
     }
 
-    private static Swing windSwingFor(BlockPos lanternPos, int chainHeight, float windTime, boolean windExposed) {
-        float weatherPower = windExposed ? ResponsiveFoliageShaders.weatherWindPower() : 0.0F;
-        float strength = (float) ClientConfig.WIND_LANTERN_SWAY_STRENGTH.getAsDouble() * (windExposed ? 1.0F : ENCLOSED_SWAY_SCALE);
+    private static Swing windSwingFor(BlockPos lanternPos, int chainHeight, float windTime, WindSample wind) {
+        float windPower = wind.strength();
+        float strength = (float) ClientConfig.WIND_LANTERN_SWAY_STRENGTH.getAsDouble()
+                * Mth.lerp(wind.exposure(), ENCLOSED_SWAY_SCALE, 1.0F);
         float longChainDrive = Mth.clamp(0.9F + Math.min(chainHeight, 8) * 0.045F, 0.9F, 1.25F);
         float speedScale = Mth.clamp(1.0F / Mth.sqrt(1.0F + Math.min(chainHeight, 12) * 0.18F), 0.45F, 0.92F);
 
-        WindDirection.WindVector wind = WindDirection.current();
-        float windX = wind.xFloat();
-        float windZ = wind.zFloat();
+        float windX = wind.directionX();
+        float windZ = wind.directionZ();
         float crossX = -windZ;
         float crossZ = windX;
         float along = lanternPos.getX() * windX + lanternPos.getZ() * windZ;
@@ -238,7 +239,8 @@ public final class SwingingLanternAssemblyRenderer {
         float slowGust = smoothStep(Mth.sin(t * 0.42F + along * 0.07F + phase) * 0.5F + 0.5F);
         float flutter = Mth.sin(t * 1.17F + across * 0.11F + phase * 1.71F);
         float windForce = 0.70F + slowGust * 0.38F + flutter * 0.09F;
-        float directionNoise = Mth.sin(across * 0.12F + t * 0.31F + phase) * (0.07F + weatherPower * 0.018F);
+        float directionNoise = Mth.sin(across * 0.12F + t * 0.31F + phase)
+                * (0.07F + wind.turbulence() * 0.12F);
         float baseX = windX + crossX * directionNoise;
         float baseZ = windZ + crossZ * directionNoise;
         float baseLength = Mth.sqrt(baseX * baseX + baseZ * baseZ);
@@ -247,16 +249,17 @@ public final class SwingingLanternAssemblyRenderer {
             baseZ /= baseLength;
         }
 
-        float crossDrift = Mth.sin(t * 0.73F + across * 0.09F + phase * 1.37F) * (0.05F + weatherPower * 0.02F);
+        float crossDrift = Mth.sin(t * 0.73F + across * 0.09F + phase * 1.37F)
+                * (0.05F + wind.turbulence() * 0.11F);
         float swingX = baseX + crossX * crossDrift;
         float swingZ = baseZ + crossZ * crossDrift;
         float angle = Mth.clamp(
-                (0.72F + weatherPower * 2.25F) * strength * longChainDrive * windForce,
+                (0.22F + windPower * 2.55F) * strength * longChainDrive * windForce,
                 0.0F,
                 MAX_TARGET_SWAY_DEGREES
         );
         float yaw = Mth.sin(t * 0.49F + phase * 2.3F + across * 0.05F)
-                * (0.18F + weatherPower * 0.32F)
+                * (0.10F + windPower * 0.32F + wind.turbulence() * 0.45F)
                 * strength;
         return new Swing(swingX, swingZ, angle, yaw);
     }

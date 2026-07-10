@@ -1,8 +1,7 @@
 package com.jvn.wherewindsblow.client.sign;
 
-import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
-import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
-import com.jvn.wherewindsblow.client.wind.WindDirection;
+import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
+import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
@@ -36,23 +35,21 @@ public final class HangingSignSway {
         }
 
         BlockPos pos = blockEntity.getBlockPos();
-        boolean windExposed = ResponsiveFoliage.isWindExposed(level, pos);
-        float exposureScale = windExposed ? 1.0F : ENCLOSED_SWAY_SCALE;
-        float windTime = ResponsiveFoliageShaders.windTime();
-        float weatherPower = windExposed ? ResponsiveFoliageShaders.weatherWindPower() : 0.0F;
-        WindDirection.WindVector wind = WindDirection.current();
+        WindSample wind = DynamicWindManager.sampleWind(level, pos);
+        float exposureScale = Mth.lerp(wind.exposure(), ENCLOSED_SWAY_SCALE, 1.0F);
+        float windTime = DynamicWindManager.simulationTime();
 
         float yRotation = -signBlock.getYRotationDegrees(state);
         float yRadians = yRotation * Mth.DEG_TO_RAD;
         float normalX = Mth.sin(yRadians);
         float normalZ = Mth.cos(yRadians);
         float windAlignment = Mth.lerp(
-                Math.abs(wind.xFloat() * normalX + wind.zFloat() * normalZ),
+                Math.abs(wind.directionX() * normalX + wind.directionZ() * normalZ),
                 MIN_WIND_ALIGNMENT,
                 1.0F
         );
 
-        float alongWind = pos.getX() * wind.xFloat() + pos.getZ() * wind.zFloat();
+        float alongWind = pos.getX() * wind.directionX() + pos.getZ() * wind.directionZ();
         float phase = randomPhase(pos);
         float time = windTime * 0.9F;
         float primary = Mth.sin(time + alongWind * 0.12F + phase);
@@ -60,7 +57,7 @@ public final class HangingSignSway {
         float gust = 0.72F + 0.28F * smoothStep(
                 Mth.sin(alongWind * 0.09F - time * 0.31F + phase * 0.47F) * 0.5F + 0.5F
         );
-        float amplitude = (0.9F + weatherPower * 2.3F)
+        float amplitude = (0.3F + wind.strength() * 2.3F)
                 * configuredStrength
                 * exposureScale
                 * windAlignment

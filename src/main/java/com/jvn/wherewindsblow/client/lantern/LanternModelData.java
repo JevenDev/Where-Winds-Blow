@@ -7,16 +7,17 @@ public final class LanternModelData {
     public static final ModelProperty<ChainSegment> CHAIN_SEGMENT = new ModelProperty<>(ChainSegment.class::isInstance);
     public static final ModelProperty<Boolean> LANTERN_CHAIN_ATTACHED = new ModelProperty<>(Boolean.class::isInstance);
     public static final ModelProperty<Boolean> RENDERING_ASSEMBLY = new ModelProperty<>(Boolean.class::isInstance);
-    public static final ModelProperty<Boolean> WIND_EXPOSED = new ModelProperty<>(Boolean.class::isInstance);
+    public static final ModelProperty<Float> WIND_EXPOSURE = new ModelProperty<>(Float.class::isInstance);
 
     private LanternModelData() {
     }
 
-    public record ChainSegment(BlockPos topPos, int offsetFromTop, int height, boolean hangingLanternAttached, boolean windExposed) {
+    public record ChainSegment(BlockPos topPos, int offsetFromTop, int height, boolean hangingLanternAttached, float windExposure) {
         public ChainSegment {
             topPos = topPos.immutable();
             offsetFromTop = Math.max(0, offsetFromTop);
             height = Math.max(1, height);
+            windExposure = Math.clamp(windExposure, 0.0F, 1.0F);
         }
     }
 }

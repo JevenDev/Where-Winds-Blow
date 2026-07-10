@@ -158,6 +158,25 @@ public final class WhereWindsBlowConfigScreen {
                         ))
                         .build())
                 .group(OptionGroup.createBuilder()
+                        .name(translatable("group.localExposure"))
+                        .description(description("group.localExposure.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_LOCAL_WIND_EXPOSURE, DynamicWindManager::reloadConfiguration))
+                        .option(doubleOption(
+                                ClientConfig.WIND_EXPOSURE_RADIUS,
+                                ClientConfig.WIND_EXPOSURE_RADIUS_MIN,
+                                ClientConfig.WIND_EXPOSURE_RADIUS_MAX,
+                                1.0D,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.ALTITUDE_WIND_INFLUENCE,
+                                ClientConfig.ALTITUDE_WIND_INFLUENCE_MIN,
+                                ClientConfig.ALTITUDE_WIND_INFLUENCE_MAX,
+                                SMALL_STEP,
+                                DynamicWindManager::reloadConfiguration
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
                         .name(translatable("group.advanced"))
                         .description(description("group.advanced.description"))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_DEBUG_OVERLAY))

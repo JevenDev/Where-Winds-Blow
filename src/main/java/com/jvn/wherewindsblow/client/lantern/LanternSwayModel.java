@@ -50,7 +50,7 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
         if (subject == Subject.LANTERN && isHangingLantern(state)) {
             return originalData.derive()
                     .with(LanternModelData.LANTERN_CHAIN_ATTACHED, hasVerticalChainAbove(level, pos))
-                    .with(LanternModelData.WIND_EXPOSED, ResponsiveFoliage.isWindExposed(level, pos))
+                    .with(LanternModelData.WIND_EXPOSURE, quantizeExposure(ResponsiveFoliage.windExposure(level, pos)))
                     .build();
         }
 
@@ -82,7 +82,10 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
                         yield null;
                     }
 
-                    yield lanternQuadCache.computeIfAbsent(new LanternQuadKey(quad, windExposed(extraData)), LanternSwayModel::transformLanternQuad);
+                    yield lanternQuadCache.computeIfAbsent(
+                            new LanternQuadKey(quad, Float.floatToIntBits(windExposure(extraData))),
+                            LanternSwayModel::transformLanternQuad
+                    );
                 }
                 case CHAIN -> {
                     LanternModelData.ChainSegment segment = extraData.get(LanternModelData.CHAIN_SEGMENT);
@@ -97,7 +100,13 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
                     }
 
                     yield chainQuadCache.computeIfAbsent(
-                            new ChainQuadKey(quad, segment.offsetFromTop(), segment.height(), segment.hangingLanternAttached(), segment.windExposed()),
+                            new ChainQuadKey(
+                                    quad,
+                                    segment.offsetFromTop(),
+                                    segment.height(),
+                                    segment.hangingLanternAttached(),
+                                    Float.floatToIntBits(quantizeExposure(segment.windExposure()))
+                            ),
                             LanternSwayModel::transformChainQuad
                     );
                 }
@@ -125,7 +134,10 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
         int stride = vertices.length / 4;
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * stride;
-            vertices[offset + 3] = packLanternAlpha(vertices[offset + 3], key.windExposed());
+            vertices[offset + 3] = packLanternAlpha(
+                    vertices[offset + 3],
+                    Float.intBitsToFloat(key.windExposureBits())
+            );
         }
 
         return new BakedQuad(
@@ -142,7 +154,7 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
         BakedQuad quad = key.quad();
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
-        float exposureScale = windExposureScale(key.windExposed());
+        float exposureScale = windExposureScale(Float.intBitsToFloat(key.windExposureBits()));
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * stride;
             float y = Float.intBitsToFloat(vertices[offset + 1]);
@@ -176,7 +188,13 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
             height++;
         }
 
-        return new LanternModelData.ChainSegment(top, top.getY() - pos.getY(), height, hasHangingLanternBelow(level, top, height), ResponsiveFoliage.isWindExposed(level, pos));
+        return new LanternModelData.ChainSegment(
+                top,
+                top.getY() - pos.getY(),
+                height,
+                hasHangingLanternBelow(level, top, height),
+                ResponsiveFoliage.windExposure(level, pos)
+        );
     }
 
     private static boolean isVerticalChain(@Nullable BlockState state) {
@@ -204,8 +222,8 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
                 && state.getValue(LanternBlock.HANGING);
     }
 
-    private static int packLanternAlpha(int color, boolean windExposed) {
-        int alpha = Math.round(LANTERN_ALPHA_MIN + windExposureScale(windExposed) * (LANTERN_ALPHA_MAX - LANTERN_ALPHA_MIN));
+    private static int packLanternAlpha(int color, float windExposure) {
+        int alpha = Math.round(LANTERN_ALPHA_MIN + windExposureScale(windExposure) * (LANTERN_ALPHA_MAX - LANTERN_ALPHA_MIN));
         return (color & 0x00FFFFFF) | (Mth.clamp(alpha, LANTERN_ALPHA_MIN, LANTERN_ALPHA_MAX) << 24);
     }
 
@@ -219,12 +237,18 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
         return x * x * (3.0F - 2.0F * x);
     }
 
-    private static boolean windExposed(ModelData extraData) {
-        return !extraData.has(LanternModelData.WIND_EXPOSED) || Boolean.TRUE.equals(extraData.get(LanternModelData.WIND_EXPOSED));
+    private static float windExposure(ModelData extraData) {
+        return extraData.has(LanternModelData.WIND_EXPOSURE)
+                ? Mth.clamp(extraData.get(LanternModelData.WIND_EXPOSURE), 0.0F, 1.0F)
+                : 1.0F;
     }
 
-    private static float windExposureScale(boolean windExposed) {
-        return windExposed ? 1.0F : ENCLOSED_SWAY_SCALE;
+    private static float windExposureScale(float windExposure) {
+        return Mth.lerp(Mth.clamp(windExposure, 0.0F, 1.0F), ENCLOSED_SWAY_SCALE, 1.0F);
+    }
+
+    private static float quantizeExposure(float exposure) {
+        return Math.round(Mth.clamp(exposure, 0.0F, 1.0F) * 15.0F) / 15.0F;
     }
 
     enum Subject {
@@ -232,9 +256,9 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
         CHAIN
     }
 
-    private record LanternQuadKey(BakedQuad quad, boolean windExposed) {
+    private record LanternQuadKey(BakedQuad quad, int windExposureBits) {
     }
 
-    private record ChainQuadKey(BakedQuad quad, int offsetFromTop, int height, boolean hangingLanternAttached, boolean windExposed) {
+    private record ChainQuadKey(BakedQuad quad, int offsetFromTop, int height, boolean hangingLanternAttached, int windExposureBits) {
     }
 }

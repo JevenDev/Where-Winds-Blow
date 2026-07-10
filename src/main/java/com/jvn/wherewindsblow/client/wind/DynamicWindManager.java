@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.neoforged.neoforge.client.event.ClientPauseChangeEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import org.jetbrains.annotations.Nullable;
@@ -32,6 +33,8 @@ public final class DynamicWindManager {
             1.0F
     );
     private static final GustFrontState[] ACTIVE_GUSTS = new GustFrontState[MAX_ACTIVE_GUSTS];
+    private static final ThreadLocal<MutableGustContribution> GUST_SCRATCH =
+            ThreadLocal.withInitial(MutableGustContribution::new);
 
     @Nullable
     private static ClientLevel activeLevel;
@@ -75,8 +78,19 @@ public final class DynamicWindManager {
     }
 
     public static WindSample sampleWind(double x, double y, double z) {
+        return sampleWind(null, null, x, y, z);
+    }
+
+    private static WindSample sampleWind(
+            @Nullable BlockAndTintGetter level,
+            @Nullable BlockPos pos,
+            double x,
+            double y,
+            double z
+    ) {
         GlobalWindState current = currentState();
-        GustContribution gust = sampleGustContribution(x, z, simulationTime());
+        MutableGustContribution gust = GUST_SCRATCH.get();
+        sampleGustContribution(x, z, simulationTime(), gust);
         float directionX = current.directionX() * current.ambientStrength() + gust.directionX();
         float directionZ = current.directionZ() * current.ambientStrength() + gust.directionZ();
         float directionLength = Mth.sqrt(directionX * directionX + directionZ * directionZ);
@@ -88,20 +102,33 @@ public final class DynamicWindManager {
             directionZ = current.directionZ();
         }
 
+        float exposure = level != null && pos != null
+                ? WindExposureCache.exposureAt(level, pos, directionX, directionZ)
+                : 1.0F;
+        float altitude = level != null ? WindExposureCache.altitudeMultiplier(level, y) : 1.0F;
+        float localScale = exposure * altitude;
+
         return new WindSample(
                 directionX,
                 directionZ,
-                current.ambientStrength() + gust.strength(),
-                current.ambientStrength(),
-                gust.strength(),
-                current.turbulence() + gust.turbulence(),
-                1.0F,
+                (current.ambientStrength() + gust.strength()) * localScale,
+                current.ambientStrength() * localScale,
+                gust.strength() * localScale,
+                (current.turbulence() + gust.turbulence()) * exposure,
+                exposure,
                 current.weatherPower()
         );
     }
 
     public static WindSample sampleWind(BlockPos pos) {
-        return sampleWind(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
+        ClientLevel level = Minecraft.getInstance().level;
+        return level == null
+                ? sampleWind(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D)
+                : sampleWind(level, pos);
+    }
+
+    public static WindSample sampleWind(BlockAndTintGetter level, BlockPos pos) {
+        return sampleWind(level, pos, pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D);
     }
 
     /**
@@ -143,6 +170,7 @@ public final class DynamicWindManager {
     }
 
     public static void reloadConfiguration() {
+        WindExposureCache.clear();
         float maximumHoldTime = (float) ClientConfig.MAX_DIRECTION_HOLD_TIME.getAsDouble();
         directionChangeCountdown = Math.min(directionChangeCountdown, maximumHoldTime);
         if (!ClientConfig.ENABLE_WIND_LULLS.getAsBoolean()) {
@@ -207,7 +235,8 @@ public final class DynamicWindManager {
                 : 0.0F;
         double sampleX = Minecraft.getInstance().player == null ? 0.0D : Minecraft.getInstance().player.getX();
         double sampleZ = Minecraft.getInstance().player == null ? 0.0D : Minecraft.getInstance().player.getZ();
-        GustContribution localGust = sampleGustContribution(sampleX, sampleZ, simulationTimeSeconds);
+        MutableGustContribution localGust = GUST_SCRATCH.get();
+        sampleGustContribution(sampleX, sampleZ, simulationTimeSeconds, localGust);
         Direction baseDirection = directionFromDegrees(prevailingDirectionDegrees);
         Direction targetDirection = directionFromDegrees(targetDirectionDegrees);
         float transitionProgress = directionTransitionDuration <= 0.0F
@@ -259,6 +288,7 @@ public final class DynamicWindManager {
         lullDepth = 0.0F;
         gustSpawnCountdown = 0.0F;
         clearGusts();
+        WindExposureCache.clear();
 
         if (level == null) {
             state = STILL_STATE;
@@ -510,7 +540,7 @@ public final class DynamicWindManager {
         activeGustCount++;
     }
 
-    private static GustContribution sampleGustContribution(double x, double z, float time) {
+    private static void sampleGustContribution(double x, double z, float time, MutableGustContribution result) {
         float strength = 0.0F;
         float directionX = 0.0F;
         float directionZ = 0.0F;
@@ -539,7 +569,7 @@ public final class DynamicWindManager {
             turbulence += gust.turbulence() * Mth.clamp(localStrength / Math.max(gust.peakStrength(), 0.001F), 0.0F, 1.0F);
         }
 
-        return new GustContribution(strength, directionX, directionZ, turbulence);
+        result.set(strength, directionX, directionZ, turbulence);
     }
 
     private static int firstFreeGustSlot() {
@@ -631,6 +661,33 @@ public final class DynamicWindManager {
     private record Direction(float x, float z) {
     }
 
-    private record GustContribution(float strength, float directionX, float directionZ, float turbulence) {
+    private static final class MutableGustContribution {
+        private float strength;
+        private float directionX;
+        private float directionZ;
+        private float turbulence;
+
+        private void set(float strength, float directionX, float directionZ, float turbulence) {
+            this.strength = strength;
+            this.directionX = directionX;
+            this.directionZ = directionZ;
+            this.turbulence = turbulence;
+        }
+
+        private float strength() {
+            return strength;
+        }
+
+        private float directionX() {
+            return directionX;
+        }
+
+        private float directionZ() {
+            return directionZ;
+        }
+
+        private float turbulence() {
+            return turbulence;
+        }
     }
 }
