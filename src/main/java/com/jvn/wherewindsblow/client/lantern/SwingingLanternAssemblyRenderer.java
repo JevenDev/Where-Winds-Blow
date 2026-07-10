@@ -236,9 +236,8 @@ public final class SwingingLanternAssemblyRenderer {
         float phase = randomPhase(lanternPos);
         float t = windTime * speedScale;
 
-        float slowGust = smoothStep(Mth.sin(t * 0.42F + along * 0.07F + phase) * 0.5F + 0.5F);
         float flutter = Mth.sin(t * 1.17F + across * 0.11F + phase * 1.71F);
-        float windForce = 0.70F + slowGust * 0.38F + flutter * 0.09F;
+        float windForce = 0.82F + flutter * Mth.clamp(wind.turbulence(), 0.0F, 1.0F) * 0.16F;
         float directionNoise = Mth.sin(across * 0.12F + t * 0.31F + phase)
                 * (0.07F + wind.turbulence() * 0.12F);
         float baseX = windX + crossX * directionNoise;

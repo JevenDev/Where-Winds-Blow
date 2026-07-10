@@ -53,21 +53,13 @@ public final class HangingSignSway {
         float phase = randomPhase(pos);
         float time = windTime * 0.9F;
         float primary = Mth.sin(time + alongWind * 0.12F + phase);
-        float secondary = Mth.sin(time * 1.67F + phase * 1.83F) * 0.28F;
-        float gust = 0.72F + 0.28F * smoothStep(
-                Mth.sin(alongWind * 0.09F - time * 0.31F + phase * 0.47F) * 0.5F + 0.5F
-        );
-        float amplitude = (0.3F + wind.strength() * 2.3F)
+        float secondary = Mth.sin(time * 1.67F + phase * 1.83F)
+                * (0.10F + Mth.clamp(wind.turbulence(), 0.0F, 1.0F) * 0.42F);
+        float amplitude = (0.12F + wind.ambientStrength() * 1.8F + wind.gustStrength() * 3.0F)
                 * configuredStrength
                 * exposureScale
-                * windAlignment
-                * gust;
+                * windAlignment;
         return Mth.clamp((primary + secondary) * amplitude, -MAX_SWAY_DEGREES, MAX_SWAY_DEGREES);
-    }
-
-    private static float smoothStep(float value) {
-        float x = Mth.clamp(value, 0.0F, 1.0F);
-        return x * x * (3.0F - 2.0F * x);
     }
 
     private static float randomPhase(BlockPos pos) {

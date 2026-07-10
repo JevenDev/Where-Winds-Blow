@@ -1,10 +1,10 @@
 package com.jvn.wherewindsblow.mixin.client;
 
-import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokePlumes;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokePlumes.SpawnContext;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokeRenderTypes;
-import com.jvn.wherewindsblow.client.wind.WindDirection;
+import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
+import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -26,8 +26,6 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
 
     @Unique
     private double wherewindsblow$sourceY;
-    @Unique
-    private double wherewindsblow$windSeed;
     @Unique
     private double wherewindsblow$turbulenceSeedX;
     @Unique
@@ -77,7 +75,6 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
             CallbackInfo ci
     ) {
         this.wherewindsblow$sourceY = y;
-        this.wherewindsblow$windSeed = this.random.nextDouble() * wherewindsblow$TWO_PI;
         this.wherewindsblow$turbulenceSeedX = this.random.nextDouble() * wherewindsblow$TWO_PI;
         this.wherewindsblow$turbulenceSeedZ = this.random.nextDouble() * wherewindsblow$TWO_PI;
         this.wherewindsblow$turbulenceSeedPhase = this.random.nextDouble() * wherewindsblow$TWO_PI;
@@ -140,34 +137,38 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
 
         wherewindsblow$captureVisualState(false);
 
-        float windTime = ResponsiveFoliageShaders.windTime();
-        float weatherWindPower = ResponsiveFoliageShaders.weatherWindPower();
+        float windTime = DynamicWindManager.simulationTime();
+        WindSample wind = CampfireSmokePlumes.windSampleAt(
+                this.level,
+                this.wherewindsblow$plumeContext,
+                this.x,
+                this.y,
+                this.z
+        );
         double normalizedAge = Mth.clamp((double) this.age / (double) Math.max(this.lifetime, 1), 0.0D, 1.0D);
         double clusterRamp = wherewindsblow$clusterRamp();
         double ageRamp = wherewindsblow$smooth(Mth.clamp(normalizedAge * 1.35D, 0.0D, 1.0D));
         double plumeHeight = this.wherewindsblow$plumeContext != null && this.wherewindsblow$plumeContext.clustered() ? 8.0D : 5.5D;
         double heightRamp = wherewindsblow$smooth(Mth.clamp((this.y - this.wherewindsblow$sourceY) / plumeHeight, 0.0D, 1.0D));
         double windGrab = 0.22D + Math.max(ageRamp, heightRamp) * 0.78D;
-        double weatherBoost = Mth.clamp((double) weatherWindPower / 2.0D, 0.0D, 1.0D);
         double signalBoost = this.wherewindsblow$plumeContext != null && this.wherewindsblow$plumeContext.signalFire() ? 0.12D : 0.0D;
-        double targetSpeed = (0.006D + weatherBoost * 0.014D)
+        double targetSpeed = (0.001D + Mth.clamp((double) wind.strength(), 0.0D, 3.0D) * 0.009D)
                 * strength
                 * windGrab
                 * (1.0D + clusterRamp * 0.32D + signalBoost);
-        double gust = Math.sin(this.wherewindsblow$windSeed * 0.73D + windTime * 2.1D + (double) this.age * 0.027D)
-                * (0.15D + weatherBoost * 0.4D)
-                * targetSpeed;
-        double curl = Math.sin(this.wherewindsblow$windSeed + this.age * 0.055D + windTime * 0.7F)
-                * (0.18D + ageRamp * 0.28D + clusterRamp * 0.22D);
-        WindDirection.WindVector wind = WindDirection.current();
-        double targetX = wind.x() * (targetSpeed + gust) + wind.crossX() * curl * targetSpeed;
-        double targetZ = wind.z() * (targetSpeed + gust) + wind.crossZ() * curl * targetSpeed;
-        double response = 0.035D + weatherBoost * 0.025D + clusterRamp * 0.018D;
+        double curl = Math.sin(this.wherewindsblow$turbulenceSeedPhase + this.age * 0.055D + windTime * 0.7F)
+                * wind.turbulence()
+                * (0.4D + ageRamp * 0.42D + clusterRamp * 0.28D);
+        double targetX = wind.directionX() * targetSpeed + wind.crossX() * curl * targetSpeed;
+        double targetZ = wind.directionZ() * targetSpeed + wind.crossZ() * curl * targetSpeed;
+        double response = 0.035D
+                + Mth.clamp((double) wind.strength() / 2.0D, 0.0D, 1.0D) * 0.025D
+                + clusterRamp * 0.018D;
         this.xd += (targetX - this.xd) * response;
         this.zd += (targetZ - this.zd) * response;
 
         double turbulenceScale = this.wherewindsblow$plumeContext == null ? 1.0D : this.wherewindsblow$plumeContext.turbulenceMultiplier();
-        double turbulenceStrength = (0.00035D + weatherBoost * 0.0006D)
+        double turbulenceStrength = (0.00012D + wind.turbulence() * 0.0011D)
                 * strength
                 * (0.25D + ageRamp)
                 * turbulenceScale;

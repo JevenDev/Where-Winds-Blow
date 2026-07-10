@@ -1,5 +1,7 @@
 package com.jvn.wherewindsblow.client.smoke;
 
+import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
+import com.jvn.wherewindsblow.client.wind.WindSample;
 import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -7,6 +9,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
@@ -28,9 +31,19 @@ public final class CampfireSmokePlumes {
     private static final int BEEHIVE_SMOKE_DISTANCE = 5;
     private static final int PARTICLE_SOURCE_SEARCH_RADIUS = 4;
     private static final int PARTICLE_SOURCE_SEARCH_DEPTH = 5;
+    private static final int WIND_SAMPLE_HEIGHT = 2;
+    private static final int WIND_SAMPLE_INTERVAL_TICKS = 4;
+    private static final int MAX_WIND_SAMPLES = 512;
     private static final ThreadLocal<SpawnContext> ACTIVE_SPAWN_CONTEXT = new ThreadLocal<>();
     private static final Map<BlockPos, SmokeCluster> CLUSTER_CACHE = new HashMap<>();
+    private static final Map<Long, CachedWindSample> WIND_SAMPLE_CACHE = new LinkedHashMap<>(64, 0.75F, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Long, CachedWindSample> eldest) {
+            return size() > MAX_WIND_SAMPLES;
+        }
+    };
     private static WeakReference<Level> clusterCacheLevel = new WeakReference<>(null);
+    private static WeakReference<Level> windSampleCacheLevel = new WeakReference<>(null);
     private static long clusterCacheGameTime = Long.MIN_VALUE;
 
     private CampfireSmokePlumes() {
@@ -114,6 +127,44 @@ public final class CampfireSmokePlumes {
 
     public static SpawnContext activeSpawnContext() {
         return ACTIVE_SPAWN_CONTEXT.get();
+    }
+
+    public static WindSample windSampleAt(
+            Level level,
+            SpawnContext context,
+            double x,
+            double y,
+            double z
+    ) {
+        if (windSampleCacheLevel.get() != level) {
+            WIND_SAMPLE_CACHE.clear();
+            windSampleCacheLevel = new WeakReference<>(level);
+        }
+
+        double sourceY = context == null ? y : context.sourceY();
+        double sampleX = context == null ? x : context.centerX();
+        double sampleZ = context == null ? z : context.centerZ();
+        int heightBand = Mth.clamp((int) Math.floor((y - sourceY) / WIND_SAMPLE_HEIGHT), 0, 12);
+        int cellX = Math.floorDiv(Mth.floor(sampleX), 2);
+        int cellY = Math.floorDiv(Mth.floor(sourceY + heightBand * WIND_SAMPLE_HEIGHT + 1.0D), 2);
+        int cellZ = Math.floorDiv(Mth.floor(sampleZ), 2);
+        long key = BlockPos.asLong(cellX, cellY, cellZ);
+        long gameTime = level.getGameTime();
+        CachedWindSample cached = WIND_SAMPLE_CACHE.get(key);
+        if (cached != null
+                && gameTime >= cached.gameTime()
+                && gameTime - cached.gameTime() < WIND_SAMPLE_INTERVAL_TICKS) {
+            return cached.sample();
+        }
+
+        BlockPos samplePos = BlockPos.containing(
+                sampleX,
+                sourceY + heightBand * WIND_SAMPLE_HEIGHT + 1.0D,
+                sampleZ
+        );
+        WindSample sample = DynamicWindManager.sampleWind(level, samplePos);
+        WIND_SAMPLE_CACHE.put(key, new CachedWindSample(gameTime, sample));
+        return sample;
     }
 
     public static void spawnMergedSmoke(Level level, SmokeCluster cluster) {
@@ -361,5 +412,8 @@ public final class CampfireSmokePlumes {
         public int adjacentCampfires() {
             return Math.max(0, this.clusterSize - 1);
         }
+    }
+
+    private record CachedWindSample(long gameTime, WindSample sample) {
     }
 }
