@@ -18,6 +18,7 @@ public record GlobalWindState(
         float ambientStrength,
         float gustStrength,
         float turbulence,
+        float ambientTurbulence,
         float directionInstability,
         float weatherPower,
         float rainLevel,

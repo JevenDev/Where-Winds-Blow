@@ -16,7 +16,21 @@ uniform mat4 ProjMat;
 uniform vec3 ChunkOffset;
 uniform int FogShape;
 uniform float WindTime;
-uniform float WeatherWindPower;
+uniform float AmbientWindStrength;
+uniform float WindTurbulence;
+uniform int ActiveGustCount;
+uniform vec4 GustOriginTime0;
+uniform vec4 GustDirectionSpeed0;
+uniform vec4 GustStrength0;
+uniform vec4 GustEnvelope0;
+uniform vec4 GustOriginTime1;
+uniform vec4 GustDirectionSpeed1;
+uniform vec4 GustStrength1;
+uniform vec4 GustEnvelope1;
+uniform vec4 GustOriginTime2;
+uniform vec4 GustDirectionSpeed2;
+uniform vec4 GustStrength2;
+uniform vec4 GustEnvelope2;
 uniform float PlantWindSwayStrength;
 uniform float LeafWindSwayStrength;
 uniform float LanternWindSwayStrength;
@@ -113,6 +127,92 @@ float smoothCurve(float value) {
     return value * value * (3.0 - 2.0 * value);
 }
 
+vec4 gustOriginTimeAt(int index) {
+    if (index == 0) return GustOriginTime0;
+    if (index == 1) return GustOriginTime1;
+    return GustOriginTime2;
+}
+
+vec4 gustDirectionSpeedAt(int index) {
+    if (index == 0) return GustDirectionSpeed0;
+    if (index == 1) return GustDirectionSpeed1;
+    return GustDirectionSpeed2;
+}
+
+vec4 gustStrengthAt(int index) {
+    if (index == 0) return GustStrength0;
+    if (index == 1) return GustStrength1;
+    return GustStrength2;
+}
+
+vec4 gustEnvelopeAt(int index) {
+    if (index == 0) return GustEnvelope0;
+    if (index == 1) return GustEnvelope1;
+    return GustEnvelope2;
+}
+
+float gustEnvelope(float progress, float attackEnd, float releaseStart) {
+    if (progress < attackEnd) {
+        return smoothCurve(progress / max(attackEnd, 0.001));
+    }
+    if (progress <= releaseStart) {
+        return 1.0;
+    }
+    return smoothCurve(1.0 - (progress - releaseStart) / max(1.0 - releaseStart, 0.001));
+}
+
+vec2 sampleDynamicWind(vec2 worldPosition, out float gustStrength, out float turbulence, out float leadingEdge) {
+    vec2 ambientDirection = normalize(WindDirection);
+    vec2 directionVector = ambientDirection * max(AmbientWindStrength, 0.02);
+    gustStrength = 0.0;
+    turbulence = WindTurbulence;
+    leadingEdge = 0.0;
+
+    for (int index = 0; index < 3; index++) {
+        if (index >= ActiveGustCount) {
+            break;
+        }
+
+        vec4 originTime = gustOriginTimeAt(index);
+        vec4 directionSpeed = gustDirectionSpeedAt(index);
+        vec4 strengthData = gustStrengthAt(index);
+        vec4 envelopeData = gustEnvelopeAt(index);
+        float age = WindTime - originTime.z;
+        if (age < 0.0 || age >= originTime.w) {
+            continue;
+        }
+
+        vec2 gustDirection = normalize(directionSpeed.xy);
+        vec2 gustCross = vec2(-gustDirection.y, gustDirection.x);
+        vec2 relative = worldPosition - originTime.xy;
+        float along = dot(relative, gustDirection);
+        float across = dot(relative, gustCross);
+        float phase = strengthData.z;
+        float width = max(directionSpeed.w, 0.001);
+        float edgeNoise = sin(across * 0.055 + phase) * width * 0.17
+                + sin(across * 0.137 - phase * 1.61) * width * 0.07;
+        float normalizedDistance = (along - directionSpeed.z * age - edgeNoise) / width;
+        float spatialEnvelope = exp(-normalizedDistance * normalizedDistance * 1.65);
+        float timeEnvelope = gustEnvelope(age / originTime.w, envelopeData.x, envelopeData.y);
+        float pocket = clamp(
+                0.84
+                    + sin(across * 0.083 + age * 0.21 + phase) * 0.10
+                    + sin(across * 0.031 - age * 0.13 + phase * 2.07) * 0.06,
+                0.62,
+                1.12
+        );
+        float localStrength = strengthData.x * timeEnvelope * spatialEnvelope * pocket;
+        float crossVariation = sin(across * 0.069 + age * 0.18 + phase) * strengthData.w;
+        vec2 localDirection = normalize(gustDirection + gustCross * crossVariation);
+        directionVector += localDirection * localStrength;
+        gustStrength += localStrength;
+        turbulence += strengthData.y * timeEnvelope * spatialEnvelope;
+        leadingEdge += localStrength * smoothstep(-0.22, 0.72, normalizedDistance);
+    }
+
+    return length(directionVector) > 0.001 ? normalize(directionVector) : ambientDirection;
+}
+
 vec4 foliageInteractorAt(int index) {
     if (index == 0) return FoliageInteractor0;
     if (index == 1) return FoliageInteractor1;
@@ -199,23 +299,25 @@ vec3 applyLanternWind(vec3 pos, float alpha) {
     float t = WindTime;
     vec3 windPos = pos + CameraPosition;
     vec2 windAnchor = floor(windPos.xz) + vec2(0.5);
-    vec2 windDir = normalize(WindDirection);
+    float gustStrength;
+    float turbulence;
+    float leadingEdge;
+    vec2 windDir = sampleDynamicWind(windAnchor, gustStrength, turbulence, leadingEdge);
     vec2 crossDir = vec2(-windDir.y, windDir.x);
     float along = dot(windAnchor, windDir);
     float across = dot(windAnchor, crossDir);
     float seed = grassVariationSeed(floor(windAnchor), vec2(91.7, 53.3));
     float phase = seed * 6.2831853;
-    float lanternWeatherPower = markerStrength <= 0.15 ? 0.0 : WeatherWindPower;
-    float slowGust = smoothCurve(sin(t * 0.42 + along * 0.07 + phase) * 0.5 + 0.5);
     float flutter = sin(t * 1.17 + across * 0.11 + phase * 1.71);
-    float windForce = 0.70 + slowGust * 0.38 + flutter * 0.09;
-    float directionNoise = sin(across * 0.12 + t * 0.31 + phase) * (0.07 + lanternWeatherPower * 0.018);
+    float windPower = AmbientWindStrength + gustStrength;
+    float windForce = 0.48 + clamp(windPower, 0.0, 3.0) * 0.34 + flutter * turbulence * 0.12;
+    float directionNoise = sin(across * 0.12 + t * 0.31 + phase) * (0.025 + turbulence * 0.15);
     vec2 baseDir = normalize(windDir + crossDir * directionNoise);
-    float crossDrift = sin(t * 0.73 + across * 0.09 + phase * 1.37) * (0.05 + lanternWeatherPower * 0.02);
+    float crossDrift = sin(t * 0.73 + across * 0.09 + phase * 1.37) * (0.025 + turbulence * 0.12);
     vec2 swingDir = normalize(baseDir + crossDir * crossDrift);
     vec3 axis = normalize(vec3(-swingDir.y, 0.0, swingDir.x));
-    float chainAngle = clamp((0.0125 + lanternWeatherPower * 0.039) * LanternWindSwayStrength * windForce, 0.0, 0.22);
-    float bodyAngle = clamp((0.015 + lanternWeatherPower * 0.044) * LanternWindSwayStrength * windForce, 0.0, 0.25);
+    float chainAngle = clamp((0.006 + windPower * 0.046) * LanternWindSwayStrength * windForce, 0.0, 0.22);
+    float bodyAngle = clamp((0.008 + windPower * 0.052) * LanternWindSwayStrength * windForce, 0.0, 0.25);
     vec3 chainEndOffset = rotateAroundAxis(vec3(0.0, -1.0, 0.0), axis, chainAngle) - vec3(0.0, -1.0, 0.0);
 
     float localY = fract(windPos.y);
@@ -231,7 +333,10 @@ vec3 applyLanternWind(vec3 pos, float alpha) {
     vec3 local = vec3(windPos.x - windAnchor.x, localY - 1.0, windPos.z - windAnchor.y);
     vec3 rotated = rotateAroundAxis(local, axis, bodyAngle * markerStrength);
 
-    float yaw = sin(t * 0.49 + phase * 2.3 + across * 0.05) * (0.003 + lanternWeatherPower * 0.0056) * LanternWindSwayStrength * markerStrength;
+    float yaw = sin(t * 0.49 + phase * 2.3 + across * 0.05)
+            * (0.002 + turbulence * 0.012)
+            * LanternWindSwayStrength
+            * markerStrength;
     float yawCos = cos(yaw);
     float yawSin = sin(yaw);
     rotated.xz = vec2(
@@ -262,10 +367,12 @@ void main() {
             float windBend = smoothCurve(decodeWindAlpha(Color.a));
             float swayStrength = windSwayStrengthForAlpha(Color.a);
             float sheenStrength = windSheenStrengthForAlpha(Color.a);
-            float weatherStrength = 1.0 + WeatherWindPower * 0.55;
             float t = WindTime;
             vec3 windPos = pos + CameraPosition;
-            vec2 windDir = normalize(WindDirection);
+            float localGustStrength;
+            float localTurbulence;
+            float gustLeadingEdge;
+            vec2 windDir = sampleDynamicWind(windPos.xz, localGustStrength, localTurbulence, gustLeadingEdge);
             vec2 crossDir = vec2(-windDir.y, windDir.x);
             float along = dot(windPos.xz, windDir);
             float across = dot(windPos.xz, crossDir);
@@ -285,7 +392,7 @@ void main() {
             float broad = sin(along * 0.35 - t * 1.28 * tempoDrift + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + localPhase);
             float wave = pow(max(0.0, broad), 1.7);
             float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
-            float gust = smoothCurve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
+            float microPulse = smoothCurve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
             float fieldWarp = sin(along * 0.075 + across * 0.115 + t * 0.21) * 0.75
                     + sin(along * 0.16 - across * 0.085 - t * 0.13) * 0.36;
             float wavePhase = along * 0.34 - t * 1.52 * tempoDrift + sin(across * 0.055 + t * 0.22) * 1.1 + fieldWarp + phaseDrift * 0.55;
@@ -296,10 +403,29 @@ void main() {
             float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47 + phaseDrift * 0.5);
             float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
             float tipLift = smoothCurve(windBend);
-            windSheen = clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * sheenStrength, 0.0, 0.35);
-            float shimmer = sin(windPos.x * 2.17 + windPos.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
-            float strength = (0.018 + wave * 0.145 * amplitudeDrift + ripple * gust * 0.055 + shimmer) * windBend * weatherStrength * swayStrength;
-            float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase) * (0.18 + plantWind * 0.08);
+            float ambientSheen = sheenBand * (0.025 + AmbientWindStrength * 0.035);
+            windSheen = clamp(
+                    (ambientSheen + gustLeadingEdge * 0.38 + ripple * microPulse * localTurbulence * 0.018)
+                            * tipLift
+                            * sheenStrength,
+                    0.0,
+                    0.35
+            );
+            float leafWind = 1.0 - plantWind;
+            float shimmer = sin(windPos.x * 2.17 + windPos.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8)
+                    * localTurbulence
+                    * mix(0.006, 0.018, leafWind);
+            float windResponse = 0.16 + clamp(AmbientWindStrength + localGustStrength, 0.0, 3.0) * 0.72;
+            float ambientMotion = (0.012 + wave * 0.105 * amplitudeDrift + ripple * microPulse * 0.028)
+                    * windResponse;
+            float gustMotion = localGustStrength * mix(0.105, 0.065, leafWind);
+            float strength = clamp(
+                    (ambientMotion + gustMotion + shimmer) * windBend * swayStrength,
+                    -0.08,
+                    0.42
+            );
+            float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase)
+                    * (0.035 + localTurbulence * 0.24 + plantWind * 0.035);
             vec2 dir = normalize(windDir + crossDir * directionNoise);
             pos.xz += dir * strength;
         }

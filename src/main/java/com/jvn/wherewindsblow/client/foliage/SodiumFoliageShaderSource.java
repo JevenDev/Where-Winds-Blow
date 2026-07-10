@@ -18,7 +18,21 @@ public final class SodiumFoliageShaderSource {
     private static final String WIND_UNIFORMS = """
 
             uniform float u_WwbTime;
-            uniform float u_WwbWeatherWindPower;
+            uniform float u_WwbAmbientWindStrength;
+            uniform float u_WwbWindTurbulence;
+            uniform int u_WwbActiveGustCount;
+            uniform vec4 u_WwbGustOriginTime0;
+            uniform vec4 u_WwbGustDirectionSpeed0;
+            uniform vec4 u_WwbGustStrength0;
+            uniform vec4 u_WwbGustEnvelope0;
+            uniform vec4 u_WwbGustOriginTime1;
+            uniform vec4 u_WwbGustDirectionSpeed1;
+            uniform vec4 u_WwbGustStrength1;
+            uniform vec4 u_WwbGustEnvelope1;
+            uniform vec4 u_WwbGustOriginTime2;
+            uniform vec4 u_WwbGustDirectionSpeed2;
+            uniform vec4 u_WwbGustStrength2;
+            uniform vec4 u_WwbGustEnvelope2;
             uniform float u_WwbPlantSwayStrength;
             uniform float u_WwbLeafSwayStrength;
             uniform float u_WwbLanternSwayStrength;
@@ -104,6 +118,92 @@ public final class SodiumFoliageShaderSource {
                 return value * value * (3.0 - 2.0 * value);
             }
 
+            vec4 wwb_gust_origin_time_at(int index) {
+                if (index == 0) return u_WwbGustOriginTime0;
+                if (index == 1) return u_WwbGustOriginTime1;
+                return u_WwbGustOriginTime2;
+            }
+
+            vec4 wwb_gust_direction_speed_at(int index) {
+                if (index == 0) return u_WwbGustDirectionSpeed0;
+                if (index == 1) return u_WwbGustDirectionSpeed1;
+                return u_WwbGustDirectionSpeed2;
+            }
+
+            vec4 wwb_gust_strength_at(int index) {
+                if (index == 0) return u_WwbGustStrength0;
+                if (index == 1) return u_WwbGustStrength1;
+                return u_WwbGustStrength2;
+            }
+
+            vec4 wwb_gust_envelope_at(int index) {
+                if (index == 0) return u_WwbGustEnvelope0;
+                if (index == 1) return u_WwbGustEnvelope1;
+                return u_WwbGustEnvelope2;
+            }
+
+            float wwb_gust_envelope(float progress, float attackEnd, float releaseStart) {
+                if (progress < attackEnd) {
+                    return wwb_smooth_curve(progress / max(attackEnd, 0.001));
+                }
+                if (progress <= releaseStart) {
+                    return 1.0;
+                }
+                return wwb_smooth_curve(1.0 - (progress - releaseStart) / max(1.0 - releaseStart, 0.001));
+            }
+
+            vec2 wwb_sample_dynamic_wind(vec2 worldPosition, out float gustStrength, out float turbulence, out float leadingEdge) {
+                vec2 ambientDirection = normalize(u_WwbWindDirection);
+                vec2 directionVector = ambientDirection * max(u_WwbAmbientWindStrength, 0.02);
+                gustStrength = 0.0;
+                turbulence = u_WwbWindTurbulence;
+                leadingEdge = 0.0;
+
+                for (int index = 0; index < 3; index++) {
+                    if (index >= u_WwbActiveGustCount) {
+                        break;
+                    }
+
+                    vec4 originTime = wwb_gust_origin_time_at(index);
+                    vec4 directionSpeed = wwb_gust_direction_speed_at(index);
+                    vec4 strengthData = wwb_gust_strength_at(index);
+                    vec4 envelopeData = wwb_gust_envelope_at(index);
+                    float age = u_WwbTime - originTime.z;
+                    if (age < 0.0 || age >= originTime.w) {
+                        continue;
+                    }
+
+                    vec2 gustDirection = normalize(directionSpeed.xy);
+                    vec2 gustCross = vec2(-gustDirection.y, gustDirection.x);
+                    vec2 relative = worldPosition - originTime.xy;
+                    float along = dot(relative, gustDirection);
+                    float across = dot(relative, gustCross);
+                    float phase = strengthData.z;
+                    float width = max(directionSpeed.w, 0.001);
+                    float edgeNoise = sin(across * 0.055 + phase) * width * 0.17
+                            + sin(across * 0.137 - phase * 1.61) * width * 0.07;
+                    float normalizedDistance = (along - directionSpeed.z * age - edgeNoise) / width;
+                    float spatialEnvelope = exp(-normalizedDistance * normalizedDistance * 1.65);
+                    float timeEnvelope = wwb_gust_envelope(age / originTime.w, envelopeData.x, envelopeData.y);
+                    float pocket = clamp(
+                            0.84
+                                + sin(across * 0.083 + age * 0.21 + phase) * 0.10
+                                + sin(across * 0.031 - age * 0.13 + phase * 2.07) * 0.06,
+                            0.62,
+                            1.12
+                    );
+                    float localStrength = strengthData.x * timeEnvelope * spatialEnvelope * pocket;
+                    float crossVariation = sin(across * 0.069 + age * 0.18 + phase) * strengthData.w;
+                    vec2 localDirection = normalize(gustDirection + gustCross * crossVariation);
+                    directionVector += localDirection * localStrength;
+                    gustStrength += localStrength;
+                    turbulence += strengthData.y * timeEnvelope * spatialEnvelope;
+                    leadingEdge += localStrength * smoothstep(-0.22, 0.72, normalizedDistance);
+                }
+
+                return length(directionVector) > 0.001 ? normalize(directionVector) : ambientDirection;
+            }
+
             float wwb_decode_wind_alpha(float alpha) {
                 float encoded = alpha * 255.0;
                 if (wwb_is_leaf_wind_vertex(alpha)) {
@@ -129,7 +229,14 @@ public final class SodiumFoliageShaderSource {
                 return wwb_is_leaf_wind_vertex(alpha) ? u_WwbLeafSheenStrength : u_WwbPlantSheenStrength;
             }
 
-            float wwb_foliage_wind_sheen(vec3 position, float alpha) {
+            float wwb_foliage_wind_sheen(
+                    vec3 position,
+                    float alpha,
+                    vec2 windDir,
+                    float localGustStrength,
+                    float localTurbulence,
+                    float gustLeadingEdge
+            ) {
                 if (!wwb_should_apply_foliage_wind(alpha)) {
                     return 0.0;
                 }
@@ -137,7 +244,6 @@ public final class SodiumFoliageShaderSource {
                 float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
                 float t = u_WwbTime;
                 vec3 windPosition = position + u_WwbCameraPosition;
-                vec2 windDir = normalize(u_WwbWindDirection);
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
                 float along = dot(windPosition.xz, windDir);
                 float across = dot(windPosition.xz, crossDir);
@@ -145,7 +251,7 @@ public final class SodiumFoliageShaderSource {
                         + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
                 float tempoDrift = 1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09) * 0.08;
                 float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7) * 0.5 + 0.5;
-                float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35) * 0.5 + 0.5);
+                float microPulse = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35) * 0.5 + 0.5);
                 float fieldWarp = sin(along * 0.075 + across * 0.115 + t * 0.21) * 0.75
                         + sin(along * 0.16 - across * 0.085 - t * 0.13) * 0.36;
                 float wavePhase = along * 0.34 - t * 1.52 * tempoDrift + sin(across * 0.055 + t * 0.22) * 1.1 + fieldWarp + phaseDrift * 0.55;
@@ -156,7 +262,14 @@ public final class SodiumFoliageShaderSource {
                 float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47 + phaseDrift * 0.5);
                 float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
                 float tipLift = wwb_smooth_curve(bend);
-                return clamp((sheenBand * 0.30 + ripple * gust * 0.035) * tipLift * wwb_sheen_strength_for_alpha(alpha), 0.0, 0.35);
+                float ambientSheen = sheenBand * (0.025 + u_WwbAmbientWindStrength * 0.035);
+                return clamp(
+                        (ambientSheen + gustLeadingEdge * 0.38 + ripple * microPulse * localTurbulence * 0.018)
+                                * tipLift
+                                * wwb_sheen_strength_for_alpha(alpha),
+                        0.0,
+                        0.35
+                );
             }
 
             vec4 wwb_foliage_interactor_at(int index) {
@@ -246,16 +359,20 @@ public final class SodiumFoliageShaderSource {
                 return value * c + cross(axis, value) * s + axis * dot(axis, value) * (1.0 - c);
             }
 
-            vec3 wwb_apply_foliage_wind(vec3 position, float alpha) {
+            vec3 wwb_apply_foliage_wind(
+                    vec3 position,
+                    float alpha,
+                    vec2 windDir,
+                    float localGustStrength,
+                    float localTurbulence
+            ) {
                 if (!wwb_should_apply_foliage_wind(alpha)) {
                     return position;
                 }
 
                 float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
-                float weatherStrength = 1.0 + u_WwbWeatherWindPower * 0.55;
                 float t = u_WwbTime;
                 vec3 windPosition = position + u_WwbCameraPosition;
-                vec2 windDir = normalize(u_WwbWindDirection);
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
                 float along = dot(windPosition.xz, windDir);
                 float across = dot(windPosition.xz, crossDir);
@@ -275,10 +392,22 @@ public final class SodiumFoliageShaderSource {
                 float broad = sin(along * 0.35 - t * 1.28 * tempoDrift + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + localPhase);
                 float wave = pow(max(0.0, broad), 1.7);
                 float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
-                float gust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
-                float shimmer = sin(windPosition.x * 2.17 + windPosition.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
-                float strength = (0.018 + wave * 0.145 * amplitudeDrift + ripple * gust * 0.055 + shimmer) * bend * weatherStrength * wwb_sway_strength_for_alpha(alpha);
-                float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase) * (0.18 + plantWind * 0.08);
+                float microPulse = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
+                float leafWind = 1.0 - plantWind;
+                float shimmer = sin(windPosition.x * 2.17 + windPosition.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8)
+                        * localTurbulence
+                        * mix(0.006, 0.018, leafWind);
+                float windResponse = 0.16 + clamp(u_WwbAmbientWindStrength + localGustStrength, 0.0, 3.0) * 0.72;
+                float ambientMotion = (0.012 + wave * 0.105 * amplitudeDrift + ripple * microPulse * 0.028)
+                        * windResponse;
+                float gustMotion = localGustStrength * mix(0.105, 0.065, leafWind);
+                float strength = clamp(
+                        (ambientMotion + gustMotion + shimmer) * bend * wwb_sway_strength_for_alpha(alpha),
+                        -0.08,
+                        0.42
+                );
+                float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase)
+                        * (0.035 + localTurbulence * 0.24 + plantWind * 0.035);
                 vec2 dir = normalize(windDir + crossDir * directionNoise);
                 position.xz += dir * strength;
                 return position;
@@ -296,23 +425,25 @@ public final class SodiumFoliageShaderSource {
                 float t = u_WwbTime;
                 vec3 windPosition = position + u_WwbCameraPosition;
                 vec2 windAnchor = floor(windPosition.xz) + vec2(0.5);
-                vec2 windDir = normalize(u_WwbWindDirection);
+                float gustStrength;
+                float turbulence;
+                float leadingEdge;
+                vec2 windDir = wwb_sample_dynamic_wind(windAnchor, gustStrength, turbulence, leadingEdge);
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
                 float along = dot(windAnchor, windDir);
                 float across = dot(windAnchor, crossDir);
                 float seed = wwb_grass_variation_seed(floor(windAnchor), vec2(91.7, 53.3));
                 float phase = seed * 6.2831853;
-                float lanternWeatherPower = markerStrength <= 0.15 ? 0.0 : u_WwbWeatherWindPower;
-                float slowGust = wwb_smooth_curve(sin(t * 0.42 + along * 0.07 + phase) * 0.5 + 0.5);
                 float flutter = sin(t * 1.17 + across * 0.11 + phase * 1.71);
-                float windForce = 0.70 + slowGust * 0.38 + flutter * 0.09;
-                float directionNoise = sin(across * 0.12 + t * 0.31 + phase) * (0.07 + lanternWeatherPower * 0.018);
+                float windPower = u_WwbAmbientWindStrength + gustStrength;
+                float windForce = 0.48 + clamp(windPower, 0.0, 3.0) * 0.34 + flutter * turbulence * 0.12;
+                float directionNoise = sin(across * 0.12 + t * 0.31 + phase) * (0.025 + turbulence * 0.15);
                 vec2 baseDir = normalize(windDir + crossDir * directionNoise);
-                float crossDrift = sin(t * 0.73 + across * 0.09 + phase * 1.37) * (0.05 + lanternWeatherPower * 0.02);
+                float crossDrift = sin(t * 0.73 + across * 0.09 + phase * 1.37) * (0.025 + turbulence * 0.12);
                 vec2 swingDir = normalize(baseDir + crossDir * crossDrift);
                 vec3 axis = normalize(vec3(-swingDir.y, 0.0, swingDir.x));
-                float chainAngle = clamp((0.0125 + lanternWeatherPower * 0.039) * u_WwbLanternSwayStrength * windForce, 0.0, 0.22);
-                float bodyAngle = clamp((0.015 + lanternWeatherPower * 0.044) * u_WwbLanternSwayStrength * windForce, 0.0, 0.25);
+                float chainAngle = clamp((0.006 + windPower * 0.046) * u_WwbLanternSwayStrength * windForce, 0.0, 0.22);
+                float bodyAngle = clamp((0.008 + windPower * 0.052) * u_WwbLanternSwayStrength * windForce, 0.0, 0.25);
                 vec3 chainEndOffset = wwb_rotate_around_axis(vec3(0.0, -1.0, 0.0), axis, chainAngle) - vec3(0.0, -1.0, 0.0);
 
                 float localY = fract(windPosition.y);
@@ -328,7 +459,10 @@ public final class SodiumFoliageShaderSource {
                 vec3 local = vec3(windPosition.x - windAnchor.x, localY - 1.0, windPosition.z - windAnchor.y);
                 vec3 rotated = wwb_rotate_around_axis(local, axis, bodyAngle * markerStrength);
 
-                float yaw = sin(t * 0.49 + phase * 2.3 + across * 0.05) * (0.003 + lanternWeatherPower * 0.0056) * u_WwbLanternSwayStrength * markerStrength;
+                float yaw = sin(t * 0.49 + phase * 2.3 + across * 0.05)
+                        * (0.002 + turbulence * 0.012)
+                        * u_WwbLanternSwayStrength
+                        * markerStrength;
                 float yawCos = cos(yaw);
                 float yawSin = sin(yaw);
                 rotated.xz = vec2(
@@ -345,10 +479,35 @@ public final class SodiumFoliageShaderSource {
 
     private static final String WIND_POSITION_INJECTION = """
                 float wwbFoliageAlpha = _vert_color.a;
-                float wwbWindSheen = wwb_foliage_wind_sheen(position, wwbFoliageAlpha);
+                float wwbLocalGustStrength = 0.0;
+                float wwbLocalTurbulence = u_WwbWindTurbulence;
+                float wwbGustLeadingEdge = 0.0;
+                vec2 wwbLocalWindDirection = normalize(u_WwbWindDirection);
+                if (wwb_should_apply_foliage_wind(wwbFoliageAlpha)) {
+                    wwbLocalWindDirection = wwb_sample_dynamic_wind(
+                            position.xz + u_WwbCameraPosition.xz,
+                            wwbLocalGustStrength,
+                            wwbLocalTurbulence,
+                            wwbGustLeadingEdge
+                    );
+                }
+                float wwbWindSheen = wwb_foliage_wind_sheen(
+                        position,
+                        wwbFoliageAlpha,
+                        wwbLocalWindDirection,
+                        wwbLocalGustStrength,
+                        wwbLocalTurbulence,
+                        wwbGustLeadingEdge
+                );
                 vec2 wwbPlantAnchor = floor(_vert_position.xz) + vec2(0.5) + (position.xz - _vert_position.xz);
                 vec3 wwbFoliageBase = position;
-                position = wwb_apply_foliage_wind(position, wwbFoliageAlpha);
+                position = wwb_apply_foliage_wind(
+                        position,
+                        wwbFoliageAlpha,
+                        wwbLocalWindDirection,
+                        wwbLocalGustStrength,
+                        wwbLocalTurbulence
+                );
                 position = wwb_apply_lantern_wind(position, wwbFoliageAlpha);
                 position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbPlantAnchor, wwbFoliageAlpha);""";
 

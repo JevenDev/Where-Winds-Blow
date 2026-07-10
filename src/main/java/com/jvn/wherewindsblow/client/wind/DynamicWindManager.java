@@ -29,7 +29,7 @@ public final class DynamicWindManager {
             0.0F, -1.0F,
             0.0F, -1.0F,
             0.0F, 0.0F, 0.0F,
-            0.0F, 0.0F, 0.0F,
+            0.0F, 0.0F, 0.0F, 0.0F,
             0.0F, 0.0F, 0.0F,
             0.0F,
             1.0F,
@@ -170,6 +170,11 @@ public final class DynamicWindManager {
         return simulationSeed;
     }
 
+    public static BiomeWindProfile activeBiomeProfile() {
+        currentState();
+        return activeProfile;
+    }
+
     public static int activeGustCount() {
         currentState();
         return activeGustCount;
@@ -178,7 +183,20 @@ public final class DynamicWindManager {
     @Nullable
     public static GustFrontState gustFront(int index) {
         currentState();
-        return index >= 0 && index < ACTIVE_GUSTS.length ? ACTIVE_GUSTS[index] : null;
+        if (index < 0 || index >= activeGustCount) {
+            return null;
+        }
+        int activeIndex = 0;
+        for (GustFrontState gust : ACTIVE_GUSTS) {
+            if (gust == null) {
+                continue;
+            }
+            if (activeIndex == index) {
+                return gust;
+            }
+            activeIndex++;
+        }
+        return null;
     }
 
     public static void reset() {
@@ -292,6 +310,7 @@ public final class DynamicWindManager {
         float profiledGust = localGust.strength() * activeProfile.gustStrengthMultiplier();
         float profiledTurbulence = (ambientTurbulence + localGust.turbulence())
                 * activeProfile.turbulenceMultiplier();
+        float profiledAmbientTurbulence = ambientTurbulence * activeProfile.turbulenceMultiplier();
         Direction baseDirection = directionFromDegrees(prevailingDirectionDegrees);
         Direction targetDirection = directionFromDegrees(targetDirectionDegrees);
         float transitionProgress = directionTransitionDuration <= 0.0F
@@ -302,7 +321,7 @@ public final class DynamicWindManager {
                 direction.x(), direction.z(),
                 targetDirection.x(), targetDirection.z(),
                 profiledAmbient + profiledGust, profiledAmbientTarget, profiledAmbient,
-                profiledGust, profiledTurbulence, instability,
+                profiledGust, profiledTurbulence, profiledAmbientTurbulence, instability,
                 weatherPower, rainLevel, thunderLevel,
                 lullAmount,
                 transitionProgress,
@@ -378,7 +397,7 @@ public final class DynamicWindManager {
                 direction.x(), direction.z(),
                 direction.x(), direction.z(),
                 profiledAmbient, profiledAmbient, profiledAmbient,
-                0.0F, 0.0F, 0.0F,
+                0.0F, 0.0F, 0.0F, 0.0F,
                 weatherPower, level.getRainLevel(1.0F), level.getThunderLevel(1.0F),
                 0.0F,
                 1.0F,

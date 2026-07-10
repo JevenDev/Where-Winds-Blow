@@ -3,8 +3,9 @@ package com.jvn.wherewindsblow.client.foliage;
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.GlobalWindState;
-import com.jvn.wherewindsblow.client.wind.WindDirection;
+import com.jvn.wherewindsblow.client.wind.GustFrontState;
 import com.jvn.wherewindsblow.config.ClientConfig;
+import com.jvn.wherewindsblow.wind.BiomeWindProfile;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -155,18 +156,59 @@ public final class ResponsiveFoliageShaders {
         ResponsiveFoliagePhysics.updateShaderInteractors();
         GlobalWindState windState = DynamicWindManager.currentState();
         shader.safeGetUniform("WindTime").set(DynamicWindManager.simulationTime());
-        shader.safeGetUniform("WeatherWindPower").set(windState.weatherPower());
+        shader.safeGetUniform("AmbientWindStrength").set(windState.ambientStrength());
+        shader.safeGetUniform("WindTurbulence").set(windState.ambientTurbulence());
         shader.safeGetUniform("PlantWindSwayStrength").set(plantWindSwayStrength());
         shader.safeGetUniform("LeafWindSwayStrength").set(leafWindSwayStrength());
         shader.safeGetUniform("LanternWindSwayStrength").set(lanternWindSwayStrength());
         shader.safeGetUniform("PlantWindSheenStrength").set(plantWindSheenStrength());
         shader.safeGetUniform("LeafWindSheenStrength").set(leafWindSheenStrength());
-        WindDirection.WindVector wind = WindDirection.current();
-        shader.safeGetUniform("WindDirection").set(wind.xFloat(), wind.zFloat());
+        shader.safeGetUniform("WindDirection").set(windState.directionX(), windState.directionZ());
+        uploadGustUniforms(shader);
         Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         shader.safeGetUniform("CameraPosition").set((float) cameraPosition.x, (float) cameraPosition.y, (float) cameraPosition.z);
         shader.safeGetUniform("FoliageInteractorCount").set(foliageInteractorCount);
         uploadFoliageInteractorUniforms(shader);
+    }
+
+    private static void uploadGustUniforms(ShaderInstance shader) {
+        int gustCount = DynamicWindManager.activeGustCount();
+        BiomeWindProfile profile = DynamicWindManager.activeBiomeProfile();
+        shader.safeGetUniform("ActiveGustCount").set(gustCount);
+        for (int index = 0; index < DynamicWindManager.MAX_ACTIVE_GUSTS; index++) {
+            GustFrontState gust = DynamicWindManager.gustFront(index);
+            if (gust == null) {
+                shader.safeGetUniform("GustOriginTime" + index).set(0.0F, 0.0F, 0.0F, 0.0F);
+                shader.safeGetUniform("GustDirectionSpeed" + index).set(0.0F, 0.0F, 0.0F, 0.0F);
+                shader.safeGetUniform("GustStrength" + index).set(0.0F, 0.0F, 0.0F, 0.0F);
+                shader.safeGetUniform("GustEnvelope" + index).set(0.0F, 0.0F, 0.0F, 0.0F);
+                continue;
+            }
+            shader.safeGetUniform("GustOriginTime" + index).set(
+                    gust.originX(),
+                    gust.originZ(),
+                    gust.startTime(),
+                    gust.duration()
+            );
+            shader.safeGetUniform("GustDirectionSpeed" + index).set(
+                    gust.directionX(),
+                    gust.directionZ(),
+                    gust.speed(),
+                    gust.width()
+            );
+            shader.safeGetUniform("GustStrength" + index).set(
+                    gust.peakStrength() * profile.gustStrengthMultiplier(),
+                    gust.turbulence() * profile.turbulenceMultiplier(),
+                    gust.noisePhase(),
+                    gust.crossDrift()
+            );
+            shader.safeGetUniform("GustEnvelope" + index).set(
+                    gust.attackFraction(),
+                    gust.releaseStartFraction(),
+                    0.0F,
+                    0.0F
+            );
+        }
     }
 
     private static void uploadFoliageInteractorUniforms(ShaderInstance shader) {
