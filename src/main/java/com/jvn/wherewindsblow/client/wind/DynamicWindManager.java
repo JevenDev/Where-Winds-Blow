@@ -2,6 +2,8 @@ package com.jvn.wherewindsblow.client.wind;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.config.ClientConfig;
+import com.jvn.wherewindsblow.wind.BiomeWindProfile;
+import com.jvn.wherewindsblow.wind.BiomeWindProfiles;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -30,7 +32,8 @@ public final class DynamicWindManager {
             0.0F, 0.0F, 0.0F,
             0.0F, 0.0F, 0.0F,
             0.0F,
-            1.0F
+            1.0F,
+            BiomeWindProfiles.neutral().id()
     );
     private static final GustFrontState[] ACTIVE_GUSTS = new GustFrontState[MAX_ACTIVE_GUSTS];
     private static final ThreadLocal<MutableGustContribution> GUST_SCRATCH =
@@ -60,6 +63,9 @@ public final class DynamicWindManager {
     private static float lullDepth;
     private static float gustSpawnCountdown;
     private static int activeGustCount;
+    private static float ambientTurbulence;
+    private static BiomeWindProfile activeProfile = BiomeWindProfiles.neutral();
+    private static long appliedProfileRevision = -1L;
 
     private DynamicWindManager() {
     }
@@ -89,10 +95,16 @@ public final class DynamicWindManager {
             double z
     ) {
         GlobalWindState current = currentState();
+        BiomeWindProfile profile = level != null && pos != null ? profileAt(pos) : activeProfile;
         MutableGustContribution gust = GUST_SCRATCH.get();
         sampleGustContribution(x, z, simulationTime(), gust);
-        float directionX = current.directionX() * current.ambientStrength() + gust.directionX();
-        float directionZ = current.directionZ() * current.ambientStrength() + gust.directionZ();
+        float localAmbient = level != null
+                ? ambientStrength * profile.baseStrengthMultiplier()
+                : current.ambientStrength();
+        float localGustStrength = gust.strength() * profile.gustStrengthMultiplier();
+        float gustScale = gust.strength() > 0.0001F ? localGustStrength / gust.strength() : 0.0F;
+        float directionX = current.directionX() * localAmbient + gust.directionX() * gustScale;
+        float directionZ = current.directionZ() * localAmbient + gust.directionZ() * gustScale;
         float directionLength = Mth.sqrt(directionX * directionX + directionZ * directionZ);
         if (directionLength > 0.0001F) {
             directionX /= directionLength;
@@ -106,17 +118,21 @@ public final class DynamicWindManager {
                 ? WindExposureCache.exposureAt(level, pos, directionX, directionZ)
                 : 1.0F;
         float altitude = level != null ? WindExposureCache.altitudeMultiplier(level, y) : 1.0F;
+        if (level != null) {
+            altitude = 1.0F + (altitude - 1.0F) * profile.altitudeInfluence();
+        }
         float localScale = exposure * altitude;
 
         return new WindSample(
                 directionX,
                 directionZ,
-                (current.ambientStrength() + gust.strength()) * localScale,
-                current.ambientStrength() * localScale,
-                gust.strength() * localScale,
-                (current.turbulence() + gust.turbulence()) * exposure,
+                (localAmbient + localGustStrength) * localScale,
+                localAmbient * localScale,
+                localGustStrength * localScale,
+                (ambientTurbulence + gust.turbulence()) * profile.turbulenceMultiplier() * exposure,
                 exposure,
-                current.weatherPower()
+                current.weatherPower(),
+                profile.id()
         );
     }
 
@@ -183,12 +199,17 @@ public final class DynamicWindManager {
         if (!ClientConfig.ENABLE_GUST_FRONTS.getAsBoolean()) {
             clearGusts();
         } else if (activeLevel != null && gustSpawnCountdown <= 0.0F) {
-            gustSpawnCountdown = randomGustInterval(state.rainLevel(), state.thunderLevel());
+            gustSpawnCountdown = randomGustInterval(
+                    state.rainLevel(),
+                    state.thunderLevel(),
+                    activeProfile.gustFrequencyMultiplier()
+            );
         }
     }
 
     private static void update() {
         ensureLifecycle();
+        refreshProfileRevision();
         Minecraft minecraft = Minecraft.getInstance();
         if (activeLevel == null || minecraft.isPaused()) {
             lastUpdateMillis = Util.getMillis();
@@ -217,19 +238,48 @@ public final class DynamicWindManager {
         float weatherPower = Mth.lerp(blend, state.weatherPower(), targetWeatherPower);
         float rainLevel = activeLevel.getRainLevel(1.0F);
         float thunderLevel = activeLevel.getThunderLevel(1.0F);
+        BiomeWindProfile profile = currentPlayerProfile();
+        if (!profile.id().equals(activeProfile.id())) {
+            activeProfile = profile;
+            gustSpawnCountdown = Math.min(
+                    gustSpawnCountdown,
+                    randomGustInterval(rainLevel, thunderLevel, profile.gustFrequencyMultiplier())
+            );
+        } else {
+            activeProfile = profile;
+        }
         simulationSpeed = 1.0F + weatherPower * WEATHER_SPEED_SCALE;
         simulationTimeSeconds += deltaSeconds * simulationSpeed;
 
         boolean dynamicWind = ClientConfig.ENABLE_DYNAMIC_WIND.getAsBoolean();
-        Direction direction = updateDirection(deltaSeconds, rainLevel, thunderLevel, dynamicWind);
+        Direction direction = updateDirection(
+                deltaSeconds,
+                rainLevel,
+                thunderLevel,
+                activeProfile.directionInstabilityMultiplier(),
+                dynamicWind
+        );
         float lullAmount = updateLull(deltaSeconds, weatherPower, dynamicWind);
         float ambientTarget = targetAmbientStrength(weatherPower, dynamicWind, lullAmount);
         float ambientResponse = ambientTarget > ambientStrength ? 0.75F : 0.48F;
         float ambientBlend = 1.0F - (float) Math.exp(-deltaSeconds * ambientResponse);
         ambientStrength = Mth.lerp(ambientBlend, ambientStrength, ambientTarget);
-        float instability = dynamicWind ? Mth.clamp(rainLevel * 0.18F + thunderLevel * 0.62F, 0.0F, 1.0F) : 0.0F;
-        updateGusts(deltaSeconds, rainLevel, thunderLevel, lullAmount, dynamicWind);
-        float baseTurbulence = dynamicWind
+        float instability = dynamicWind
+                ? Mth.clamp(
+                        (rainLevel * 0.18F + thunderLevel * 0.62F) * activeProfile.directionInstabilityMultiplier(),
+                        0.0F,
+                        1.0F
+                )
+                : 0.0F;
+        updateGusts(
+                deltaSeconds,
+                rainLevel,
+                thunderLevel,
+                lullAmount,
+                activeProfile.gustFrequencyMultiplier(),
+                dynamicWind
+        );
+        ambientTurbulence = dynamicWind
                 ? (0.035F + rainLevel * 0.075F + thunderLevel * 0.24F)
                         * (float) ClientConfig.TURBULENCE_STRENGTH.getAsDouble()
                 : 0.0F;
@@ -237,6 +287,11 @@ public final class DynamicWindManager {
         double sampleZ = Minecraft.getInstance().player == null ? 0.0D : Minecraft.getInstance().player.getZ();
         MutableGustContribution localGust = GUST_SCRATCH.get();
         sampleGustContribution(sampleX, sampleZ, simulationTimeSeconds, localGust);
+        float profiledAmbient = ambientStrength * activeProfile.baseStrengthMultiplier();
+        float profiledAmbientTarget = ambientTarget * activeProfile.baseStrengthMultiplier();
+        float profiledGust = localGust.strength() * activeProfile.gustStrengthMultiplier();
+        float profiledTurbulence = (ambientTurbulence + localGust.turbulence())
+                * activeProfile.turbulenceMultiplier();
         Direction baseDirection = directionFromDegrees(prevailingDirectionDegrees);
         Direction targetDirection = directionFromDegrees(targetDirectionDegrees);
         float transitionProgress = directionTransitionDuration <= 0.0F
@@ -246,11 +301,12 @@ public final class DynamicWindManager {
                 baseDirection.x(), baseDirection.z(),
                 direction.x(), direction.z(),
                 targetDirection.x(), targetDirection.z(),
-                ambientStrength + localGust.strength(), ambientTarget, ambientStrength,
-                localGust.strength(), baseTurbulence + localGust.turbulence(), instability,
+                profiledAmbient + profiledGust, profiledAmbientTarget, profiledAmbient,
+                profiledGust, profiledTurbulence, instability,
                 weatherPower, rainLevel, thunderLevel,
                 lullAmount,
-                transitionProgress
+                transitionProgress,
+                activeProfile.id()
         );
     }
 
@@ -283,6 +339,9 @@ public final class DynamicWindManager {
         directionTransitionElapsed = 0.0F;
         directionTransitionDuration = 0.0F;
         ambientStrength = 0.0F;
+        ambientTurbulence = 0.0F;
+        activeProfile = BiomeWindProfiles.neutral();
+        appliedProfileRevision = BiomeWindProfiles.revision();
         lullElapsed = 0.0F;
         lullDuration = 0.0F;
         lullDepth = 0.0F;
@@ -305,18 +364,25 @@ public final class DynamicWindManager {
         ambientStrength = weatherPower * (float) ClientConfig.OVERALL_WIND_STRENGTH.getAsDouble();
         simulationSeed = mix64(level.dimension().location().hashCode());
         randomState = simulationSeed == 0L ? 0x9e3779b97f4a7c15L : simulationSeed;
+        activeProfile = currentPlayerProfile();
         directionChangeCountdown = randomDirectionHoldTime();
         lullCountdown = randomLullInterval(weatherPower);
-        gustSpawnCountdown = randomGustInterval(level.getRainLevel(1.0F), level.getThunderLevel(1.0F));
+        gustSpawnCountdown = randomGustInterval(
+                level.getRainLevel(1.0F),
+                level.getThunderLevel(1.0F),
+                activeProfile.gustFrequencyMultiplier()
+        );
+        float profiledAmbient = ambientStrength * activeProfile.baseStrengthMultiplier();
         state = new GlobalWindState(
                 direction.x(), direction.z(),
                 direction.x(), direction.z(),
                 direction.x(), direction.z(),
-                ambientStrength, ambientStrength, ambientStrength,
+                profiledAmbient, profiledAmbient, profiledAmbient,
                 0.0F, 0.0F, 0.0F,
                 weatherPower, level.getRainLevel(1.0F), level.getThunderLevel(1.0F),
                 0.0F,
-                1.0F
+                1.0F,
+                activeProfile.id()
         );
         simulationTimeSeconds = level.getGameTime() * 0.05F;
         WhereWindsBlow.LOGGER.debug(
@@ -341,7 +407,42 @@ public final class DynamicWindManager {
         );
     }
 
-    private static Direction updateDirection(float deltaSeconds, float rainLevel, float thunderLevel, boolean dynamicWind) {
+    private static BiomeWindProfile currentPlayerProfile() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft.player == null
+                ? BiomeWindProfiles.neutral()
+                : profileAt(minecraft.player.blockPosition());
+    }
+
+    private static BiomeWindProfile profileAt(BlockPos pos) {
+        if (!ClientConfig.ENABLE_BIOME_WIND_PROFILES.getAsBoolean()) {
+            return BiomeWindProfiles.neutral();
+        }
+        ClientLevel clientLevel = activeLevel != null ? activeLevel : Minecraft.getInstance().level;
+        if (clientLevel == null) {
+            return BiomeWindProfiles.neutral();
+        }
+        boolean preferServerProfiles = Minecraft.getInstance().getSingleplayerServer() != null;
+        return BiomeWindProfiles.resolve(clientLevel.getBiome(pos), preferServerProfiles);
+    }
+
+    private static void refreshProfileRevision() {
+        long revision = BiomeWindProfiles.revision();
+        if (revision == appliedProfileRevision) {
+            return;
+        }
+        appliedProfileRevision = revision;
+        WindExposureCache.clear();
+        gustSpawnCountdown = Math.min(gustSpawnCountdown, 1.0F);
+    }
+
+    private static Direction updateDirection(
+            float deltaSeconds,
+            float rainLevel,
+            float thunderLevel,
+            float profileInstability,
+            boolean dynamicWind
+    ) {
         prevailingDirectionDegrees = configuredDirectionDegrees();
         boolean dynamicDirection = dynamicWind
                 && ClientConfig.WIND_DIRECTION_MODE.get() == ClientConfig.WindDirectionMode.DYNAMIC;
@@ -356,10 +457,10 @@ public final class DynamicWindManager {
             return directionFromDegrees(currentDirectionDegrees);
         }
 
-        float weatherPace = 1.0F + rainLevel * 0.22F + thunderLevel * 0.68F;
+        float weatherPace = 1.0F + (rainLevel * 0.22F + thunderLevel * 0.68F) * profileInstability;
         directionChangeCountdown -= deltaSeconds * weatherPace;
         if (directionChangeCountdown <= 0.0F) {
-            chooseDirectionTarget(rainLevel, thunderLevel);
+            chooseDirectionTarget(rainLevel, thunderLevel, profileInstability);
         }
 
         advanceDirectionTransition(deltaSeconds);
@@ -378,11 +479,11 @@ public final class DynamicWindManager {
         }
     }
 
-    private static void chooseDirectionTarget(float rainLevel, float thunderLevel) {
+    private static void chooseDirectionTarget(float rainLevel, float thunderLevel, float profileInstability) {
         directionStartDegrees = currentDirectionDegrees;
         float variation = (float) ClientConfig.DYNAMIC_DIRECTION_VARIATION.getAsDouble();
         float ordinaryChange = (float) ClientConfig.MAX_ORDINARY_DIRECTION_CHANGE.getAsDouble() * variation;
-        float instability = 1.0F + rainLevel * 0.2F + thunderLevel * 0.75F;
+        float instability = 1.0F + (rainLevel * 0.2F + thunderLevel * 0.75F) * profileInstability;
         float change = randomSigned() * ordinaryChange * instability;
         float prevailingCorrection = Mth.wrapDegrees(prevailingDirectionDegrees - currentDirectionDegrees) * 0.22F;
         if (thunderLevel > 0.75F && nextRandomFloat() < 0.045F) {
@@ -391,7 +492,7 @@ public final class DynamicWindManager {
 
         targetDirectionDegrees = wrapDegrees360(currentDirectionDegrees + change + prevailingCorrection);
         float holdTime = randomDirectionHoldTime();
-        float weatherPace = 1.0F + rainLevel * 0.22F + thunderLevel * 0.68F;
+        float weatherPace = 1.0F + (rainLevel * 0.22F + thunderLevel * 0.68F) * profileInstability;
         directionTransitionDuration = Mth.clamp(
                 holdTime * (0.16F + nextRandomFloat() * 0.12F) / weatherPace,
                 14.0F,
@@ -454,6 +555,7 @@ public final class DynamicWindManager {
             float rainLevel,
             float thunderLevel,
             float lullAmount,
+            float profileFrequency,
             boolean dynamicWind
     ) {
         float time = simulationTimeSeconds;
@@ -484,7 +586,7 @@ public final class DynamicWindManager {
         }
 
         spawnGust(rainLevel, thunderLevel);
-        gustSpawnCountdown = randomGustInterval(rainLevel, thunderLevel);
+        gustSpawnCountdown = randomGustInterval(rainLevel, thunderLevel, profileFrequency);
     }
 
     private static void spawnGust(float rainLevel, float thunderLevel) {
@@ -588,8 +690,11 @@ public final class DynamicWindManager {
         activeGustCount = 0;
     }
 
-    private static float randomGustInterval(float rainLevel, float thunderLevel) {
-        float frequency = Math.max(0.05F, (float) ClientConfig.GUST_FREQUENCY.getAsDouble());
+    private static float randomGustInterval(float rainLevel, float thunderLevel, float profileFrequency) {
+        float frequency = Math.max(
+                0.05F,
+                (float) ClientConfig.GUST_FREQUENCY.getAsDouble() * profileFrequency
+        );
         float weatherFrequency = 1.0F + rainLevel * 0.85F + thunderLevel * 2.25F;
         return Mth.lerp(nextRandomFloat(), 48.0F, 118.0F) / (frequency * weatherFrequency);
     }

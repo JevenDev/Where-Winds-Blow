@@ -202,6 +202,10 @@ public final class ClientConfig {
             .comment("Scales the subtle wind increase at high elevations using the current dimension's build height.")
             .defineInRange("altitudeWindInfluence", 0.5D, ALTITUDE_WIND_INFLUENCE_MIN, ALTITUDE_WIND_INFLUENCE_MAX);
 
+    public static final ModConfigSpec.BooleanValue ENABLE_BIOME_WIND_PROFILES = BUILDER
+            .comment("Applies reloadable biome-specific wind strength, gust, turbulence, and altitude multipliers.")
+            .define("enableBiomeWindProfiles", true);
+
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_SMOKE = BUILDER
             .comment("Lets campfire smoke drift, curl, and merge into larger wind-shaped plumes.")
             .define("enableWindSmoke", true);

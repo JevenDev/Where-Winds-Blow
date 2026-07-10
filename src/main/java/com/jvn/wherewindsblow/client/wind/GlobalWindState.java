@@ -1,5 +1,7 @@
 package com.jvn.wherewindsblow.client.wind;
 
+import net.minecraft.resources.ResourceLocation;
+
 /**
  * Immutable snapshot of the client wind simulation. The manager replaces this snapshot only when
  * the simulation advances, so render hot paths can safely share one coherent state.
@@ -21,7 +23,8 @@ public record GlobalWindState(
         float rainLevel,
         float thunderLevel,
         float lullAmount,
-        float transitionProgress
+        float transitionProgress,
+        ResourceLocation profileId
 ) {
     public float directionDegrees() {
         float degrees = (float) Math.toDegrees(Math.atan2(directionX, -directionZ));

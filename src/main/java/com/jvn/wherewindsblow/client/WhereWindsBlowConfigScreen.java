@@ -67,6 +67,11 @@ public final class WhereWindsBlowConfigScreen {
                         ))
                         .build())
                 .group(OptionGroup.createBuilder()
+                        .name(translatable("group.biomeProfiles"))
+                        .description(description("group.biomeProfiles.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_BIOME_WIND_PROFILES, DynamicWindManager::reloadConfiguration))
+                        .build())
+                .group(OptionGroup.createBuilder()
                         .name(translatable("group.dynamicDirection"))
                         .description(description("group.dynamicDirection.description"))
                         .option(doubleOption(

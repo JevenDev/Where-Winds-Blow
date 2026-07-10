@@ -1,0 +1,10 @@
+{
+  "biomes": "#minecraft:is_forest",
+  "priority": 20,
+  "base_strength_multiplier": 0.72,
+  "gust_strength_multiplier": 0.85,
+  "gust_frequency_multiplier": 0.9,
+  "turbulence_multiplier": 1.15,
+  "direction_instability_multiplier": 1.0,
+  "altitude_influence": 0.6
+}

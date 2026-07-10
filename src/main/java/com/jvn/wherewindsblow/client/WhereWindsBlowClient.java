@@ -11,6 +11,8 @@ import com.jvn.wherewindsblow.client.wind.WindDebugOverlay;
 import com.jvn.wherewindsblow.client.wind.WindStreakRenderer;
 import com.jvn.wherewindsblow.client.wind.WindVisualShaders;
 import com.jvn.wherewindsblow.config.ClientConfig;
+import com.jvn.wherewindsblow.wind.BiomeWindProfileReloadListener;
+import com.jvn.wherewindsblow.wind.BiomeWindProfiles;
 import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.world.level.GrassColor;
 import net.neoforged.bus.api.IEventBus;
@@ -20,6 +22,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.event.ClientPauseChangeEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
@@ -34,6 +37,7 @@ public final class WhereWindsBlowClient {
         modEventBus.addListener(WhereWindsBlowClient::registerItemColors);
         modEventBus.addListener(WhereWindsBlowClient::modifyBakedModels);
         modEventBus.addListener(WhereWindsBlowClient::registerShaders);
+        modEventBus.addListener(WhereWindsBlowClient::registerReloadListeners);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onClientTick);
         NeoForge.EVENT_BUS.addListener(DynamicWindManager::onClientTick);
@@ -74,6 +78,10 @@ public final class WhereWindsBlowClient {
     private static void registerShaders(RegisterShadersEvent event) {
         ResponsiveFoliageShaders.register(event);
         WindVisualShaders.register(event);
+    }
+
+    private static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener(new BiomeWindProfileReloadListener(BiomeWindProfiles.Source.CLIENT, null));
     }
 
     private static void onClientPauseChange(ClientPauseChangeEvent.Post event) {

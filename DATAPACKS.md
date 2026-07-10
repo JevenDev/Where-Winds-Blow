@@ -95,3 +95,33 @@ Example contents:
   ]
 }
 ```
+
+## Biome wind profiles
+
+Dynamic wind profiles live at:
+
+```text
+data/<namespace>/where_winds_blow/wind_profiles/<profile>.json
+```
+
+The `biomes` field accepts one biome ID, one biome tag prefixed with `#`, or an array containing both. Use `"*"` for a fallback. Higher priorities win; ties are resolved by the profile resource ID so pack order remains deterministic.
+
+```json
+{
+  "biomes": [
+    "minecraft:meadow",
+    "#minecraft:is_mountain"
+  ],
+  "priority": 10,
+  "base_strength_multiplier": 1.2,
+  "gust_strength_multiplier": 1.35,
+  "gust_frequency_multiplier": 1.25,
+  "turbulence_multiplier": 1.3,
+  "direction_instability_multiplier": 1.15,
+  "altitude_influence": 0.8
+}
+```
+
+All multiplier fields are optional and default to `1.0`. Strength, gust, frequency, turbulence, and direction multipliers accept values from `0.0` to `4.0`; `altitude_influence` accepts `0.0` to `2.0`; and priority accepts `-10000` to `10000`. Invalid profile files are logged and skipped without stopping the reload.
+
+The mod ships fallback, plains, forest, mountain, desert/badlands, snowy, ocean/coast, and swamp profiles. Integrated worlds use server datapack profiles. The same defaults are mirrored into client resources so client-side visual wind remains available on servers that do not require the mod.

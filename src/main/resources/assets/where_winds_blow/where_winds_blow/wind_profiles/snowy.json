@@ -1,0 +1,18 @@
+{
+  "biomes": [
+    "minecraft:snowy_plains",
+    "minecraft:ice_spikes",
+    "minecraft:snowy_taiga",
+    "minecraft:snowy_slopes",
+    "minecraft:grove",
+    "minecraft:frozen_peaks",
+    "minecraft:jagged_peaks"
+  ],
+  "priority": 35,
+  "base_strength_multiplier": 1.05,
+  "gust_strength_multiplier": 1.15,
+  "gust_frequency_multiplier": 1.25,
+  "turbulence_multiplier": 1.15,
+  "direction_instability_multiplier": 1.15,
+  "altitude_influence": 1.1
+}

@@ -5,11 +5,15 @@ import com.mojang.logging.LogUtils;
 import com.jvn.wherewindsblow.config.CommonConfig;
 import com.jvn.wherewindsblow.worldgen.ModBiomeModifiers;
 import com.jvn.wherewindsblow.worldgen.ModFeatures;
+import com.jvn.wherewindsblow.wind.BiomeWindProfileReloadListener;
+import com.jvn.wherewindsblow.wind.BiomeWindProfiles;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import org.slf4j.Logger;
 
 @Mod(WhereWindsBlow.MOD_ID)
@@ -19,6 +23,7 @@ public class WhereWindsBlow {
 
     public WhereWindsBlow(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
+        NeoForge.EVENT_BUS.addListener(this::addServerReloadListeners);
 
         ModBlocks.register(modEventBus);
         ModFeatures.register(modEventBus);
@@ -29,5 +34,9 @@ public class WhereWindsBlow {
 
     private void commonSetup(FMLCommonSetupEvent event) {
         LOGGER.info("Where Winds Blow is ready.");
+    }
+
+    private void addServerReloadListeners(AddReloadListenerEvent event) {
+        event.addListener(new BiomeWindProfileReloadListener(BiomeWindProfiles.Source.SERVER, event.getRegistryAccess()));
     }
 }

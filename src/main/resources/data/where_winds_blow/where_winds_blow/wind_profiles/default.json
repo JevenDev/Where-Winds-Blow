@@ -1,0 +1,10 @@
+{
+  "biomes": "*",
+  "priority": -1000,
+  "base_strength_multiplier": 1.0,
+  "gust_strength_multiplier": 1.0,
+  "gust_frequency_multiplier": 1.0,
+  "turbulence_multiplier": 1.0,
+  "direction_instability_multiplier": 1.0,
+  "altitude_influence": 1.0
+}

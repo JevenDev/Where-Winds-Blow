@@ -34,6 +34,7 @@ public final class WindDebugOverlay {
                 String.format(Locale.ROOT, "Gust       %.2f", sample.gustStrength()),
                 String.format(Locale.ROOT, "Turbulence %.2f", sample.turbulence()),
                 String.format(Locale.ROOT, "Exposure   %.2f", sample.exposure()),
+                "Profile    " + sample.profileId().getPath(),
                 "Gust fronts " + DynamicWindManager.activeGustCount()
         };
 

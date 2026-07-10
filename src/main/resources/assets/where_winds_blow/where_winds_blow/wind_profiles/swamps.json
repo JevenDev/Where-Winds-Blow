@@ -1,0 +1,13 @@
+{
+  "biomes": [
+    "minecraft:swamp",
+    "minecraft:mangrove_swamp"
+  ],
+  "priority": 25,
+  "base_strength_multiplier": 0.65,
+  "gust_strength_multiplier": 0.8,
+  "gust_frequency_multiplier": 0.85,
+  "turbulence_multiplier": 1.2,
+  "direction_instability_multiplier": 1.1,
+  "altitude_influence": 0.4
+}
