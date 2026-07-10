@@ -204,6 +204,10 @@ public final class WindStreakRenderer {
         }
     }
 
+    public static void reset() {
+        clear();
+    }
+
     private static void clear() {
         for (WindStreak streak : STREAKS) {
             streak.active = false;

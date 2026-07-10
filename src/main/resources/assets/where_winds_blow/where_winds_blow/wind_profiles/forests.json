@@ -1,5 +1,5 @@
 {
-  "biomes": "#minecraft:is_forest",
+  "biomes": "#c:is_forest",
   "priority": 20,
   "base_strength_multiplier": 0.72,
   "gust_strength_multiplier": 0.85,

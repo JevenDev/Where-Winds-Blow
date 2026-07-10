@@ -14,10 +14,12 @@ import com.jvn.wherewindsblow.config.ClientConfig;
 import com.jvn.wherewindsblow.wind.BiomeWindProfileReloadListener;
 import com.jvn.wherewindsblow.wind.BiomeWindProfiles;
 import net.minecraft.client.renderer.BiomeColors;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.level.GrassColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.event.ClientPauseChangeEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
@@ -38,6 +40,7 @@ public final class WhereWindsBlowClient {
         modEventBus.addListener(WhereWindsBlowClient::modifyBakedModels);
         modEventBus.addListener(WhereWindsBlowClient::registerShaders);
         modEventBus.addListener(WhereWindsBlowClient::registerReloadListeners);
+        modEventBus.addListener(WhereWindsBlowClient::onClientConfigReload);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onClientTick);
         NeoForge.EVENT_BUS.addListener(DynamicWindManager::onClientTick);
@@ -82,6 +85,13 @@ public final class WhereWindsBlowClient {
 
     private static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
         event.registerReloadListener(new BiomeWindProfileReloadListener(BiomeWindProfiles.Source.CLIENT, null));
+        event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> DynamicWindManager.reset());
+    }
+
+    private static void onClientConfigReload(ModConfigEvent.Reloading event) {
+        if (event.getConfig().getSpec() == ClientConfig.SPEC) {
+            DynamicWindManager.reloadConfiguration();
+        }
     }
 
     private static void onClientPauseChange(ClientPauseChangeEvent.Post event) {

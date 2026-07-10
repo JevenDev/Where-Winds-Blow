@@ -1,6 +1,10 @@
 package com.jvn.wherewindsblow.client.wind;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
+import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
+import com.jvn.wherewindsblow.client.foliage.SodiumFoliageUniforms;
+import com.jvn.wherewindsblow.client.lantern.SwingingLanternAssemblyRenderer;
+import com.jvn.wherewindsblow.client.smoke.CampfireSmokePlumes;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.jvn.wherewindsblow.wind.BiomeWindProfile;
 import com.jvn.wherewindsblow.wind.BiomeWindProfiles;
@@ -66,6 +70,9 @@ public final class DynamicWindManager {
     private static float ambientTurbulence;
     private static BiomeWindProfile activeProfile = BiomeWindProfiles.neutral();
     private static long appliedProfileRevision = -1L;
+    private static boolean appliedDynamicWindMode;
+    private static ClientConfig.WindDirectionMode appliedDirectionMode;
+    private static boolean configModeInitialized;
 
     private DynamicWindManager() {
     }
@@ -200,10 +207,22 @@ public final class DynamicWindManager {
     }
 
     public static void reset() {
-        reset(null);
+        reset(Minecraft.getInstance().level);
     }
 
     public static void reloadConfiguration() {
+        boolean dynamicWindMode = ClientConfig.ENABLE_DYNAMIC_WIND.getAsBoolean();
+        ClientConfig.WindDirectionMode directionMode = ClientConfig.WIND_DIRECTION_MODE.get();
+        boolean modeChanged = configModeInitialized
+                && (dynamicWindMode != appliedDynamicWindMode || directionMode != appliedDirectionMode);
+        appliedDynamicWindMode = dynamicWindMode;
+        appliedDirectionMode = directionMode;
+        configModeInitialized = true;
+        if (modeChanged && activeLevel != null) {
+            reset(activeLevel);
+            return;
+        }
+
         WindExposureCache.clear();
         float maximumHoldTime = (float) ClientConfig.MAX_DIRECTION_HOLD_TIME.getAsDouble();
         directionChangeCountdown = Math.min(directionChangeCountdown, maximumHoldTime);
@@ -347,6 +366,7 @@ public final class DynamicWindManager {
 
     private static void reset(@Nullable ClientLevel level) {
         boolean hadLevel = activeLevel != null;
+        resetConsumers();
         activeLevel = level;
         activeDimension = level == null ? null : level.dimension();
         lastUpdateMillis = Util.getMillis();
@@ -361,6 +381,9 @@ public final class DynamicWindManager {
         ambientTurbulence = 0.0F;
         activeProfile = BiomeWindProfiles.neutral();
         appliedProfileRevision = BiomeWindProfiles.revision();
+        appliedDynamicWindMode = ClientConfig.ENABLE_DYNAMIC_WIND.getAsBoolean();
+        appliedDirectionMode = ClientConfig.WIND_DIRECTION_MODE.get();
+        configModeInitialized = true;
         lullElapsed = 0.0F;
         lullDuration = 0.0F;
         lullDepth = 0.0F;
@@ -409,6 +432,14 @@ public final class DynamicWindManager {
                 level.dimension().location(),
                 simulationSeed
         );
+    }
+
+    private static void resetConsumers() {
+        ResponsiveFoliagePhysics.reset();
+        SodiumFoliageUniforms.reset();
+        SwingingLanternAssemblyRenderer.reset();
+        CampfireSmokePlumes.reset();
+        WindStreakRenderer.reset();
     }
 
     private static float targetWeatherWindPower(ClientLevel level) {

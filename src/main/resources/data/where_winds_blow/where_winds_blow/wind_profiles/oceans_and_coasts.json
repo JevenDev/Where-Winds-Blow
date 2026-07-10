@@ -1,6 +1,6 @@
 {
   "biomes": [
-    "#minecraft:is_ocean",
+    "#c:is_ocean",
     "minecraft:beach",
     "minecraft:snowy_beach",
     "minecraft:stony_shore"

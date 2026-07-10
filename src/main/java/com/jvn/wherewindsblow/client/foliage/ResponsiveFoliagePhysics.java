@@ -57,6 +57,10 @@ public final class ResponsiveFoliagePhysics {
     private ResponsiveFoliagePhysics() {
     }
 
+    public static void reset() {
+        clearInteractorState(null);
+    }
+
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY) {
             return;

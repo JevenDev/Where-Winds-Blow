@@ -42,6 +42,7 @@ public final class SwingingLanternAssemblyRenderer {
     private static final int CHUNK_CACHE_TTL_TICKS = 40;
     private static final int MAX_CHUNK_CACHE_SCANS_PER_FRAME = 6;
     private static final int MAX_LANTERN_CHUNK_CACHE_SIZE = 512;
+    private static final int MAX_SWING_STATES = 4096;
     private static final int MAX_CHAIN_HEIGHT = 32;
     private static final int COLLISION_BINARY_SEARCH_STEPS = 7;
     private static final double COLLISION_GRID_EPSILON = 1.0E-7D;
@@ -54,10 +55,19 @@ public final class SwingingLanternAssemblyRenderer {
     private static final ModelData ASSEMBLY_MODEL_DATA = ModelData.of(LanternModelData.RENDERING_ASSEMBLY, Boolean.TRUE);
     private static final Map<Long, SwingState> SWING_STATES = new ConcurrentHashMap<>();
     private static final Map<Long, LanternChunkCache> LANTERN_CHUNK_CACHE = new ConcurrentHashMap<>();
+    private static ClientLevel activeLevel;
     private static net.minecraft.resources.ResourceKey<Level> activeDimension;
     private static int chunkCacheScansThisFrame;
 
     private SwingingLanternAssemblyRenderer() {
+    }
+
+    public static void reset() {
+        SWING_STATES.clear();
+        LANTERN_CHUNK_CACHE.clear();
+        activeLevel = null;
+        activeDimension = null;
+        chunkCacheScansThisFrame = 0;
     }
 
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
@@ -73,13 +83,16 @@ public final class SwingingLanternAssemblyRenderer {
             return;
         }
 
-        if (activeDimension != level.dimension()) {
-            SWING_STATES.clear();
-            LANTERN_CHUNK_CACHE.clear();
+        if (activeLevel != level || activeDimension != level.dimension()) {
+            reset();
+            activeLevel = level;
             activeDimension = level.dimension();
         }
         if (LANTERN_CHUNK_CACHE.size() > MAX_LANTERN_CHUNK_CACHE_SIZE) {
             LANTERN_CHUNK_CACHE.clear();
+        }
+        if (SWING_STATES.size() > MAX_SWING_STATES) {
+            SWING_STATES.clear();
         }
 
         Camera camera = event.getCamera();

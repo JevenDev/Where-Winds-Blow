@@ -17,7 +17,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.loading.LoadingModList;
-import net.neoforged.neoforge.client.event.ClientPauseChangeEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import org.jetbrains.annotations.Nullable;
 
@@ -237,22 +236,6 @@ public final class ResponsiveFoliageShaders {
         return (Mth.clamp(interactorCount, 0, MAX_FOLIAGE_INTERACTORS) + 3) / 4;
     }
 
-    /**
-     * Returns a pause-aware phase clock with weather-dependent speed integrated over time.
-     * Consumers should apply only fixed frequency multipliers so weather transitions remain continuous.
-     */
-    public static float windTime() {
-        return DynamicWindManager.simulationTime();
-    }
-
-    public static float weatherWindPower() {
-        return DynamicWindManager.currentState().strength();
-    }
-
-    public static void onClientPauseChange(ClientPauseChangeEvent.Post event) {
-        DynamicWindManager.onClientPauseChange(event);
-    }
-
     public static float windSwayStrength() {
         return shouldUseCustomFoliageShaders() && ClientConfig.ENABLE_WIND_FOLIAGE_SWAY.getAsBoolean()
                 ? Math.max((float) ClientConfig.WIND_FOLIAGE_SWAY_STRENGTH.getAsDouble(), weatherDrivenSwayStrength())
@@ -288,11 +271,6 @@ public final class ResponsiveFoliageShaders {
     }
 
     private static float weatherDrivenSheenStrength() {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null) {
-            return 0.0F;
-        }
-
         return currentWeatherValue(
                 ClientConfig.CLEAR_WEATHER_SHEEN_STRENGTH.getAsDouble(),
                 ClientConfig.RAIN_WEATHER_SHEEN_STRENGTH.getAsDouble(),
@@ -301,11 +279,6 @@ public final class ResponsiveFoliageShaders {
     }
 
     private static float weatherDrivenSwayStrength() {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null) {
-            return 0.0F;
-        }
-
         return currentWeatherValue(
                 ClientConfig.CLEAR_WEATHER_SWAY_STRENGTH.getAsDouble(),
                 ClientConfig.RAIN_WEATHER_SWAY_STRENGTH.getAsDouble(),
@@ -314,15 +287,9 @@ public final class ResponsiveFoliageShaders {
     }
 
     private static float currentWeatherValue(double clearValue, double rainValue, double thunderValue) {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null) {
-            return 0.0F;
-        }
-
-        float rain = minecraft.level.getRainLevel(1.0F);
-        float thunder = minecraft.level.getThunderLevel(1.0F);
-        float rainyValue = Mth.lerp(rain, (float) clearValue, (float) rainValue);
-        return Mth.lerp(thunder, rainyValue, (float) thunderValue);
+        GlobalWindState wind = DynamicWindManager.currentState();
+        float rainyValue = Mth.lerp(wind.rainLevel(), (float) clearValue, (float) rainValue);
+        return Mth.lerp(wind.thunderLevel(), rainyValue, (float) thunderValue);
     }
 
     private static boolean isExternalShaderPackActive() {

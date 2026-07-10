@@ -1,7 +1,7 @@
 {
   "biomes": [
     "minecraft:desert",
-    "#minecraft:is_badlands"
+    "#c:is_badlands"
   ],
   "priority": 25,
   "base_strength_multiplier": 0.95,

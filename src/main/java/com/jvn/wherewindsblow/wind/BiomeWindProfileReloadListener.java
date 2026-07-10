@@ -39,7 +39,11 @@ public final class BiomeWindProfileReloadListener extends SimpleJsonResourceRelo
         List<BiomeWindProfile> profiles = new ArrayList<>();
         for (Map.Entry<ResourceLocation, JsonElement> entry : resources.entrySet()) {
             try {
-                profiles.add(parse(entry.getKey(), GsonHelper.convertToJsonObject(entry.getValue(), "wind profile")));
+                profiles.add(parse(
+                        entry.getKey(),
+                        GsonHelper.convertToJsonObject(entry.getValue(), "wind profile"),
+                        resourceManager
+                ));
             } catch (RuntimeException exception) {
                 WhereWindsBlow.LOGGER.warn("Ignoring malformed wind profile {}: {}", entry.getKey(), exception.getMessage());
             }
@@ -47,7 +51,7 @@ public final class BiomeWindProfileReloadListener extends SimpleJsonResourceRelo
         BiomeWindProfiles.apply(profiles, source);
     }
 
-    private BiomeWindProfile parse(ResourceLocation id, JsonObject json) {
+    private BiomeWindProfile parse(ResourceLocation id, JsonObject json, ResourceManager resourceManager) {
         List<ResourceLocation> biomeIds = new ArrayList<>();
         List<TagKey<Biome>> biomeTags = new ArrayList<>();
         boolean matchesAll = false;
@@ -58,10 +62,10 @@ public final class BiomeWindProfileReloadListener extends SimpleJsonResourceRelo
         if (selectors.isJsonArray()) {
             JsonArray array = selectors.getAsJsonArray();
             for (int index = 0; index < array.size(); index++) {
-                matchesAll |= parseSelector(array.get(index).getAsString(), biomeIds, biomeTags);
+                matchesAll |= parseSelector(array.get(index).getAsString(), biomeIds, biomeTags, resourceManager);
             }
         } else {
-            matchesAll = parseSelector(selectors.getAsString(), biomeIds, biomeTags);
+            matchesAll = parseSelector(selectors.getAsString(), biomeIds, biomeTags, resourceManager);
         }
         if (!matchesAll && biomeIds.isEmpty() && biomeTags.isEmpty()) {
             throw new JsonParseException("Profile has no valid biome selectors");
@@ -85,7 +89,8 @@ public final class BiomeWindProfileReloadListener extends SimpleJsonResourceRelo
     private boolean parseSelector(
             String selector,
             List<ResourceLocation> biomeIds,
-            List<TagKey<Biome>> biomeTags
+            List<TagKey<Biome>> biomeTags,
+            ResourceManager resourceManager
     ) {
         if (selector.equals("*")) {
             return true;
@@ -97,7 +102,9 @@ public final class BiomeWindProfileReloadListener extends SimpleJsonResourceRelo
             throw new JsonParseException("Invalid biome selector '" + selector + "'");
         }
         if (tag) {
-            biomeTags.add(TagKey.create(Registries.BIOME, location));
+            TagKey<Biome> biomeTag = TagKey.create(Registries.BIOME, location);
+            validateBiomeTag(biomeTag, resourceManager);
+            biomeTags.add(biomeTag);
         } else {
             validateBiomeId(location);
             biomeIds.add(location);
@@ -112,6 +119,19 @@ public final class BiomeWindProfileReloadListener extends SimpleJsonResourceRelo
         Registry<Biome> registry = registryAccess.registryOrThrow(Registries.BIOME);
         if (!registry.containsKey(biomeId)) {
             throw new JsonParseException("Unknown biome id '" + biomeId + "'");
+        }
+    }
+
+    private void validateBiomeTag(TagKey<Biome> biomeTag, ResourceManager resourceManager) {
+        if (source == BiomeWindProfiles.Source.CLIENT) {
+            return;
+        }
+        ResourceLocation tagResource = ResourceLocation.fromNamespaceAndPath(
+                biomeTag.location().getNamespace(),
+                "tags/worldgen/biome/" + biomeTag.location().getPath() + ".json"
+        );
+        if (resourceManager.getResource(tagResource).isEmpty()) {
+            throw new JsonParseException("Unknown biome tag '#" + biomeTag.location() + "'");
         }
     }
 

@@ -34,6 +34,28 @@ public final class SodiumFoliageUniforms {
     private SodiumFoliageUniforms() {
     }
 
+    public static void reset() {
+        lastProgram = 0;
+        windTimeUniform = UNRESOLVED_UNIFORM;
+        ambientWindStrengthUniform = UNRESOLVED_UNIFORM;
+        windTurbulenceUniform = UNRESOLVED_UNIFORM;
+        activeGustCountUniform = UNRESOLVED_UNIFORM;
+        plantSwayStrengthUniform = UNRESOLVED_UNIFORM;
+        leafSwayStrengthUniform = UNRESOLVED_UNIFORM;
+        lanternSwayStrengthUniform = UNRESOLVED_UNIFORM;
+        plantSheenStrengthUniform = UNRESOLVED_UNIFORM;
+        leafSheenStrengthUniform = UNRESOLVED_UNIFORM;
+        windDirectionUniform = UNRESOLVED_UNIFORM;
+        cameraPositionUniform = UNRESOLVED_UNIFORM;
+        interactorCountUniform = UNRESOLVED_UNIFORM;
+        Arrays.fill(gustOriginTimeUniforms, UNRESOLVED_UNIFORM);
+        Arrays.fill(gustDirectionSpeedUniforms, UNRESOLVED_UNIFORM);
+        Arrays.fill(gustStrengthUniforms, UNRESOLVED_UNIFORM);
+        Arrays.fill(gustEnvelopeUniforms, UNRESOLVED_UNIFORM);
+        Arrays.fill(interactorUniforms, UNRESOLVED_UNIFORM);
+        Arrays.fill(interactorStrengthUniforms, UNRESOLVED_UNIFORM);
+    }
+
     public static void uploadActiveProgramUniforms() {
         if (!ResponsiveFoliageShaders.shouldPatchSodiumShaders()) {
             return;

@@ -49,6 +49,15 @@ public final class CampfireSmokePlumes {
     private CampfireSmokePlumes() {
     }
 
+    public static void reset() {
+        CLUSTER_CACHE.clear();
+        WIND_SAMPLE_CACHE.clear();
+        clusterCacheLevel = new WeakReference<>(null);
+        windSampleCacheLevel = new WeakReference<>(null);
+        clusterCacheGameTime = Long.MIN_VALUE;
+        ACTIVE_SPAWN_CONTEXT.remove();
+    }
+
     public static boolean canReplaceSmoke(Level level, BlockPos pos, BlockState state) {
         return level.isClientSide
                 && CampfireBlock.isLitCampfire(state)
