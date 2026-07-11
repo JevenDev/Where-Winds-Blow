@@ -53,6 +53,10 @@ public final class ClientConfig {
     public static final double WIND_LANTERN_SWAY_STRENGTH_MAX = 2.0D;
     public static final double WIND_HANGING_SIGN_SWAY_STRENGTH_MIN = 0.0D;
     public static final double WIND_HANGING_SIGN_SWAY_STRENGTH_MAX = 2.0D;
+    public static final double BANNER_RESPONSE_MIN = 0.0D;
+    public static final double BANNER_RESPONSE_MAX = 2.0D;
+    public static final double BANNER_ANIMATION_DISTANCE_MIN = 16.0D;
+    public static final double BANNER_ANIMATION_DISTANCE_MAX = 128.0D;
     public static final double WIND_FOLIAGE_SWAY_STRENGTH_MIN = 0.0D;
     public static final double WIND_FOLIAGE_SWAY_STRENGTH_MAX = 2.0D;
     public static final double WIND_PLANT_SWAY_START_HEIGHT_MIN = 0.0D;
@@ -229,6 +233,34 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_HANGING_SIGN_SWAY_STRENGTH = BUILDER
             .comment("Scales how strongly hanging signs sway with the wind.")
             .defineInRange("windHangingSignSwayStrength", 1.0D, WIND_HANGING_SIGN_SWAY_STRENGTH_MIN, WIND_HANGING_SIGN_SWAY_STRENGTH_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_REACTIVE_BANNERS = BUILDER
+            .comment("Lets standing and wall banners deform in response to the shared client wind simulation.")
+            .define("enableWindReactiveBanners", true);
+
+    public static final ModConfigSpec.DoubleValue BANNER_WIND_STRENGTH = BUILDER
+            .comment("Scales the main wind-driven extension of banner cloth.")
+            .defineInRange("bannerWindStrength", 1.0D, BANNER_RESPONSE_MIN, BANNER_RESPONSE_MAX);
+
+    public static final ModConfigSpec.DoubleValue BANNER_GUST_RESPONSE = BUILDER
+            .comment("Scales how strongly banner cloth responds to travelling gust fronts.")
+            .defineInRange("bannerGustResponse", 1.0D, BANNER_RESPONSE_MIN, BANNER_RESPONSE_MAX);
+
+    public static final ModConfigSpec.DoubleValue BANNER_FLUTTER_STRENGTH = BUILDER
+            .comment("Scales the small high-frequency motion near banner edges.")
+            .defineInRange("bannerFlutterStrength", 0.75D, BANNER_RESPONSE_MIN, BANNER_RESPONSE_MAX);
+
+    public static final ModConfigSpec.DoubleValue BANNER_SAG_STRENGTH = BUILDER
+            .comment("Scales the downward curve retained by banner cloth.")
+            .defineInRange("bannerSagStrength", 1.0D, BANNER_RESPONSE_MIN, BANNER_RESPONSE_MAX);
+
+    public static final ModConfigSpec.DoubleValue BANNER_TURBULENCE_RESPONSE = BUILDER
+            .comment("Scales irregular secondary banner motion from local turbulence.")
+            .defineInRange("bannerTurbulenceResponse", 0.65D, BANNER_RESPONSE_MIN, BANNER_RESPONSE_MAX);
+
+    public static final ModConfigSpec.DoubleValue BANNER_ANIMATION_DISTANCE = BUILDER
+            .comment("Maximum camera distance in blocks for wind-reactive banner cloth.")
+            .defineInRange("bannerAnimationDistance", 64.0D, BANNER_ANIMATION_DISTANCE_MIN, BANNER_ANIMATION_DISTANCE_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_STANDALONE_CHAIN_SWAY = BUILDER
             .comment("Lets vertical chain blocks sway even when their connected stack does not end in a hanging lantern.")

@@ -335,6 +335,22 @@ public final class WhereWindsBlowConfigScreen {
                         .option(booleanOption(ClientConfig.ENABLE_STANDALONE_CHAIN_SWAY, WhereWindsBlowConfigScreen::rebuildFoliage))
                         .build())
                 .group(OptionGroup.createBuilder()
+                        .name(translatable("group.banners"))
+                        .description(description("group.banners.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_REACTIVE_BANNERS))
+                        .option(bannerResponseOption(ClientConfig.BANNER_WIND_STRENGTH))
+                        .option(bannerResponseOption(ClientConfig.BANNER_GUST_RESPONSE))
+                        .option(bannerResponseOption(ClientConfig.BANNER_FLUTTER_STRENGTH))
+                        .option(bannerResponseOption(ClientConfig.BANNER_SAG_STRENGTH))
+                        .option(bannerResponseOption(ClientConfig.BANNER_TURBULENCE_RESPONSE))
+                        .option(doubleOption(
+                                ClientConfig.BANNER_ANIMATION_DISTANCE,
+                                ClientConfig.BANNER_ANIMATION_DISTANCE_MIN,
+                                ClientConfig.BANNER_ANIMATION_DISTANCE_MAX,
+                                4.0D
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
                         .name(translatable("group.compatibility"))
                         .description(description("group.compatibility.description"))
                         .option(booleanOption(ClientConfig.ENABLE_SODIUM_SHADER_PATCH))
@@ -395,6 +411,10 @@ public final class WhereWindsBlowConfigScreen {
 
     private static Option<Double> weatherSheenOption(ModConfigSpec.DoubleValue value) {
         return doubleOption(value, ClientConfig.WEATHER_SHEEN_STRENGTH_MIN, ClientConfig.WEATHER_SHEEN_STRENGTH_MAX, SMALL_STEP);
+    }
+
+    private static Option<Double> bannerResponseOption(ModConfigSpec.DoubleValue value) {
+        return doubleOption(value, ClientConfig.BANNER_RESPONSE_MIN, ClientConfig.BANNER_RESPONSE_MAX, SMALL_STEP);
     }
 
     private static Option<Double> doubleOption(ModConfigSpec.DoubleValue value, double min, double max, double step) {

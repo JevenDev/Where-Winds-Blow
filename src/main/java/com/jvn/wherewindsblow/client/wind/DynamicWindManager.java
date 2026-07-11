@@ -2,6 +2,7 @@ package com.jvn.wherewindsblow.client.wind;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
+import com.jvn.wherewindsblow.client.banner.WindReactiveBannerRenderer;
 import com.jvn.wherewindsblow.client.foliage.SodiumFoliageUniforms;
 import com.jvn.wherewindsblow.client.lantern.SwingingLanternAssemblyRenderer;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokePlumes;
@@ -440,6 +441,7 @@ public final class DynamicWindManager {
         SwingingLanternAssemblyRenderer.reset();
         CampfireSmokePlumes.reset();
         WindStreakRenderer.reset();
+        WindReactiveBannerRenderer.reset();
     }
 
     private static float targetWeatherWindPower(ClientLevel level) {
