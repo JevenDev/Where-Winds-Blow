@@ -276,7 +276,7 @@ public final class SodiumFoliageShaderSource {
                 float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
                 float tipLift = wwb_smooth_curve(bend);
                 return clamp(
-                        (sheenBand * 0.30 + ripple * proceduralGust * 0.035)
+                        (sheenBand * 0.30 + ripple * proceduralGust * 0.035 + gustLeadingEdge * 0.12)
                                 * tipLift
                                 * wwb_sheen_strength_for_alpha(alpha),
                         0.0,
@@ -404,7 +404,8 @@ public final class SodiumFoliageShaderSource {
                 float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
                 float proceduralGust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
                 float dynamicStrength = 1.0
-                        + clamp(u_WwbAmbientWindStrength, 0.0, 1.5) * 0.55;
+                        + clamp(u_WwbAmbientWindStrength, 0.0, 1.5) * 0.55
+                        + clamp(localGustStrength, 0.0, 1.5) * 0.45;
                 float shimmer = sin(windPosition.x * 2.17 + windPosition.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
                 float originalSway = 0.018 + wave * 0.145 * amplitudeDrift
                         + ripple * proceduralGust * 0.055
@@ -491,6 +492,14 @@ public final class SodiumFoliageShaderSource {
                 float wwbLocalTurbulence = u_WwbWindTurbulence;
                 float wwbGustLeadingEdge = 0.0;
                 vec2 wwbLocalWindDirection = normalize(u_WwbWindDirection);
+                if (wwb_should_apply_foliage_wind(wwbFoliageAlpha)) {
+                    wwbLocalWindDirection = wwb_sample_dynamic_wind(
+                            position.xz + u_WwbCameraPosition.xz,
+                            wwbLocalGustStrength,
+                            wwbLocalTurbulence,
+                            wwbGustLeadingEdge
+                    );
+                }
                 float wwbWindSheen = wwb_foliage_wind_sheen(
                         position,
                         wwbFoliageAlpha,

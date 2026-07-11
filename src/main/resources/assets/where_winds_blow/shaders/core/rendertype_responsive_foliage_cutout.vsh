@@ -369,10 +369,15 @@ void main() {
             float sheenStrength = windSheenStrengthForAlpha(Color.a);
             float t = WindTime;
             vec3 windPos = pos + CameraPosition;
-            // Keep foliage on the original coherent field. Travelling gust geometry is useful for
-            // particles and precipitation, but steering every grass vertex with it makes broad
-            // patches rapidly seesaw as a front crosses them.
-            vec2 windDir = normalize(WindDirection);
+            float localGustStrength;
+            float localTurbulence;
+            float gustLeadingEdge;
+            vec2 windDir = sampleDynamicWind(
+                    windPos.xz,
+                    localGustStrength,
+                    localTurbulence,
+                    gustLeadingEdge
+            );
             vec2 crossDir = vec2(-windDir.y, windDir.x);
             // Keep the original wave field fixed in world space. Dynamic direction steers the
             // displacement, but must not re-project world coordinates and jump the wave phase.
@@ -408,7 +413,7 @@ void main() {
             float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
             float tipLift = smoothCurve(windBend);
             windSheen = clamp(
-                    (sheenBand * 0.30 + ripple * proceduralGust * 0.035)
+                    (sheenBand * 0.30 + ripple * proceduralGust * 0.035 + gustLeadingEdge * 0.12)
                             * tipLift
                             * sheenStrength,
                     0.0,
@@ -417,7 +422,8 @@ void main() {
             // Preserve the original sway as the animation. Dynamic wind only supplies a smooth
             // direction and amplitude control signal instead of adding another oscillator.
             float dynamicStrength = 1.0
-                    + clamp(AmbientWindStrength, 0.0, 1.5) * 0.55;
+                    + clamp(AmbientWindStrength, 0.0, 1.5) * 0.55
+                    + clamp(localGustStrength, 0.0, 1.5) * 0.45;
             float shimmer = sin(windPos.x * 2.17 + windPos.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
             float originalSway = 0.018 + wave * 0.145 * amplitudeDrift
                     + ripple * proceduralGust * 0.055
