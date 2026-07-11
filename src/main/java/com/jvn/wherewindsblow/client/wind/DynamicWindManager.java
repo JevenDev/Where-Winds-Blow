@@ -212,6 +212,7 @@ public final class DynamicWindManager {
     }
 
     public static void reloadConfiguration() {
+        WindReactiveBannerRenderer.reset();
         boolean dynamicWindMode = ClientConfig.ENABLE_DYNAMIC_WIND.getAsBoolean();
         ClientConfig.WindDirectionMode directionMode = ClientConfig.WIND_DIRECTION_MODE.get();
         boolean modeChanged = configModeInitialized

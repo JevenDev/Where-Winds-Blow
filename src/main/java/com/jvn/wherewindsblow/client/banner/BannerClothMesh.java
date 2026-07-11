@@ -25,6 +25,10 @@ final class BannerClothMesh {
     private static final float BACK_U_MAX = 42.0F / 64.0F;
     private static final float V_MIN = 1.0F / 64.0F;
     private static final float V_MAX = 41.0F / 64.0F;
+    private static final float WEST_U_MIN = 0.0F;
+    private static final float WEST_U_MAX = 1.0F / 64.0F;
+    private static final float EAST_U_MIN = 21.0F / 64.0F;
+    private static final float EAST_U_MAX = 22.0F / 64.0F;
     private static final float HALF_THICKNESS = 0.5F;
     private static final ThreadLocal<Scratch> SCRATCH = ThreadLocal.withInitial(Scratch::new);
 
@@ -39,10 +43,11 @@ final class BannerClothMesh {
             DyeColor baseColor,
             BannerPatternLayers patterns,
             BannerWindStateCache.State state,
-            float partialTick
+            float partialTick,
+            float motionScale
     ) {
         Scratch scratch = SCRATCH.get();
-        deformStanding(scratch, state, partialTick);
+        deformStanding(scratch, state, partialTick, motionScale);
         renderLayers(poseStack, bufferSource, packedLight, packedOverlay, baseColor, patterns, scratch);
     }
 
@@ -54,14 +59,20 @@ final class BannerClothMesh {
             DyeColor baseColor,
             BannerPatternLayers patterns,
             BannerWindStateCache.State state,
-            float partialTick
+            float partialTick,
+            float motionScale
     ) {
         Scratch scratch = SCRATCH.get();
-        deformWall(scratch, state, partialTick);
+        deformWall(scratch, state, partialTick, motionScale);
         renderLayers(poseStack, bufferSource, packedLight, packedOverlay, baseColor, patterns, scratch);
     }
 
-    private static void deformStanding(Scratch scratch, BannerWindStateCache.State state, float partialTick) {
+    private static void deformStanding(
+            Scratch scratch,
+            BannerWindStateCache.State state,
+            float partialTick,
+            float motionScale
+    ) {
         float extension = state.extension(partialTick);
         float trailingExtension = state.trailingExtension(partialTick);
         float crosswind = state.crosswind(partialTick);
@@ -100,17 +111,24 @@ final class BannerClothMesh {
                         * flutterStrength;
                 float twist = crosswind * xNorm * anchorWeight * (1.15F + turbulence * 0.35F);
                 int index = index(column, row);
-                scratch.x[index] = -10.0F + u * 20.0F + sideDirection * length * horizontal;
-                scratch.y[index] = -32.0F + length * verticalScale + sag
-                        + Mth.sin(phase + time * 1.7F + xNorm * 2.4F) * anchorWeight * turbulence * 0.22F;
-                scratch.z[index] = -1.5F - outwardDirection * length * horizontal
-                        + broadWave + flutter + twist;
+                float baseX = -10.0F + u * 20.0F;
+                float baseY = -32.0F + length;
+                scratch.x[index] = Mth.lerp(motionScale, baseX, baseX + sideDirection * length * horizontal);
+                scratch.y[index] = Mth.lerp(motionScale, baseY, -32.0F + length * verticalScale + sag
+                        + Mth.sin(phase + time * 1.7F + xNorm * 2.4F) * anchorWeight * turbulence * 0.22F);
+                scratch.z[index] = Mth.lerp(motionScale, -1.5F, -1.5F - outwardDirection * length * horizontal
+                        + broadWave + flutter + twist);
             }
         }
         calculateNormals(scratch);
     }
 
-    private static void deformWall(Scratch scratch, BannerWindStateCache.State state, float partialTick) {
+    private static void deformWall(
+            Scratch scratch,
+            BannerWindStateCache.State state,
+            float partialTick,
+            float motionScale
+    ) {
         float extension = state.extension(partialTick);
         float trailingExtension = state.trailingExtension(partialTick);
         float crosswind = state.crosswind(partialTick);
@@ -143,13 +161,15 @@ final class BannerClothMesh {
                 float sideShift = crosswind * length * (0.48F + v * 0.12F);
                 float twist = crosswind * xNorm * anchorWeight * (0.9F + turbulence * 0.3F);
                 int index = index(column, row);
-                scratch.x[index] = -10.0F + u * 20.0F + sideShift;
-                scratch.y[index] = -32.0F + length * verticalScale + sag
-                        + Mth.sin(phase + time * 1.5F + xNorm * 2.0F) * anchorWeight * turbulence * 0.18F;
-                scratch.z[index] = Math.min(
+                float baseX = -10.0F + u * 20.0F;
+                float baseY = -32.0F + length;
+                scratch.x[index] = Mth.lerp(motionScale, baseX, baseX + sideShift);
+                scratch.y[index] = Mth.lerp(motionScale, baseY, -32.0F + length * verticalScale + sag
+                        + Mth.sin(phase + time * 1.5F + xNorm * 2.0F) * anchorWeight * turbulence * 0.18F);
+                scratch.z[index] = Mth.lerp(motionScale, -1.5F, Math.min(
                         -0.85F,
                         -1.5F - length * horizontal + broadWave + flutter + twist
-                );
+                ));
             }
         }
         calculateNormals(scratch);
@@ -242,6 +262,28 @@ final class BannerClothMesh {
                 emit(consumer, poseStack, scratch, d, 1.0F, Mth.lerp(u0, BACK_U_MAX, BACK_U_MIN), v1,
                         color, packedLight, packedOverlay);
             }
+
+            int leftTop = index(0, row);
+            int leftBottom = index(0, row + 1);
+            emit(consumer, poseStack, scratch, leftTop, -1.0F, WEST_U_MAX, v0,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, leftTop, 1.0F, WEST_U_MIN, v0,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, leftBottom, 1.0F, WEST_U_MIN, v1,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, leftBottom, -1.0F, WEST_U_MAX, v1,
+                    color, packedLight, packedOverlay);
+
+            int rightTop = index(COLUMNS, row);
+            int rightBottom = index(COLUMNS, row + 1);
+            emit(consumer, poseStack, scratch, rightTop, 1.0F, EAST_U_MAX, v0,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, rightTop, -1.0F, EAST_U_MIN, v0,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, rightBottom, -1.0F, EAST_U_MIN, v1,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, rightBottom, 1.0F, EAST_U_MAX, v1,
+                    color, packedLight, packedOverlay);
         }
     }
 

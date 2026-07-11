@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.resources.model.ModelBakery;
@@ -12,6 +13,7 @@ import net.minecraft.world.level.block.WallBannerBlock;
 import net.minecraft.world.level.block.entity.BannerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.RotationSegment;
+import net.minecraft.world.phys.Vec3;
 import com.jvn.wherewindsblow.config.ClientConfig;
 
 /**
@@ -47,20 +49,30 @@ public final class WindReactiveBannerRenderer {
         } else {
             return false;
         }
+        double animationDistance = ClientConfig.BANNER_ANIMATION_DISTANCE.getAsDouble();
+        Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        double dx = blockEntity.getBlockPos().getX() + 0.5D - cameraPosition.x;
+        double dy = blockEntity.getBlockPos().getY() + 0.5D - cameraPosition.y;
+        double dz = blockEntity.getBlockPos().getZ() + 0.5D - cameraPosition.z;
+        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (distance >= animationDistance) {
+            return false;
+        }
+        float distanceFade = (float) Math.min(1.0D, (animationDistance - distance) / 8.0D);
         BannerWindStateCache.State response = BannerWindStateCache.touch(
                 blockEntity.getBlockPos(), wall, rendererYawDegrees
         );
         if (wall) {
             renderWall(
                     blockEntity, partialTick, poseStack, bufferSource, packedLight, packedOverlay,
-                    pole, bar, rendererYawDegrees, response
+                    pole, bar, rendererYawDegrees, response, distanceFade
             );
             return true;
         }
 
         renderStanding(
                 blockEntity, partialTick, poseStack, bufferSource, packedLight, packedOverlay,
-                pole, bar, rendererYawDegrees, response
+                pole, bar, rendererYawDegrees, response, distanceFade
         );
         return true;
     }
@@ -79,7 +91,8 @@ public final class WindReactiveBannerRenderer {
             ModelPart pole,
             ModelPart bar,
             float rendererYawDegrees,
-            BannerWindStateCache.State response
+            BannerWindStateCache.State response,
+            float distanceFade
     ) {
         poseStack.pushPose();
         poseStack.translate(0.5F, 0.5F, 0.5F);
@@ -98,7 +111,8 @@ public final class WindReactiveBannerRenderer {
                 blockEntity.getBaseColor(),
                 blockEntity.getPatterns(),
                 response,
-                partialTick
+                partialTick,
+                distanceFade
         );
         poseStack.popPose();
         poseStack.popPose();
@@ -114,7 +128,8 @@ public final class WindReactiveBannerRenderer {
             ModelPart pole,
             ModelPart bar,
             float rendererYawDegrees,
-            BannerWindStateCache.State response
+            BannerWindStateCache.State response,
+            float distanceFade
     ) {
         poseStack.pushPose();
         poseStack.translate(0.5F, -0.16666667F, 0.5F);
@@ -134,7 +149,8 @@ public final class WindReactiveBannerRenderer {
                 blockEntity.getBaseColor(),
                 blockEntity.getPatterns(),
                 response,
-                partialTick
+                partialTick,
+                distanceFade
         );
         poseStack.popPose();
         poseStack.popPose();

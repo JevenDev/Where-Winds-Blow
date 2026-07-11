@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client;
 
+import com.jvn.wherewindsblow.client.banner.WindReactiveBannerRenderer;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.jvn.wherewindsblow.config.CommonConfig;
@@ -337,7 +338,7 @@ public final class WhereWindsBlowConfigScreen {
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.banners"))
                         .description(description("group.banners.description"))
-                        .option(booleanOption(ClientConfig.ENABLE_WIND_REACTIVE_BANNERS))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_REACTIVE_BANNERS, WindReactiveBannerRenderer::reset))
                         .option(bannerResponseOption(ClientConfig.BANNER_WIND_STRENGTH))
                         .option(bannerResponseOption(ClientConfig.BANNER_GUST_RESPONSE))
                         .option(bannerResponseOption(ClientConfig.BANNER_FLUTTER_STRENGTH))

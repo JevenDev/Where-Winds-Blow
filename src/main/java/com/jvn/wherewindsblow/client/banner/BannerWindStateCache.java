@@ -39,6 +39,10 @@ public final class BannerWindStateCache {
     }
 
     public static void onClientTick(ClientTickEvent.Post event) {
+        if (!ClientConfig.ENABLE_WIND_REACTIVE_BANNERS.getAsBoolean()) {
+            reset();
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
         if (level == null || minecraft.isPaused()) {
