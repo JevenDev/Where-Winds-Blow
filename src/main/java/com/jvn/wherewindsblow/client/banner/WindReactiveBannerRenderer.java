@@ -17,8 +17,8 @@ import net.minecraft.world.phys.Vec3;
 import com.jvn.wherewindsblow.config.ClientConfig;
 
 /**
- * Owns the optional cloth-only banner rendering path. Until its low-resolution cloth mesh is
- * enabled, the mixin deliberately falls through to the complete vanilla renderer.
+ * Owns the optional cloth-only banner rendering path and falls through to vanilla whenever the
+ * feature is disabled or outside its animation distance.
  */
 public final class WindReactiveBannerRenderer {
     private WindReactiveBannerRenderer() {
@@ -31,7 +31,6 @@ public final class WindReactiveBannerRenderer {
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay,
-            ModelPart flag,
             ModelPart pole,
             ModelPart bar
     ) {

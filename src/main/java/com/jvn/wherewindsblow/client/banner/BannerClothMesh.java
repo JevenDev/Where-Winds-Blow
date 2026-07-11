@@ -285,6 +285,36 @@ final class BannerClothMesh {
             emit(consumer, poseStack, scratch, rightBottom, 1.0F, EAST_U_MAX, v1,
                     color, packedLight, packedOverlay);
         }
+
+        for (int column = 0; column < COLUMNS; column++) {
+            float fraction0 = column / (float) COLUMNS;
+            float fraction1 = (column + 1) / (float) COLUMNS;
+            float topU0 = Mth.lerp(fraction0, 1.0F / 64.0F, 21.0F / 64.0F);
+            float topU1 = Mth.lerp(fraction1, 1.0F / 64.0F, 21.0F / 64.0F);
+            int topLeft = index(column, 0);
+            int topRight = index(column + 1, 0);
+            emit(consumer, poseStack, scratch, topRight, 1.0F, topU1, 0.0F,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, topLeft, 1.0F, topU0, 0.0F,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, topLeft, -1.0F, topU0, 1.0F / 64.0F,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, topRight, -1.0F, topU1, 1.0F / 64.0F,
+                    color, packedLight, packedOverlay);
+
+            float bottomU0 = Mth.lerp(fraction0, 21.0F / 64.0F, 41.0F / 64.0F);
+            float bottomU1 = Mth.lerp(fraction1, 21.0F / 64.0F, 41.0F / 64.0F);
+            int bottomLeft = index(column, ROWS);
+            int bottomRight = index(column + 1, ROWS);
+            emit(consumer, poseStack, scratch, bottomRight, -1.0F, bottomU1, 1.0F / 64.0F,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, bottomLeft, -1.0F, bottomU0, 1.0F / 64.0F,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, bottomLeft, 1.0F, bottomU0, 0.0F,
+                    color, packedLight, packedOverlay);
+            emit(consumer, poseStack, scratch, bottomRight, 1.0F, bottomU1, 0.0F,
+                    color, packedLight, packedOverlay);
+        }
     }
 
     private static void emit(

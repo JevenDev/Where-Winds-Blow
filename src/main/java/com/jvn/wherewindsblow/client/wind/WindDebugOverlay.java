@@ -1,10 +1,16 @@
 package com.jvn.wherewindsblow.client.wind;
 
+import com.jvn.wherewindsblow.client.banner.BannerWindStateCache;
 import com.jvn.wherewindsblow.config.ClientConfig;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.world.level.block.WallBannerBlock;
+import net.minecraft.world.level.block.entity.BannerBlockEntity;
+import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 
 public final class WindDebugOverlay {
@@ -26,7 +32,7 @@ public final class WindDebugOverlay {
 
         GlobalWindState state = DynamicWindManager.currentState();
         WindSample sample = DynamicWindManager.sampleWind(minecraft.player.blockPosition());
-        String[] lines = {
+        List<String> lines = new ArrayList<>(List.of(
                 "Wind · " + modeName(),
                 String.format(Locale.ROOT, "Direction  %3.0f°", state.directionDegrees()),
                 String.format(Locale.ROOT, "Strength   %.2f", sample.strength()),
@@ -35,8 +41,22 @@ public final class WindDebugOverlay {
                 String.format(Locale.ROOT, "Turbulence %.2f", sample.turbulence()),
                 String.format(Locale.ROOT, "Exposure   %.2f", sample.exposure()),
                 "Profile    " + sample.profileId().getPath(),
-                "Gust fronts " + DynamicWindManager.activeGustCount()
-        };
+                "Gust fronts " + DynamicWindManager.activeGustCount(),
+                "Banner states " + BannerWindStateCache.stateCount()
+        ));
+        if (minecraft.hitResult instanceof BlockHitResult hit
+                && minecraft.level.getBlockEntity(hit.getBlockPos()) instanceof BannerBlockEntity banner) {
+            boolean wall = banner.getBlockState().getBlock() instanceof WallBannerBlock;
+            BannerWindStateCache.State bannerState = BannerWindStateCache.debugState(hit.getBlockPos(), wall);
+            if (bannerState != null) {
+                lines.add(wall ? "Wall banner" : "Standing banner");
+                lines.add(String.format(Locale.ROOT, "Extension  %.2f", bannerState.extension(1.0F)));
+                lines.add(String.format(Locale.ROOT, "Crosswind  %.2f", bannerState.crosswind(1.0F)));
+                lines.add(String.format(Locale.ROOT, "Banner gust %.2f", bannerState.gust(1.0F)));
+                lines.add(String.format(Locale.ROOT, "Banner turb %.2f", bannerState.turbulence(1.0F)));
+                lines.add(String.format(Locale.ROOT, "Banner exp  %.2f", bannerState.exposure(1.0F)));
+            }
+        }
 
         GuiGraphics graphics = event.getGuiGraphics();
         Font font = minecraft.font;
@@ -46,12 +66,12 @@ public final class WindDebugOverlay {
         }
 
         int boxWidth = width + PADDING * 2;
-        int boxHeight = lines.length * font.lineHeight + PADDING * 2;
+        int boxHeight = lines.size() * font.lineHeight + PADDING * 2;
         int x = graphics.guiWidth() - boxWidth - 6;
         int y = 6;
         graphics.fill(x, y, x + boxWidth, y + boxHeight, BACKGROUND_COLOR);
-        for (int index = 0; index < lines.length; index++) {
-            graphics.drawString(font, lines[index], x + PADDING, y + PADDING + index * font.lineHeight, TEXT_COLOR, false);
+        for (int index = 0; index < lines.size(); index++) {
+            graphics.drawString(font, lines.get(index), x + PADDING, y + PADDING + index * font.lineHeight, TEXT_COLOR, false);
         }
     }
 

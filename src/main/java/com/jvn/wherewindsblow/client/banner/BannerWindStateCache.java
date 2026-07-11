@@ -59,6 +59,14 @@ public final class BannerWindStateCache {
         WALL_STATES.clear();
     }
 
+    public static State debugState(BlockPos pos, boolean wall) {
+        return (wall ? WALL_STATES : STANDING_STATES).get(pos.asLong());
+    }
+
+    public static int stateCount() {
+        return STANDING_STATES.size() + WALL_STATES.size();
+    }
+
     private static void tickStates(
             Long2ObjectLinkedOpenHashMap<State> states,
             ClientLevel level,
