@@ -2,6 +2,7 @@ package com.jvn.wherewindsblow.client;
 
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
+import com.jvn.wherewindsblow.client.banner.BannerWindStateCache;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.lantern.LanternSway;
@@ -44,6 +45,7 @@ public final class WhereWindsBlowClient {
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onClientTick);
         NeoForge.EVENT_BUS.addListener(DynamicWindManager::onClientTick);
+        NeoForge.EVENT_BUS.addListener(BannerWindStateCache::onClientTick);
         NeoForge.EVENT_BUS.addListener(WhereWindsBlowClient::onClientPauseChange);
         NeoForge.EVENT_BUS.addListener(SwingingLanternAssemblyRenderer::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onRenderLevelStage);
