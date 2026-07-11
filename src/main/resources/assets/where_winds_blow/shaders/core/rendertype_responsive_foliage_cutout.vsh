@@ -369,10 +369,10 @@ void main() {
             float sheenStrength = windSheenStrengthForAlpha(Color.a);
             float t = WindTime;
             vec3 windPos = pos + CameraPosition;
-            float localGustStrength;
-            float localTurbulence;
-            float gustLeadingEdge;
-            vec2 windDir = sampleDynamicWind(windPos.xz, localGustStrength, localTurbulence, gustLeadingEdge);
+            // Keep foliage on the original coherent field. Travelling gust geometry is useful for
+            // particles and precipitation, but steering every grass vertex with it makes broad
+            // patches rapidly seesaw as a front crosses them.
+            vec2 windDir = normalize(WindDirection);
             vec2 crossDir = vec2(-windDir.y, windDir.x);
             // Keep the original wave field fixed in world space. Dynamic direction steers the
             // displacement, but must not re-project world coordinates and jump the wave phase.
@@ -381,14 +381,22 @@ void main() {
             float along = dot(windPos.xz, phaseDir);
             float across = dot(windPos.xz, phaseCross);
             float plantWind = isPlantWindAlpha(Color.a) ? 1.0 : 0.0;
+            vec2 gustCell = floor(windPos.xz * 0.58);
+            vec2 bladeCell = floor(windPos.xz * 2.7);
+            float gustSeed = grassVariationSeed(gustCell, vec2(127.1, 311.7));
+            float bladeSeed = grassVariationSeed(bladeCell, vec2(269.5, 183.3));
+            float localPhase = plantWind * ((gustSeed - 0.5) * 3.2 + (bladeSeed - 0.5) * 0.7);
+            float localTempo = mix(1.0, 0.82 + gustSeed * 0.36, plantWind);
+            float localAmplitude = mix(1.0, 0.62 + gustSeed * 0.55 + bladeSeed * 0.18, plantWind);
             float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
                     + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
-            float tempoDrift = 1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09) * 0.08;
-            float amplitudeDrift = 0.84 + 0.22 * smoothCurve(sin(along * 0.21 + across * 0.14 - t * 0.16) * 0.5 + 0.5);
-            float broad = sin(along * 0.35 - t * 1.28 * tempoDrift + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift);
+            phaseDrift += localPhase * 0.38;
+            float tempoDrift = (1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09 + localPhase * 0.2) * 0.08) * localTempo;
+            float amplitudeDrift = (0.84 + 0.22 * smoothCurve(sin(along * 0.21 + across * 0.14 - t * 0.16 + localPhase) * 0.5 + 0.5)) * localAmplitude;
+            float broad = sin(along * 0.35 - t * 1.28 * tempoDrift + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + localPhase);
             float wave = pow(max(0.0, broad), 1.7);
-            float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7) * 0.5 + 0.5;
-            float microPulse = smoothCurve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35) * 0.5 + 0.5);
+            float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
+            float proceduralGust = smoothCurve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
             float fieldWarp = sin(along * 0.075 + across * 0.115 + t * 0.21) * 0.75
                     + sin(along * 0.16 - across * 0.085 - t * 0.13) * 0.36;
             float wavePhase = along * 0.34 - t * 1.52 * tempoDrift + sin(across * 0.055 + t * 0.22) * 1.1 + fieldWarp + phaseDrift * 0.55;
@@ -399,30 +407,28 @@ void main() {
             float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47 + phaseDrift * 0.5);
             float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
             float tipLift = smoothCurve(windBend);
-            float ambientSheen = sheenBand * (0.025 + AmbientWindStrength * 0.035);
             windSheen = clamp(
-                    (ambientSheen + gustLeadingEdge * 0.38 + ripple * microPulse * localTurbulence * 0.018)
+                    (sheenBand * 0.30 + ripple * proceduralGust * 0.035)
                             * tipLift
                             * sheenStrength,
                     0.0,
                     0.35
             );
-            float leafWind = 1.0 - plantWind;
-            float rawWindPower = max(AmbientWindStrength + localGustStrength, 0.0);
-            float excessWind = max(rawWindPower - 1.0, 0.0);
-            float compressedWindPower = min(rawWindPower, 1.0) + excessWind / (1.0 + excessWind * 2.0);
-            float controlledTurbulence = max(localTurbulence, 0.0) / (1.0 + max(localTurbulence, 0.0) * 0.8);
-            // Preserve the old broad sway shape. Dynamic ambient and gust power only scale this
-            // continuous motion instead of injecting independent high-frequency displacement.
-            float powerScale = 0.82 + min(compressedWindPower, 1.3) * 0.98;
-            float baseSway = 0.018 + wave * 0.145 * amplitudeDrift + ripple * microPulse * 0.055;
+            // Preserve the original sway as the animation. Dynamic wind only supplies a smooth
+            // direction and amplitude control signal instead of adding another oscillator.
+            float dynamicStrength = 1.0
+                    + clamp(AmbientWindStrength, 0.0, 1.5) * 0.55;
+            float shimmer = sin(windPos.x * 2.17 + windPos.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
+            float originalSway = 0.018 + wave * 0.145 * amplitudeDrift
+                    + ripple * proceduralGust * 0.055
+                    + shimmer;
             float strength = clamp(
-                    baseSway * powerScale * windBend * swayStrength * mix(1.0, 0.72, leafWind),
-                    0.0,
-                    0.38
+                    originalSway * dynamicStrength * windBend * swayStrength,
+                    -0.08,
+                    0.42
             );
-            float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35)
-                    * (0.14 + plantWind * 0.06 + controlledTurbulence * 0.08);
+            float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase)
+                    * (0.18 + plantWind * 0.08);
             vec2 dir = normalize(windDir + crossDir * directionNoise);
             pos.xz += dir * strength;
         }

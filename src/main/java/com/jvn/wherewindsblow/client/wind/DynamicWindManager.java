@@ -69,6 +69,9 @@ public final class DynamicWindManager {
     private static int activeGustCount;
     private static float ambientTurbulence;
     private static BiomeWindProfile activeProfile = BiomeWindProfiles.neutral();
+    private static float effectiveBaseStrengthMultiplier = 1.0F;
+    private static float effectiveGustStrengthMultiplier = 1.0F;
+    private static float effectiveTurbulenceMultiplier = 1.0F;
     private static long appliedProfileRevision = -1L;
     private static boolean appliedDynamicWindMode;
     private static ClientConfig.WindDirectionMode appliedDirectionMode;
@@ -198,6 +201,16 @@ public final class DynamicWindManager {
         return activeProfile;
     }
 
+    public static float effectiveGustStrengthMultiplier() {
+        currentState();
+        return effectiveGustStrengthMultiplier;
+    }
+
+    public static float effectiveTurbulenceMultiplier() {
+        currentState();
+        return effectiveTurbulenceMultiplier;
+    }
+
     public static int activeGustCount() {
         currentState();
         return activeGustCount;
@@ -302,6 +315,7 @@ public final class DynamicWindManager {
         } else {
             activeProfile = profile;
         }
+        updateEffectiveProfile(deltaSeconds, activeProfile);
         // Wind power controls force, not the rate at which every oscillator and gust clock runs.
         // Coupling these made stronger ambient wind visibly accelerate foliage rocking.
         simulationSpeed = 1.0F;
@@ -343,12 +357,12 @@ public final class DynamicWindManager {
         double sampleZ = Minecraft.getInstance().player == null ? 0.0D : Minecraft.getInstance().player.getZ();
         MutableGustContribution localGust = GUST_SCRATCH.get();
         sampleGustContribution(sampleX, sampleZ, simulationTimeSeconds, localGust);
-        float profiledAmbient = ambientStrength * activeProfile.baseStrengthMultiplier();
-        float profiledAmbientTarget = ambientTarget * activeProfile.baseStrengthMultiplier();
-        float profiledGust = localGust.strength() * activeProfile.gustStrengthMultiplier();
+        float profiledAmbient = ambientStrength * effectiveBaseStrengthMultiplier;
+        float profiledAmbientTarget = ambientTarget * effectiveBaseStrengthMultiplier;
+        float profiledGust = localGust.strength() * effectiveGustStrengthMultiplier;
         float profiledTurbulence = (ambientTurbulence + localGust.turbulence())
-                * activeProfile.turbulenceMultiplier();
-        float profiledAmbientTurbulence = ambientTurbulence * activeProfile.turbulenceMultiplier();
+                * effectiveTurbulenceMultiplier;
+        float profiledAmbientTurbulence = ambientTurbulence * effectiveTurbulenceMultiplier;
         Direction baseDirection = directionFromDegrees(prevailingDirectionDegrees);
         Direction targetDirection = directionFromDegrees(targetDirectionDegrees);
         float transitionProgress = directionTransitionDuration <= 0.0F
@@ -399,6 +413,7 @@ public final class DynamicWindManager {
         ambientStrength = 0.0F;
         ambientTurbulence = 0.0F;
         activeProfile = BiomeWindProfiles.neutral();
+        setEffectiveProfile(activeProfile);
         appliedProfileRevision = BiomeWindProfiles.revision();
         appliedDynamicWindMode = ClientConfig.ENABLE_DYNAMIC_WIND.getAsBoolean();
         appliedDirectionMode = ClientConfig.WIND_DIRECTION_MODE.get();
@@ -426,6 +441,7 @@ public final class DynamicWindManager {
         simulationSeed = mix64(level.dimension().location().hashCode());
         randomState = simulationSeed == 0L ? 0x9e3779b97f4a7c15L : simulationSeed;
         activeProfile = currentPlayerProfile();
+        setEffectiveProfile(activeProfile);
         directionChangeCountdown = randomDirectionHoldTime();
         lullCountdown = randomLullInterval(weatherPower);
         gustSpawnCountdown = randomGustInterval(
@@ -433,7 +449,7 @@ public final class DynamicWindManager {
                 level.getThunderLevel(1.0F),
                 activeProfile.gustFrequencyMultiplier()
         );
-        float profiledAmbient = ambientStrength * activeProfile.baseStrengthMultiplier();
+        float profiledAmbient = ambientStrength * effectiveBaseStrengthMultiplier;
         state = new GlobalWindState(
                 direction.x(), direction.z(),
                 direction.x(), direction.z(),
@@ -445,7 +461,11 @@ public final class DynamicWindManager {
                 1.0F,
                 activeProfile.id()
         );
-        simulationTimeSeconds = level.getGameTime() * 0.05F;
+        // This clock is uploaded to shaders as a float. Seeding it from total world game time
+        // eventually destroys sub-frame precision in older worlds and makes sine-based foliage
+        // motion snap between poses. All gust records reset with the manager, so a small local
+        // clock is both sufficient and stable.
+        simulationTimeSeconds = 0.0F;
         WhereWindsBlow.LOGGER.debug(
                 "Initialized client wind simulation for {} with seed {}.",
                 level.dimension().location(),
@@ -475,6 +495,33 @@ public final class DynamicWindManager {
                 rainyValue,
                 (float) ClientConfig.THUNDER_WEATHER_WIND_POWER.getAsDouble()
         );
+    }
+
+    private static void updateEffectiveProfile(float deltaSeconds, BiomeWindProfile target) {
+        // Player biome selection can alternate every tick along a boundary. Smooth only the
+        // multipliers that directly drive rendered motion so that boundary crossings remain calm.
+        float blend = 1.0F - (float) Math.exp(-deltaSeconds * 0.7F);
+        effectiveBaseStrengthMultiplier = Mth.lerp(
+                blend,
+                effectiveBaseStrengthMultiplier,
+                target.baseStrengthMultiplier()
+        );
+        effectiveGustStrengthMultiplier = Mth.lerp(
+                blend,
+                effectiveGustStrengthMultiplier,
+                target.gustStrengthMultiplier()
+        );
+        effectiveTurbulenceMultiplier = Mth.lerp(
+                blend,
+                effectiveTurbulenceMultiplier,
+                target.turbulenceMultiplier()
+        );
+    }
+
+    private static void setEffectiveProfile(BiomeWindProfile profile) {
+        effectiveBaseStrengthMultiplier = profile.baseStrengthMultiplier();
+        effectiveGustStrengthMultiplier = profile.gustStrengthMultiplier();
+        effectiveTurbulenceMultiplier = profile.turbulenceMultiplier();
     }
 
     private static BiomeWindProfile currentPlayerProfile() {

@@ -5,7 +5,6 @@ import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.GlobalWindState;
 import com.jvn.wherewindsblow.client.wind.GustFrontState;
 import com.jvn.wherewindsblow.config.ClientConfig;
-import com.jvn.wherewindsblow.wind.BiomeWindProfile;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -172,7 +171,6 @@ public final class ResponsiveFoliageShaders {
 
     private static void uploadGustUniforms(ShaderInstance shader) {
         int gustCount = DynamicWindManager.activeGustCount();
-        BiomeWindProfile profile = DynamicWindManager.activeBiomeProfile();
         shader.safeGetUniform("ActiveGustCount").set(gustCount);
         for (int index = 0; index < DynamicWindManager.MAX_ACTIVE_GUSTS; index++) {
             GustFrontState gust = DynamicWindManager.gustFront(index);
@@ -196,8 +194,10 @@ public final class ResponsiveFoliageShaders {
                     gust.width()
             );
             shader.safeGetUniform("GustStrength" + index).set(
-                    DynamicWindManager.visualStrength(gust.peakStrength() * profile.gustStrengthMultiplier()),
-                    gust.turbulence() * profile.turbulenceMultiplier(),
+                    DynamicWindManager.visualStrength(
+                            gust.peakStrength() * DynamicWindManager.effectiveGustStrengthMultiplier()
+                    ),
+                    gust.turbulence() * DynamicWindManager.effectiveTurbulenceMultiplier(),
                     gust.noisePhase(),
                     gust.crossDrift()
             );

@@ -116,6 +116,12 @@ public final class BannerWindStateCache {
         private float turbulence;
         private float previousExposure = 1.0F;
         private float exposure = 1.0F;
+        private float previousHingeResponse;
+        private float hingeResponse;
+        private float hingeVelocity;
+        private float previousSideResponse;
+        private float sideResponse;
+        private float sideVelocity;
         private float targetExtension;
         private float targetCrosswind;
         private float targetOutwardWind;
@@ -151,6 +157,25 @@ public final class BannerWindStateCache {
                     this.targetGust > this.gust ? 9.0F : 3.0F);
             this.turbulence = approach(this.turbulence, this.targetTurbulence, deltaSeconds, 8.0F);
             this.exposure = approach(this.exposure, this.targetExposure, deltaSeconds, 4.0F);
+
+            // Model the vanilla flag as a light rigid panel hanging from its top edge. The spring
+            // gives gusts a little overshoot and follow-through without introducing cloth geometry.
+            float hingeTarget = Mth.clamp(this.targetExtension + this.targetGust * 0.045F, 0.0F, 1.1F);
+            this.hingeVelocity += ((hingeTarget - this.hingeResponse) * 19.0F
+                    - this.hingeVelocity * 6.2F) * deltaSeconds;
+            this.hingeResponse = Mth.clamp(
+                    this.hingeResponse + this.hingeVelocity * deltaSeconds,
+                    -0.06F,
+                    1.14F
+            );
+
+            this.sideVelocity += ((this.targetCrosswind - this.sideResponse) * 15.0F
+                    - this.sideVelocity * 6.8F) * deltaSeconds;
+            this.sideResponse = Mth.clamp(
+                    this.sideResponse + this.sideVelocity * deltaSeconds,
+                    -1.1F,
+                    1.1F
+            );
         }
 
         private void sample(ClientLevel level, boolean wall) {
@@ -185,6 +210,8 @@ public final class BannerWindStateCache {
             this.previousGust = this.gust;
             this.previousTurbulence = this.turbulence;
             this.previousExposure = this.exposure;
+            this.previousHingeResponse = this.hingeResponse;
+            this.previousSideResponse = this.sideResponse;
         }
 
         private static float approach(float current, float target, float deltaSeconds, float response) {
@@ -221,6 +248,14 @@ public final class BannerWindStateCache {
 
         public float exposure(float partialTick) {
             return Mth.lerp(partialTick, this.previousExposure, this.exposure);
+        }
+
+        public float hingeResponse(float partialTick) {
+            return Mth.lerp(partialTick, this.previousHingeResponse, this.hingeResponse);
+        }
+
+        public float sideResponse(float partialTick) {
+            return Mth.lerp(partialTick, this.previousSideResponse, this.sideResponse);
         }
     }
 }

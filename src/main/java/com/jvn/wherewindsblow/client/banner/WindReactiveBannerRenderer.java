@@ -167,7 +167,8 @@ public final class WindReactiveBannerRenderer {
         float vanillaAngle = (-0.0125F + 0.01F * Mth.cos(vanillaPhase + time * Mth.TWO_PI / 5.0F)) * Mth.PI;
 
         float extension = Mth.clamp(response.extension(partialTick), 0.0F, 1.0F);
-        float trailingExtension = Mth.clamp(response.trailingExtension(partialTick), 0.0F, 1.0F);
+        float hingeResponse = response.hingeResponse(partialTick);
+        float sideResponse = response.sideResponse(partialTick);
         float gust = Mth.clamp(response.gust(partialTick), 0.0F, 2.0F);
         float turbulence = Mth.clamp(response.turbulence(partialTick), 0.0F, 2.0F);
         float flutterStrength = (float) ClientConfig.BANNER_FLUTTER_STRENGTH.getAsDouble();
@@ -175,16 +176,25 @@ public final class WindReactiveBannerRenderer {
 
         // A banner remains mostly vertical in ordinary wind. Gusts can lift the whole vanilla
         // cuboid, but never bend it into a smooth, sail-like surface.
-        float lift = Mth.clamp(extension * 0.42F + trailingExtension * 0.16F + gust * 0.035F, 0.0F, 0.62F);
+        float lift = Mth.clamp(hingeResponse * 0.55F, 0.0F, 0.64F);
         lift /= Math.max(0.35F, sagStrength);
-        float flutter = Mth.sin(response.phase() + time * (3.2F + turbulence * 0.8F))
-                * (0.008F + extension * 0.018F + turbulence * 0.009F)
+        float broadSway = Mth.sin(response.phase() + time * (1.55F + gust * 0.18F))
+                * (0.006F + extension * 0.012F + turbulence * 0.006F)
                 * flutterStrength;
-        float windAngle = -Mth.clamp(lift + flutter, 0.0F, wall ? 0.58F : 0.68F);
+        float quickSway = Mth.sin(response.phase() * 1.73F + time * (3.8F + turbulence * 0.75F))
+                * (0.003F + extension * 0.007F + turbulence * 0.004F)
+                * flutterStrength;
+        float windAngle = Mth.clamp(-lift + broadSway + quickSway, -(wall ? 0.58F : 0.68F), 0.02F);
+
+        // These angles stay deliberately tiny: they communicate crosswind and turbulent sway
+        // while the silhouette still reads as Minecraft's single rigid banner cuboid.
+        float sidewaysNoise = Mth.sin(response.phase() * 0.83F + time * 2.1F) * turbulence * 0.004F;
+        float yaw = Mth.clamp(sideResponse * 0.035F + sidewaysNoise, -0.045F, 0.045F);
+        float roll = Mth.clamp(sideResponse * 0.016F - sidewaysNoise * 0.45F, -0.022F, 0.022F);
 
         flag.xRot = Mth.lerp(distanceFade, vanillaAngle, windAngle);
-        flag.yRot = 0.0F;
-        flag.zRot = 0.0F;
+        flag.yRot = yaw * distanceFade;
+        flag.zRot = roll * distanceFade;
         flag.y = -32.0F;
         BannerRenderer.renderPatterns(
                 poseStack,

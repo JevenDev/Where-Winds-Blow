@@ -25,6 +25,8 @@ public final class WindReactivePrecipitationRenderer {
     private static final ResourceLocation SNOW_LOCATION = ResourceLocation.withDefaultNamespace("textures/environment/snow.png");
     private static final float NORMAL_RAIN_DENSITY = 0.82F;
     private static final float THUNDER_EXTRA_RAIN_DENSITY = 0.28F;
+    private static final float NORMAL_SNOW_DENSITY = 0.90F;
+    private static final float THUNDER_EXTRA_SNOW_DENSITY = 0.08F;
 
     private WindReactivePrecipitationRenderer() {
     }
@@ -120,6 +122,10 @@ public final class WindReactivePrecipitationRenderer {
                                 driftX, driftZ, (scroll + 11.0F) % 32.0F, alpha * 0.72F, light, 0.28F);
                     }
                 } else if (precipitation == Biome.Precipitation.SNOW) {
+                    float primaryDensity = Mth.lerp(thunder, NORMAL_SNOW_DENSITY, 1.0F);
+                    if (unitFloat(hash ^ 0xBB67AE8584CAA73BL) > primaryDensity) {
+                        continue;
+                    }
                     if (activeType != 1) {
                         if (activeType >= 0) {
                             BufferUploader.drawWithShader(buffer.buildOrThrow());
@@ -134,17 +140,23 @@ public final class WindReactivePrecipitationRenderer {
                     float offsetV = (float) (random.nextDouble() + animationTime * random.nextGaussian() * 0.001D);
                     float distance = horizontalDistance(x, z, camX, camZ) / radius;
                     float alpha = ((1.0F - distance * distance) * 0.3F + 0.5F) * rainLevel;
-                    float slope = 0.025F + windStrength * 0.095F + thunder * 0.055F;
+                    float slope = 0.04F + windStrength * 0.125F + thunder * 0.07F;
                     float flutter = Mth.sin(animationTime * 0.035F + (hash & 255L)) * (0.12F + windStrength * 0.08F);
-                    float driftX = -wind.directionX() * Math.min((topY - bottomY) * slope, 4.5F) - wind.directionZ() * flutter;
-                    float driftZ = -wind.directionZ() * Math.min((topY - bottomY) * slope, 4.5F) + wind.directionX() * flutter;
+                    float driftX = -wind.directionX() * Math.min((topY - bottomY) * slope, 5.5F) - wind.directionZ() * flutter;
+                    float driftZ = -wind.directionZ() * Math.min((topY - bottomY) * slope, 5.5F) + wind.directionX() * flutter;
                     pos.set(x, Math.max(surfaceY, centerY), z);
                     int light = LevelRenderer.getLightColor(level, pos);
                     int blockLight = light >> 16 & 65535;
                     int skyLight = light & 65535;
                     addSnowQuad(buffer, x, z, bottomY, topY, camX, camY, camZ, widthX, widthZ,
                             driftX, driftZ, verticalScroll, offsetU, offsetV, alpha,
-                            (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4);
+                            (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4, 0.0F);
+
+                    if (thunder > 0.0F && unitFloat(hash ^ 0x3C6EF372FE94F82BL) < thunder * THUNDER_EXTRA_SNOW_DENSITY) {
+                        addSnowQuad(buffer, x, z, bottomY, topY, camX, camY, camZ, widthX, widthZ,
+                                driftX, driftZ, verticalScroll, offsetU + 0.37F, offsetV + 0.53F, alpha * 0.72F,
+                                (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4, 0.48F);
+                    }
                 }
             }
         }
@@ -175,11 +187,13 @@ public final class WindReactivePrecipitationRenderer {
     private static void addSnowQuad(BufferBuilder buffer, int x, int z, int bottomY, int topY,
                                     double camX, double camY, double camZ, double widthX, double widthZ,
                                     float driftX, float driftZ, float scroll, float offsetU, float offsetV,
-                                    float alpha, int skyLight, int blockLight) {
-        float leftX = (float) (x - camX - widthX + 0.5D);
-        float rightX = (float) (x - camX + widthX + 0.5D);
-        float leftZ = (float) (z - camZ - widthZ + 0.5D);
-        float rightZ = (float) (z - camZ + widthZ + 0.5D);
+                                    float alpha, int skyLight, int blockLight, float lateralOffset) {
+        float offsetX = (float) widthX * lateralOffset;
+        float offsetZ = (float) widthZ * lateralOffset;
+        float leftX = (float) (x - camX - widthX + 0.5D) + offsetX;
+        float rightX = (float) (x - camX + widthX + 0.5D) + offsetX;
+        float leftZ = (float) (z - camZ - widthZ + 0.5D) + offsetZ;
+        float rightZ = (float) (z - camZ + widthZ + 0.5D) + offsetZ;
         float top = (float) (topY - camY);
         float bottom = (float) (bottomY - camY);
         buffer.addVertex(leftX + driftX, top, leftZ + driftZ).setUv(offsetU, bottomY * 0.25F + scroll + offsetV).setColor(1.0F, 1.0F, 1.0F, alpha).setUv2(skyLight, blockLight);

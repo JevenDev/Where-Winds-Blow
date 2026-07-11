@@ -24,14 +24,16 @@ const mat4 VIEW_SCALE = mat4(
 );
 
 void main() {
+    float widthScale = clamp(length(Normal), 0.42, 1.0);
+    vec3 lineDirection = length(Normal) > 0.0001 ? normalize(Normal) : vec3(1.0, 0.0, 0.0);
     vec4 linePosStart = ProjMat * VIEW_SCALE * ModelViewMat * vec4(Position, 1.0);
-    vec4 linePosEnd = ProjMat * VIEW_SCALE * ModelViewMat * vec4(Position + Normal, 1.0);
+    vec4 linePosEnd = ProjMat * VIEW_SCALE * ModelViewMat * vec4(Position + lineDirection, 1.0);
 
     vec3 ndc1 = linePosStart.xyz / linePosStart.w;
     vec3 ndc2 = linePosEnd.xyz / linePosEnd.w;
 
     vec2 lineScreenDirection = normalize((ndc2.xy - ndc1.xy) * ScreenSize);
-    vec2 lineOffset = vec2(-lineScreenDirection.y, lineScreenDirection.x) * LineWidth / ScreenSize;
+    vec2 lineOffset = vec2(-lineScreenDirection.y, lineScreenDirection.x) * LineWidth * widthScale / ScreenSize;
 
     if (lineOffset.x < 0.0) {
         lineOffset *= -1.0;

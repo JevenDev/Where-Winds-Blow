@@ -67,7 +67,7 @@ public final class WindStreakRenderer {
     private static final int SPAWN_ATTEMPTS = 12;
     private static final int STREAK_FADE_IN_TICKS = 26;
     private static final int FADE_OUT_TICKS = 18;
-    private static final int WIND_SAMPLE_INTERVAL_TICKS = 4;
+    private static final int WIND_SAMPLE_INTERVAL_TICKS = 2;
     private static final int MIN_OPEN_SKY_LIGHT = 14;
     private static final double SURFACE_TOLERANCE = 0.08D;
     private static final int RED = 232;
@@ -278,7 +278,7 @@ public final class WindStreakRenderer {
     private static RenderType windStreakLines(double strokeScale) {
         double maxLineWidth = ClientConfig.WIND_STREAK_THICKNESS.getAsDouble();
         double scaledLineWidth = maxLineWidth * Mth.clamp(strokeScale, STREAK_MIN_STROKE_SCALE, 1.0D);
-        double lineWidth = Math.round(Math.max(0.5D, scaledLineWidth) * 10.0D) / 10.0D;
+        double lineWidth = Math.round(Math.max(0.5D, scaledLineWidth) * 4.0D) / 4.0D;
         return LINE_RENDER_TYPES.computeIfAbsent(lineWidth, width -> RenderType.create(
                 "where_winds_blow_wind_streaks_" + width,
                 DefaultVertexFormat.POSITION_COLOR_NORMAL,
@@ -350,8 +350,11 @@ public final class WindStreakRenderer {
         double dx = streak.x - player.getX();
         double dy = streak.y - player.getEyeY();
         double dz = streak.z - player.getZ();
-        if (streak.age >= streak.lifetime
-                || dx * dx + dy * dy + dz * dz > MAX_DISTANCE_FROM_PLAYER * MAX_DISTANCE_FROM_PLAYER) {
+        if (streak.age >= streak.lifetime) {
+            streak.active = false;
+            return;
+        }
+        if (dx * dx + dy * dy + dz * dz > MAX_DISTANCE_FROM_PLAYER * MAX_DISTANCE_FROM_PLAYER) {
             beginFadeOut(streak);
             return;
         }
@@ -440,7 +443,10 @@ public final class WindStreakRenderer {
             streak.seed = RANDOM.nextDouble() * Math.PI * 2.0D;
             streak.terrainLift = 0.0D;
             streak.terrainSideFlow = 0.0D;
-            streak.lifetime = Math.max(72, Math.round((92 + RANDOM.nextInt(54)) / (float) (1.0D + windBoost * 0.1D)));
+            streak.lifetime = Math.max(
+                    56,
+                    (int) Math.ceil((1.18D + streak.wakeLength) / streak.speed)
+            );
             streak.age = scatterAge ? RANDOM.nextInt(Math.max(1, streak.lifetime / 2)) : 0;
             if (streak.age > 0) {
                 double travelled = streak.driftSpeed * (double) streak.age;
@@ -745,9 +751,6 @@ public final class WindStreakRenderer {
 
         streak.fadingOut = true;
         streak.fadeOutAge = 0;
-        streak.xOld = streak.x;
-        streak.yOld = streak.y;
-        streak.zOld = streak.z;
     }
 
     private static void beginFadeOut(WindLeaf leaf) {
@@ -767,9 +770,16 @@ public final class WindStreakRenderer {
             return;
         }
 
+        double dx = streak.x - streak.xOld;
+        double dy = streak.y - streak.yOld;
+        double dz = streak.z - streak.zOld;
         streak.xOld = streak.x;
         streak.yOld = streak.y;
         streak.zOld = streak.z;
+        double momentum = 1.0D - (double) streak.fadeOutAge / (double) FADE_OUT_TICKS;
+        streak.x += dx * momentum;
+        streak.y += dy * momentum;
+        streak.z += dz * momentum;
         streak.fadeOutAge++;
         if (streak.fadeOutAge >= FADE_OUT_TICKS) {
             streak.active = false;
@@ -1027,7 +1037,25 @@ public final class WindStreakRenderer {
 
         float taper0 = motionTaper(streak, t0, windTime, brushPosition);
         float taper1 = motionTaper(streak, t1, windTime, brushPosition);
-        emitLine(consumer, pose, cameraPos, streak, start, end, alpha * taper0, alpha * taper1);
+        float strongestTaper = Math.max(taper0, taper1);
+        if (strongestTaper <= 0.002F) {
+            return;
+        }
+
+        float widthTaper0 = 0.42F + Mth.sqrt(Mth.clamp(taper0, 0.0F, 1.0F)) * 0.58F;
+        float widthTaper1 = 0.42F + Mth.sqrt(Mth.clamp(taper1, 0.0F, 1.0F)) * 0.58F;
+        emitLine(
+                consumer,
+                pose,
+                cameraPos,
+                streak,
+                start,
+                end,
+                alpha * taper0,
+                alpha * taper1,
+                widthTaper0,
+                widthTaper1
+        );
     }
 
     private static Point pointOnBody(WindStreak streak, double baseX, double baseY, double baseZ, float t, float windTime) {
@@ -1060,14 +1088,15 @@ public final class WindStreakRenderer {
     private static float motionTaper(WindStreak streak, float t, float windTime, float brushPosition) {
         float shapeFade = smoothFade(Mth.clamp(t / 0.12F, 0.0F, 1.0F))
                 * smoothFade(Mth.clamp((1.0F - t) / 0.2F, 0.0F, 1.0F));
-        float leadingEdge = movingBrush(t, brushPosition, (float) streak.brushWidth) * 0.84F;
+        float leadingEdge = movingBrush(t, brushPosition, (float) streak.brushWidth) * 0.9F;
         float trailingWake = trailingWake(t, brushPosition, (float) streak.wakeLength);
         float curveBoost = Mth.sin(t * Mth.PI) * 0.08F;
         float shimmer = (float) (1.0D - streak.shimmerStrength
                 + streak.shimmerStrength * Mth.sin((float) streak.seed + windTime * 1.8F + t * Mth.PI * 3.0F));
         float fineBreakup = 0.94F
                 + 0.06F * Mth.sin((float) streak.ripplePhase + windTime * 2.8F + t * Mth.PI * 7.0F);
-        return shapeFade * shimmer * fineBreakup * (leadingEdge + trailingWake * (0.72F + curveBoost));
+        float flowingStroke = Math.max(leadingEdge, trailingWake * (0.76F + curveBoost));
+        return shapeFade * shimmer * fineBreakup * flowingStroke;
     }
 
     private static boolean streakBodyHitsCollision(ClientLevel level, WindStreak streak, float windTime) {
@@ -1097,7 +1126,9 @@ public final class WindStreakRenderer {
             Point start,
             Point end,
             float startAlpha,
-            float endAlpha
+            float endAlpha,
+            float startWidthScale,
+            float endWidthScale
     ) {
         int alpha0 = alphaByte(startAlpha);
         int alpha1 = alphaByte(endAlpha);
@@ -1121,10 +1152,10 @@ public final class WindStreakRenderer {
 
         consumer.addVertex(pose, (float) (start.x - cameraPos.x()), (float) (start.y - cameraPos.y()), (float) (start.z - cameraPos.z()))
                 .setColor(RED, GREEN, BLUE, alpha0)
-                .setNormal(normalX, normalY, normalZ);
+                .setNormal(normalX * startWidthScale, normalY * startWidthScale, normalZ * startWidthScale);
         consumer.addVertex(pose, (float) (end.x - cameraPos.x()), (float) (end.y - cameraPos.y()), (float) (end.z - cameraPos.z()))
                 .setColor(RED, GREEN, BLUE, alpha1)
-                .setNormal(normalX, normalY, normalZ);
+                .setNormal(normalX * endWidthScale, normalY * endWidthScale, normalZ * endWidthScale);
     }
 
     private static void emitLeafQuad(
@@ -1492,7 +1523,7 @@ public final class WindStreakRenderer {
     }
 
     private static void applyWind(WindStreak streak, WindSample wind, boolean immediate) {
-        double blend = immediate ? 1.0D : 0.42D;
+        double blend = immediate ? 1.0D : 0.22D;
         double x = Mth.lerp(blend, streak.windX, wind.directionX());
         double z = Mth.lerp(blend, streak.windZ, wind.directionZ());
         double length = Math.sqrt(x * x + z * z);

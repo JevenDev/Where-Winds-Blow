@@ -327,7 +327,7 @@ public final class ClientConfig {
             .defineInRange("thunderWeatherSheenStrength", 2.0D, WEATHER_SHEEN_STRENGTH_MIN, WEATHER_SHEEN_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_REACTIVE_PRECIPITATION = BUILDER
-            .comment("Lets rain and snow lean and drift with the shared wind simulation, and applies atmospheric rain density and color tuning.")
+            .comment("Lets rain and snow lean and drift with the shared wind simulation, and applies atmospheric precipitation density and color tuning.")
             .define("enableWindReactivePrecipitation", true);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
