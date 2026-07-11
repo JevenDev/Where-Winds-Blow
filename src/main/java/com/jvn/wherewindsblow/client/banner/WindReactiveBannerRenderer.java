@@ -51,7 +51,11 @@ public final class WindReactiveBannerRenderer {
                 blockEntity.getBlockPos(), wall, rendererYawDegrees
         );
         if (wall) {
-            return false;
+            renderWall(
+                    blockEntity, partialTick, poseStack, bufferSource, packedLight, packedOverlay,
+                    pole, bar, rendererYawDegrees, response
+            );
+            return true;
         }
 
         renderStanding(
@@ -87,6 +91,42 @@ public final class WindReactiveBannerRenderer {
         pole.render(poseStack, baseConsumer, packedLight, packedOverlay);
         bar.render(poseStack, baseConsumer, packedLight, packedOverlay);
         BannerClothMesh.renderStanding(
+                poseStack,
+                bufferSource,
+                packedLight,
+                packedOverlay,
+                blockEntity.getBaseColor(),
+                blockEntity.getPatterns(),
+                response,
+                partialTick
+        );
+        poseStack.popPose();
+        poseStack.popPose();
+    }
+
+    private static void renderWall(
+            BannerBlockEntity blockEntity,
+            float partialTick,
+            PoseStack poseStack,
+            MultiBufferSource bufferSource,
+            int packedLight,
+            int packedOverlay,
+            ModelPart pole,
+            ModelPart bar,
+            float rendererYawDegrees,
+            BannerWindStateCache.State response
+    ) {
+        poseStack.pushPose();
+        poseStack.translate(0.5F, -0.16666667F, 0.5F);
+        poseStack.mulPose(Axis.YP.rotationDegrees(rendererYawDegrees));
+        poseStack.translate(0.0F, -0.3125F, -0.4375F);
+        pole.visible = false;
+        poseStack.pushPose();
+        poseStack.scale(0.6666667F, -0.6666667F, -0.6666667F);
+        VertexConsumer baseConsumer = ModelBakery.BANNER_BASE.buffer(bufferSource, RenderType::entitySolid);
+        pole.render(poseStack, baseConsumer, packedLight, packedOverlay);
+        bar.render(poseStack, baseConsumer, packedLight, packedOverlay);
+        BannerClothMesh.renderWall(
                 poseStack,
                 bufferSource,
                 packedLight,

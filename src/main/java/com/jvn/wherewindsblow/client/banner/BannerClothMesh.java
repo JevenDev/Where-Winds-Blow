@@ -46,6 +46,21 @@ final class BannerClothMesh {
         renderLayers(poseStack, bufferSource, packedLight, packedOverlay, baseColor, patterns, scratch);
     }
 
+    static void renderWall(
+            PoseStack poseStack,
+            MultiBufferSource bufferSource,
+            int packedLight,
+            int packedOverlay,
+            DyeColor baseColor,
+            BannerPatternLayers patterns,
+            BannerWindStateCache.State state,
+            float partialTick
+    ) {
+        Scratch scratch = SCRATCH.get();
+        deformWall(scratch, state, partialTick);
+        renderLayers(poseStack, bufferSource, packedLight, packedOverlay, baseColor, patterns, scratch);
+    }
+
     private static void deformStanding(Scratch scratch, BannerWindStateCache.State state, float partialTick) {
         float extension = state.extension(partialTick);
         float crosswind = state.crosswind(partialTick);
@@ -88,6 +103,50 @@ final class BannerClothMesh {
                         + Mth.sin(phase + time * 1.7F + xNorm * 2.4F) * anchorWeight * turbulence * 0.22F;
                 scratch.z[index] = -1.5F - outwardDirection * length * horizontal
                         + broadWave + flutter + twist;
+            }
+        }
+        calculateNormals(scratch);
+    }
+
+    private static void deformWall(Scratch scratch, BannerWindStateCache.State state, float partialTick) {
+        float extension = state.extension(partialTick);
+        float crosswind = state.crosswind(partialTick);
+        float gust = state.gust(partialTick);
+        float turbulence = state.turbulence(partialTick);
+        float time = DynamicWindManager.simulationTime();
+        float phase = state.phase();
+        float sagStrength = (float) ClientConfig.BANNER_SAG_STRENGTH.getAsDouble();
+        float flutterStrength = (float) ClientConfig.BANNER_FLUTTER_STRENGTH.getAsDouble();
+        float horizontal = Mth.clamp(extension * 0.72F, 0.0F, 0.76F);
+        float verticalScale = Mth.sqrt(Math.max(0.32F, 1.0F - horizontal * horizontal));
+
+        for (int row = 0; row <= ROWS; row++) {
+            float v = row / (float) ROWS;
+            float anchorWeight = v * v * (3.0F - 2.0F * v);
+            float length = v * 40.0F;
+            float broadWave = Mth.sin(phase + time * (1.15F + gust * 0.65F) - v * 5.0F)
+                    * (0.28F + extension * 0.85F + gust * 0.22F)
+                    * anchorWeight;
+            float sag = v * v * (1.0F - extension * 0.55F) * 1.8F * sagStrength;
+
+            for (int column = 0; column <= COLUMNS; column++) {
+                float u = column / (float) COLUMNS;
+                float xNorm = u * 2.0F - 1.0F;
+                float flutter = Mth.sin(phase * 1.9F + time * (5.4F + turbulence * 2.2F) - v * 11.0F + xNorm * 2.6F)
+                        * v * v * v
+                        * (0.35F + 0.65F * Math.abs(xNorm))
+                        * (extension * 0.32F + gust * 0.18F + turbulence * 0.42F)
+                        * flutterStrength;
+                float sideShift = crosswind * length * (0.48F + v * 0.12F);
+                float twist = crosswind * xNorm * anchorWeight * (0.9F + turbulence * 0.3F);
+                int index = index(column, row);
+                scratch.x[index] = -10.0F + u * 20.0F + sideShift;
+                scratch.y[index] = -32.0F + length * verticalScale + sag
+                        + Mth.sin(phase + time * 1.5F + xNorm * 2.0F) * anchorWeight * turbulence * 0.18F;
+                scratch.z[index] = Math.min(
+                        -0.85F,
+                        -1.5F - length * horizontal + broadWave + flutter + twist
+                );
             }
         }
         calculateNormals(scratch);
