@@ -394,20 +394,33 @@ public final class SodiumFoliageShaderSource {
                 float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
                 float microPulse = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
                 float leafWind = 1.0 - plantWind;
+                float rawWindPower = max(u_WwbAmbientWindStrength + localGustStrength, 0.0);
+                float excessWind = max(rawWindPower - 1.0, 0.0);
+                float compressedWindPower = min(rawWindPower, 1.0) + excessWind / (1.0 + excessWind * 0.75);
+                float highWindBlend = wwb_smooth_curve(clamp((rawWindPower - 1.15) / 1.6, 0.0, 1.0));
+                float flutterRetention = mix(1.0, 0.28, highWindBlend);
+                float controlledTurbulence = max(localTurbulence, 0.0) / (1.0 + max(localTurbulence, 0.0) * 0.8);
                 float shimmer = sin(windPosition.x * 2.17 + windPosition.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8)
-                        * localTurbulence
-                        * mix(0.006, 0.018, leafWind);
-                float windResponse = 0.16 + clamp(u_WwbAmbientWindStrength + localGustStrength, 0.0, 3.0) * 0.72;
-                float ambientMotion = (0.012 + wave * 0.105 * amplitudeDrift + ripple * microPulse * 0.028)
+                        * controlledTurbulence
+                        * mix(0.006, 0.018, leafWind)
+                        * flutterRetention;
+                float windResponse = 0.16 + compressedWindPower * 0.72;
+                float steadyLean = wwb_smooth_curve(clamp((compressedWindPower - 0.65) / 1.5, 0.0, 1.0))
+                        * mix(0.052, 0.034, leafWind);
+                float ambientMotion = (0.012 + wave * 0.105 * amplitudeDrift
+                        + ripple * microPulse * 0.028 * flutterRetention)
                         * windResponse;
-                float gustMotion = localGustStrength * mix(0.105, 0.065, leafWind);
+                float gustExcess = max(localGustStrength - 1.0, 0.0);
+                float compressedGust = min(localGustStrength, 1.0) + gustExcess / (1.0 + gustExcess * 0.85);
+                float gustMotion = compressedGust * mix(0.105, 0.065, leafWind);
                 float strength = clamp(
-                        (ambientMotion + gustMotion + shimmer) * bend * wwb_sway_strength_for_alpha(alpha),
+                        (steadyLean + ambientMotion + gustMotion + shimmer) * bend * wwb_sway_strength_for_alpha(alpha),
                         -0.08,
                         0.42
                 );
                 float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase)
-                        * (0.035 + localTurbulence * 0.24 + plantWind * 0.035);
+                        * (0.035 + controlledTurbulence * 0.24 + plantWind * 0.035)
+                        * mix(1.0, 0.55, highWindBlend);
                 vec2 dir = normalize(windDir + crossDir * directionNoise);
                 position.xz += dir * strength;
                 return position;
