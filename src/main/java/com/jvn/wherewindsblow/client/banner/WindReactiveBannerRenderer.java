@@ -1,8 +1,12 @@
 package com.jvn.wherewindsblow.client.banner;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.resources.model.ModelBakery;
 import net.minecraft.world.level.block.BannerBlock;
 import net.minecraft.world.level.block.WallBannerBlock;
 import net.minecraft.world.level.block.entity.BannerBlockEntity;
@@ -43,11 +47,56 @@ public final class WindReactiveBannerRenderer {
         } else {
             return false;
         }
-        BannerWindStateCache.touch(blockEntity.getBlockPos(), wall, rendererYawDegrees);
-        return false;
+        BannerWindStateCache.State response = BannerWindStateCache.touch(
+                blockEntity.getBlockPos(), wall, rendererYawDegrees
+        );
+        if (wall) {
+            return false;
+        }
+
+        renderStanding(
+                blockEntity, partialTick, poseStack, bufferSource, packedLight, packedOverlay,
+                pole, bar, rendererYawDegrees, response
+        );
+        return true;
     }
 
     public static void reset() {
         BannerWindStateCache.reset();
+    }
+
+    private static void renderStanding(
+            BannerBlockEntity blockEntity,
+            float partialTick,
+            PoseStack poseStack,
+            MultiBufferSource bufferSource,
+            int packedLight,
+            int packedOverlay,
+            ModelPart pole,
+            ModelPart bar,
+            float rendererYawDegrees,
+            BannerWindStateCache.State response
+    ) {
+        poseStack.pushPose();
+        poseStack.translate(0.5F, 0.5F, 0.5F);
+        poseStack.mulPose(Axis.YP.rotationDegrees(rendererYawDegrees));
+        pole.visible = true;
+        poseStack.pushPose();
+        poseStack.scale(0.6666667F, -0.6666667F, -0.6666667F);
+        VertexConsumer baseConsumer = ModelBakery.BANNER_BASE.buffer(bufferSource, RenderType::entitySolid);
+        pole.render(poseStack, baseConsumer, packedLight, packedOverlay);
+        bar.render(poseStack, baseConsumer, packedLight, packedOverlay);
+        BannerClothMesh.renderStanding(
+                poseStack,
+                bufferSource,
+                packedLight,
+                packedOverlay,
+                blockEntity.getBaseColor(),
+                blockEntity.getPatterns(),
+                response,
+                partialTick
+        );
+        poseStack.popPose();
+        poseStack.popPose();
     }
 }
