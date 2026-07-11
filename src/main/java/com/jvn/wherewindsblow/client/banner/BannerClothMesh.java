@@ -63,6 +63,7 @@ final class BannerClothMesh {
 
     private static void deformStanding(Scratch scratch, BannerWindStateCache.State state, float partialTick) {
         float extension = state.extension(partialTick);
+        float trailingExtension = state.trailingExtension(partialTick);
         float crosswind = state.crosswind(partialTick);
         float outward = state.outwardWind(partialTick);
         float gust = state.gust(partialTick);
@@ -72,8 +73,6 @@ final class BannerClothMesh {
         float phase = state.phase();
         float sagStrength = (float) ClientConfig.BANNER_SAG_STRENGTH.getAsDouble();
         float flutterStrength = (float) ClientConfig.BANNER_FLUTTER_STRENGTH.getAsDouble();
-        float horizontal = Mth.clamp(extension * 0.78F, 0.0F, 0.82F);
-        float verticalScale = Mth.sqrt(Math.max(0.25F, 1.0F - horizontal * horizontal));
         float directionLength = Mth.sqrt(crosswind * crosswind + outward * outward);
         float sideDirection = directionLength > 0.0001F ? crosswind / directionLength : 0.0F;
         float outwardDirection = directionLength > 0.0001F ? outward / directionLength : 1.0F;
@@ -82,6 +81,9 @@ final class BannerClothMesh {
             float v = row / (float) ROWS;
             float anchorWeight = v * v * (3.0F - 2.0F * v);
             float length = v * 40.0F;
+            float rowExtension = Mth.lerp(v * v, extension, trailingExtension);
+            float horizontal = Mth.clamp(rowExtension * 0.78F, 0.0F, 0.82F);
+            float verticalScale = Mth.sqrt(Math.max(0.25F, 1.0F - horizontal * horizontal));
             float broadWave = Mth.sin(phase + time * (1.25F + gust * 0.7F) - v * 5.4F)
                     * (0.35F + extension * 1.25F + gust * 0.28F)
                     * anchorWeight;
@@ -110,6 +112,7 @@ final class BannerClothMesh {
 
     private static void deformWall(Scratch scratch, BannerWindStateCache.State state, float partialTick) {
         float extension = state.extension(partialTick);
+        float trailingExtension = state.trailingExtension(partialTick);
         float crosswind = state.crosswind(partialTick);
         float gust = state.gust(partialTick);
         float turbulence = state.turbulence(partialTick);
@@ -117,13 +120,13 @@ final class BannerClothMesh {
         float phase = state.phase();
         float sagStrength = (float) ClientConfig.BANNER_SAG_STRENGTH.getAsDouble();
         float flutterStrength = (float) ClientConfig.BANNER_FLUTTER_STRENGTH.getAsDouble();
-        float horizontal = Mth.clamp(extension * 0.72F, 0.0F, 0.76F);
-        float verticalScale = Mth.sqrt(Math.max(0.32F, 1.0F - horizontal * horizontal));
-
         for (int row = 0; row <= ROWS; row++) {
             float v = row / (float) ROWS;
             float anchorWeight = v * v * (3.0F - 2.0F * v);
             float length = v * 40.0F;
+            float rowExtension = Mth.lerp(v * v, extension, trailingExtension);
+            float horizontal = Mth.clamp(rowExtension * 0.72F, 0.0F, 0.76F);
+            float verticalScale = Mth.sqrt(Math.max(0.32F, 1.0F - horizontal * horizontal));
             float broadWave = Mth.sin(phase + time * (1.15F + gust * 0.65F) - v * 5.0F)
                     * (0.28F + extension * 0.85F + gust * 0.22F)
                     * anchorWeight;

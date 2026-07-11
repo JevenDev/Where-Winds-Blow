@@ -92,6 +92,8 @@ public final class BannerWindStateCache {
         private float lastTickTime = Float.NaN;
         private float previousExtension;
         private float extension;
+        private float previousTrailingExtension;
+        private float trailingExtension;
         private float previousCrosswind;
         private float crosswind;
         private float previousOutwardWind;
@@ -129,6 +131,8 @@ public final class BannerWindStateCache {
 
             this.extension = approach(this.extension, this.targetExtension, deltaSeconds,
                     this.targetExtension > this.extension ? 7.5F : 3.2F);
+            this.trailingExtension = approach(this.trailingExtension, this.targetExtension, deltaSeconds,
+                    this.targetExtension > this.trailingExtension ? 4.2F : 2.1F);
             this.crosswind = approach(this.crosswind, this.targetCrosswind, deltaSeconds, 5.0F);
             this.outwardWind = approach(this.outwardWind, this.targetOutwardWind, deltaSeconds, 5.0F);
             this.gust = approach(this.gust, this.targetGust, deltaSeconds,
@@ -163,6 +167,7 @@ public final class BannerWindStateCache {
 
         private void copyPrevious() {
             this.previousExtension = this.extension;
+            this.previousTrailingExtension = this.trailingExtension;
             this.previousCrosswind = this.crosswind;
             this.previousOutwardWind = this.outwardWind;
             this.previousGust = this.gust;
@@ -180,6 +185,10 @@ public final class BannerWindStateCache {
 
         public float extension(float partialTick) {
             return Mth.lerp(partialTick, this.previousExtension, this.extension);
+        }
+
+        public float trailingExtension(float partialTick) {
+            return Mth.lerp(partialTick, this.previousTrailingExtension, this.trailingExtension);
         }
 
         public float crosswind(float partialTick) {
