@@ -239,23 +239,23 @@ public final class ClientConfig {
             .define("enableWindReactiveBanners", true);
 
     public static final ModConfigSpec.DoubleValue BANNER_WIND_STRENGTH = BUILDER
-            .comment("Scales the main wind-driven extension of banner cloth.")
+            .comment("Scales how far wind lifts the vanilla banner cloth from its resting angle.")
             .defineInRange("bannerWindStrength", 1.0D, BANNER_RESPONSE_MIN, BANNER_RESPONSE_MAX);
 
     public static final ModConfigSpec.DoubleValue BANNER_GUST_RESPONSE = BUILDER
-            .comment("Scales how strongly banner cloth responds to travelling gust fronts.")
+            .comment("Scales how strongly the whole banner responds to travelling gust fronts.")
             .defineInRange("bannerGustResponse", 1.0D, BANNER_RESPONSE_MIN, BANNER_RESPONSE_MAX);
 
     public static final ModConfigSpec.DoubleValue BANNER_FLUTTER_STRENGTH = BUILDER
-            .comment("Scales the small high-frequency motion near banner edges.")
+            .comment("Scales the banner's small, quick whole-cloth movement.")
             .defineInRange("bannerFlutterStrength", 0.75D, BANNER_RESPONSE_MIN, BANNER_RESPONSE_MAX);
 
     public static final ModConfigSpec.DoubleValue BANNER_SAG_STRENGTH = BUILDER
-            .comment("Scales the downward curve retained by banner cloth.")
+            .comment("Scales how strongly banner cloth prefers to hang downward.")
             .defineInRange("bannerSagStrength", 1.0D, BANNER_RESPONSE_MIN, BANNER_RESPONSE_MAX);
 
     public static final ModConfigSpec.DoubleValue BANNER_TURBULENCE_RESPONSE = BUILDER
-            .comment("Scales irregular secondary banner motion from local turbulence.")
+            .comment("Scales irregular banner sway from local turbulence.")
             .defineInRange("bannerTurbulenceResponse", 0.65D, BANNER_RESPONSE_MIN, BANNER_RESPONSE_MAX);
 
     public static final ModConfigSpec.DoubleValue BANNER_ANIMATION_DISTANCE = BUILDER

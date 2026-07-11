@@ -17,6 +17,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class BannerRendererMixin {
     @Shadow
     @Final
+    private ModelPart flag;
+
+    @Shadow
+    @Final
     private ModelPart pole;
 
     @Shadow
@@ -40,6 +44,7 @@ abstract class BannerRendererMixin {
                 bufferSource,
                 packedLight,
                 packedOverlay,
+                this.flag,
                 this.pole,
                 this.bar
         )) {

@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.banner;
 
+import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -7,7 +8,10 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.blockentity.BannerRenderer;
 import net.minecraft.client.resources.model.ModelBakery;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.BannerBlock;
 import net.minecraft.world.level.block.WallBannerBlock;
 import net.minecraft.world.level.block.entity.BannerBlockEntity;
@@ -31,6 +35,7 @@ public final class WindReactiveBannerRenderer {
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay,
+            ModelPart flag,
             ModelPart pole,
             ModelPart bar
     ) {
@@ -64,14 +69,14 @@ public final class WindReactiveBannerRenderer {
         if (wall) {
             renderWall(
                     blockEntity, partialTick, poseStack, bufferSource, packedLight, packedOverlay,
-                    pole, bar, rendererYawDegrees, response, distanceFade
+                    flag, pole, bar, rendererYawDegrees, response, distanceFade
             );
             return true;
         }
 
         renderStanding(
                 blockEntity, partialTick, poseStack, bufferSource, packedLight, packedOverlay,
-                pole, bar, rendererYawDegrees, response, distanceFade
+                flag, pole, bar, rendererYawDegrees, response, distanceFade
         );
         return true;
     }
@@ -87,6 +92,7 @@ public final class WindReactiveBannerRenderer {
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay,
+            ModelPart flag,
             ModelPart pole,
             ModelPart bar,
             float rendererYawDegrees,
@@ -102,17 +108,8 @@ public final class WindReactiveBannerRenderer {
         VertexConsumer baseConsumer = ModelBakery.BANNER_BASE.buffer(bufferSource, RenderType::entitySolid);
         pole.render(poseStack, baseConsumer, packedLight, packedOverlay);
         bar.render(poseStack, baseConsumer, packedLight, packedOverlay);
-        BannerClothMesh.renderStanding(
-                poseStack,
-                bufferSource,
-                packedLight,
-                packedOverlay,
-                blockEntity.getBaseColor(),
-                blockEntity.getPatterns(),
-                response,
-                partialTick,
-                distanceFade
-        );
+        renderVanillaCloth(blockEntity, partialTick, poseStack, bufferSource, packedLight, packedOverlay,
+                flag, response, distanceFade, false);
         poseStack.popPose();
         poseStack.popPose();
     }
@@ -124,6 +121,7 @@ public final class WindReactiveBannerRenderer {
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay,
+            ModelPart flag,
             ModelPart pole,
             ModelPart bar,
             float rendererYawDegrees,
@@ -140,18 +138,64 @@ public final class WindReactiveBannerRenderer {
         VertexConsumer baseConsumer = ModelBakery.BANNER_BASE.buffer(bufferSource, RenderType::entitySolid);
         pole.render(poseStack, baseConsumer, packedLight, packedOverlay);
         bar.render(poseStack, baseConsumer, packedLight, packedOverlay);
-        BannerClothMesh.renderWall(
+        renderVanillaCloth(blockEntity, partialTick, poseStack, bufferSource, packedLight, packedOverlay,
+                flag, response, distanceFade, true);
+        poseStack.popPose();
+        poseStack.popPose();
+    }
+
+    /**
+     * Keeps the banner visually identical to vanilla and lets wind act through the same single
+     * top hinge. Broad rotations read as Minecraft animation; a deforming surface reads as a new
+     * cloth model, especially once its lighting starts describing individual folds.
+     */
+    private static void renderVanillaCloth(
+            BannerBlockEntity blockEntity,
+            float partialTick,
+            PoseStack poseStack,
+            MultiBufferSource bufferSource,
+            int packedLight,
+            int packedOverlay,
+            ModelPart flag,
+            BannerWindStateCache.State response,
+            float distanceFade,
+            boolean wall
+    ) {
+        float time = DynamicWindManager.simulationTime();
+        BlockPos pos = blockEntity.getBlockPos();
+        float vanillaPhase = (pos.getX() * 7 + pos.getY() * 9 + pos.getZ() * 13) * Mth.TWO_PI / 100.0F;
+        float vanillaAngle = (-0.0125F + 0.01F * Mth.cos(vanillaPhase + time * Mth.TWO_PI / 5.0F)) * Mth.PI;
+
+        float extension = Mth.clamp(response.extension(partialTick), 0.0F, 1.0F);
+        float trailingExtension = Mth.clamp(response.trailingExtension(partialTick), 0.0F, 1.0F);
+        float gust = Mth.clamp(response.gust(partialTick), 0.0F, 2.0F);
+        float turbulence = Mth.clamp(response.turbulence(partialTick), 0.0F, 2.0F);
+        float flutterStrength = (float) ClientConfig.BANNER_FLUTTER_STRENGTH.getAsDouble();
+        float sagStrength = (float) ClientConfig.BANNER_SAG_STRENGTH.getAsDouble();
+
+        // A banner remains mostly vertical in ordinary wind. Gusts can lift the whole vanilla
+        // cuboid, but never bend it into a smooth, sail-like surface.
+        float lift = Mth.clamp(extension * 0.42F + trailingExtension * 0.16F + gust * 0.035F, 0.0F, 0.62F);
+        lift /= Math.max(0.35F, sagStrength);
+        float flutter = Mth.sin(response.phase() + time * (3.2F + turbulence * 0.8F))
+                * (0.008F + extension * 0.018F + turbulence * 0.009F)
+                * flutterStrength;
+        float windAngle = -Mth.clamp(lift + flutter, 0.0F, wall ? 0.58F : 0.68F);
+
+        flag.xRot = Mth.lerp(distanceFade, vanillaAngle, windAngle);
+        flag.yRot = 0.0F;
+        flag.zRot = 0.0F;
+        flag.y = -32.0F;
+        BannerRenderer.renderPatterns(
                 poseStack,
                 bufferSource,
                 packedLight,
                 packedOverlay,
+                flag,
+                ModelBakery.BANNER_BASE,
+                true,
                 blockEntity.getBaseColor(),
-                blockEntity.getPatterns(),
-                response,
-                partialTick,
-                distanceFade
+                blockEntity.getPatterns()
         );
-        poseStack.popPose();
-        poseStack.popPose();
     }
 }
