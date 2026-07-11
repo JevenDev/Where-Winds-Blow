@@ -3,6 +3,7 @@ package com.jvn.wherewindsblow.mixin.client;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokePlumes;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokePlumes.SpawnContext;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokeRenderTypes;
+import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -12,6 +13,7 @@ import net.minecraft.client.particle.CampfireSmokeParticle;
 import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.client.particle.TextureSheetParticle;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -161,6 +163,9 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
                 * (0.4D + ageRamp * 0.42D + clusterRamp * 0.28D);
         double targetX = wind.directionX() * targetSpeed + wind.crossX() * curl * targetSpeed;
         double targetZ = wind.directionZ() * targetSpeed + wind.crossZ() * curl * targetSpeed;
+        Vec3 localForce = ResponsiveFoliagePhysics.localForceAt(this.x, this.y, this.z);
+        targetX += localForce.x * 0.015D;
+        targetZ += localForce.z * 0.015D;
         double response = 0.035D
                 + Mth.clamp((double) wind.strength() / 2.0D, 0.0D, 1.0D) * 0.025D
                 + clusterRamp * 0.018D;

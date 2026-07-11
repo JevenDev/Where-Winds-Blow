@@ -19,7 +19,7 @@ public abstract class WaterDropParticleMixin extends TextureSheetParticle {
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void wherewindsblow$tintRainDrop(ClientLevel level, double x, double y, double z, CallbackInfo ci) {
-        if (isVanillaRainDrop() && ClientConfig.ENABLE_WIND_REACTIVE_PRECIPITATION.getAsBoolean()) {
+        if (usesAtmosphericRain()) {
             this.setColor(0.82F, 0.86F, 0.72F);
             this.setAlpha(0.72F);
         }
@@ -27,12 +27,18 @@ public abstract class WaterDropParticleMixin extends TextureSheetParticle {
 
     @Inject(method = "getRenderType", at = @At("HEAD"), cancellable = true)
     private void wherewindsblow$renderRainDropTranslucently(CallbackInfoReturnable<ParticleRenderType> cir) {
-        if (isVanillaRainDrop() && ClientConfig.ENABLE_WIND_REACTIVE_PRECIPITATION.getAsBoolean()) {
+        if (usesAtmosphericRain()) {
             cir.setReturnValue(ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT);
         }
     }
 
     private boolean isVanillaRainDrop() {
         return ((Object) this).getClass() == WaterDropParticle.class;
+    }
+
+    private boolean usesAtmosphericRain() {
+        return isVanillaRainDrop()
+                && ClientConfig.ENABLE_WIND_REACTIVE_PRECIPITATION.getAsBoolean()
+                && ClientConfig.ENABLE_RAIN_EFFECTS.getAsBoolean();
     }
 }

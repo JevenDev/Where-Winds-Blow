@@ -62,13 +62,17 @@ On the client, Where Winds Blow can wrap supported foliage models with responsiv
 This is meant to stay lightweight and still look like Minecraft, not turn the game into a completely different rendering style.
 Wind sway can be toggled separately for grass/plants and leaf blocks.
 Hanging lanterns, chains, and hanging signs can also react to the same weather-driven wind, with separate strength controls for lanterns and signs.
+Local activity also creates short-lived visual forces: explosions, lightning, sweeping attacks, elytra flight, fast minecarts, horses, and projectiles can disturb nearby foliage without changing entity movement. Explosion pressure waves also push the mod's reactive campfire smoke.
 
 ## Configuration
 
 Main config file:
 
-- Singleplayer/client: `config/where_winds_blow-common.toml`
-- Dedicated server: `<server root>/config/where_winds_blow-common.toml`
+- Client visuals and wind effects: `config/where_winds_blow-client.toml`
+- World generation: `config/where_winds_blow-common.toml`
+- Dedicated-server world generation: `<server root>/config/where_winds_blow-common.toml`
+
+The in-game config screen exposes separate controls for atmospheric precipitation, rain visibility, slanted rain, snow visibility, and wind-driven snow. Disabling atmospheric precipitation restores vanilla rain and snow rendering.
 
 You can tune or disable the major worldgen groups independently, including:
 

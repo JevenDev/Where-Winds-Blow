@@ -2,6 +2,7 @@ package com.jvn.wherewindsblow.client.weather;
 
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
+import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -91,6 +92,9 @@ public final class WindReactivePrecipitationRenderer {
                 long hash = precipitationHash(x, z);
                 RandomSource random = RandomSource.create(hash);
                 if (precipitation == Biome.Precipitation.RAIN) {
+                    if (!ClientConfig.ENABLE_RAIN_EFFECTS.getAsBoolean()) {
+                        continue;
+                    }
                     float primaryDensity = Mth.lerp(thunder, NORMAL_RAIN_DENSITY, 1.0F);
                     if (unitFloat(hash) > primaryDensity) {
                         continue;
@@ -108,9 +112,13 @@ public final class WindReactivePrecipitationRenderer {
                     float distance = horizontalDistance(x, z, camX, camZ) / radius;
                     float alpha = ((1.0F - distance * distance) * 0.5F + 0.5F) * rainLevel;
                     alpha *= Mth.lerp(thunder, 0.68F, 0.88F);
-                    float slope = 0.045F + windStrength * 0.075F + thunder * 0.085F;
-                    float driftX = -wind.directionX() * Math.min((topY - bottomY) * slope, 3.8F);
-                    float driftZ = -wind.directionZ() * Math.min((topY - bottomY) * slope, 3.8F);
+                    float driftX = 0.0F;
+                    float driftZ = 0.0F;
+                    if (ClientConfig.ENABLE_SLANTED_RAIN.getAsBoolean()) {
+                        float slope = 0.045F + windStrength * 0.075F + thunder * 0.085F;
+                        driftX = -wind.directionX() * Math.min((topY - bottomY) * slope, 3.8F);
+                        driftZ = -wind.directionZ() * Math.min((topY - bottomY) * slope, 3.8F);
+                    }
                     pos.set(x, Math.max(surfaceY, centerY), z);
                     int light = LevelRenderer.getLightColor(level, pos);
 
@@ -122,6 +130,9 @@ public final class WindReactivePrecipitationRenderer {
                                 driftX, driftZ, (scroll + 11.0F) % 32.0F, alpha * 0.72F, light, 0.28F);
                     }
                 } else if (precipitation == Biome.Precipitation.SNOW) {
+                    if (!ClientConfig.ENABLE_SNOW_EFFECTS.getAsBoolean()) {
+                        continue;
+                    }
                     float primaryDensity = Mth.lerp(thunder, NORMAL_SNOW_DENSITY, 1.0F);
                     if (unitFloat(hash ^ 0xBB67AE8584CAA73BL) > primaryDensity) {
                         continue;
@@ -140,10 +151,14 @@ public final class WindReactivePrecipitationRenderer {
                     float offsetV = (float) (random.nextDouble() + animationTime * random.nextGaussian() * 0.001D);
                     float distance = horizontalDistance(x, z, camX, camZ) / radius;
                     float alpha = ((1.0F - distance * distance) * 0.3F + 0.5F) * rainLevel;
-                    float slope = 0.04F + windStrength * 0.125F + thunder * 0.07F;
-                    float flutter = Mth.sin(animationTime * 0.035F + (hash & 255L)) * (0.12F + windStrength * 0.08F);
-                    float driftX = -wind.directionX() * Math.min((topY - bottomY) * slope, 5.5F) - wind.directionZ() * flutter;
-                    float driftZ = -wind.directionZ() * Math.min((topY - bottomY) * slope, 5.5F) + wind.directionX() * flutter;
+                    float driftX = 0.0F;
+                    float driftZ = 0.0F;
+                    if (ClientConfig.ENABLE_WIND_DRIVEN_SNOW.getAsBoolean()) {
+                        float slope = 0.04F + windStrength * 0.125F + thunder * 0.07F;
+                        float flutter = Mth.sin(animationTime * 0.035F + (hash & 255L)) * (0.12F + windStrength * 0.08F);
+                        driftX = -wind.directionX() * Math.min((topY - bottomY) * slope, 5.5F) - wind.directionZ() * flutter;
+                        driftZ = -wind.directionZ() * Math.min((topY - bottomY) * slope, 5.5F) + wind.directionX() * flutter;
+                    }
                     pos.set(x, Math.max(surfaceY, centerY), z);
                     int light = LevelRenderer.getLightColor(level, pos);
                     int blockLight = light >> 16 & 65535;

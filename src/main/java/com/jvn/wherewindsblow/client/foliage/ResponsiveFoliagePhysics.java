@@ -16,6 +16,11 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LightningBolt;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.vehicle.AbstractMinecart;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -49,8 +54,10 @@ public final class ResponsiveFoliagePhysics {
     private static final double MIN_CONTACT_MOVEMENT_SQR = 0.0001D;
     private static final int MAX_INTERACTIVE_ENTITIES = ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS;
     private static final int MAX_TRACKED_FOLIAGE_IMPULSES = 192;
+    private static final int MAX_TRANSIENT_FORCES = 12;
     private static final Map<BlockPos, FoliageImpulse> ACTIVE_IMPULSES = new ConcurrentHashMap<>();
     private static final Map<Long, FoliageContact> ACTIVE_CONTACTS = new HashMap<>();
+    private static final List<TransientForce> TRANSIENT_FORCES = new ArrayList<>();
     private static long lastInteractorUpdateGameTime = Long.MIN_VALUE;
     private static long pauseStartedMillis;
 
@@ -73,7 +80,33 @@ public final class ResponsiveFoliagePhysics {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || minecraft.player == null) {
             clearInteractorState(minecraft.level);
+            return;
         }
+
+        detectLocalForceEvents(minecraft.level, minecraft.player);
+    }
+
+    public static void addExplosion(double x, double y, double z, float power) {
+        addRadialForce(x, y, z, Mth.clamp(power * 2.15F, 2.5F, 9.0F),
+                Mth.clamp(0.75F + power * 0.28F, 0.9F, 2.2F), 900L);
+    }
+
+    public static void addSweep(double x, double y, double z) {
+        addRadialForce(x, y - 0.4D, z, 3.2F, 0.95F, 420L);
+    }
+
+    public static Vec3 localForceAt(double x, double y, double z) {
+        long nowMillis = Util.getMillis();
+        double forceX = 0.0D;
+        double forceZ = 0.0D;
+        synchronized (TRANSIENT_FORCES) {
+            for (TransientForce force : TRANSIENT_FORCES) {
+                ForceSample sample = force.sampleAt(x, y, z, nowMillis);
+                forceX += sample.x();
+                forceZ += sample.z();
+            }
+        }
+        return new Vec3(forceX, 0.0D, forceZ);
     }
 
     public static void onClientPauseChange(ClientPauseChangeEvent.Post event) {
@@ -137,6 +170,7 @@ public final class ResponsiveFoliagePhysics {
         for (Entity entity : entities) {
             collectFoliageImpulses(level, entity, nowMillis, touchedImpulses);
         }
+        collectTransientForceImpulses(level, nowMillis, touchedImpulses);
 
         trimImpulses(player, touchedImpulses);
         updateActiveImpulses(level, touchedImpulses, nowMillis);
@@ -158,6 +192,9 @@ public final class ResponsiveFoliagePhysics {
         pauseStartedMillis = 0L;
         clearShaderContacts();
         clearBlockImpulses(level);
+        synchronized (TRANSIENT_FORCES) {
+            TRANSIENT_FORCES.clear();
+        }
     }
 
     private static void clearShaderContacts() {
@@ -185,6 +222,9 @@ public final class ResponsiveFoliagePhysics {
         if (pausedMillis > 0L) {
             ACTIVE_IMPULSES.replaceAll((pos, impulse) -> impulse.shift(pausedMillis));
             ACTIVE_CONTACTS.replaceAll((key, contact) -> contact.shift(pausedMillis));
+            synchronized (TRANSIENT_FORCES) {
+                TRANSIENT_FORCES.replaceAll(force -> force.shift(pausedMillis));
+            }
         }
         pauseStartedMillis = 0L;
     }
@@ -211,7 +251,10 @@ public final class ResponsiveFoliagePhysics {
             return false;
         }
 
-        return entity.getDeltaMovement().horizontalDistanceSqr() >= MIN_NON_PLAYER_MOVEMENT_SQR;
+        double movementSqr = entity.getDeltaMovement().horizontalDistanceSqr();
+        if (entity instanceof AbstractMinecart) return movementSqr >= 0.0036D;
+        if (entity instanceof Projectile) return movementSqr >= 0.01D;
+        return movementSqr >= MIN_NON_PLAYER_MOVEMENT_SQR;
     }
 
     private static void refreshShaderContacts(List<Entity> entities, long nowMillis) {
@@ -252,34 +295,36 @@ public final class ResponsiveFoliagePhysics {
     }
 
     private static void uploadShaderContacts(Entity player, long nowMillis) {
-        List<FoliageContact> contacts = ACTIVE_CONTACTS.values()
+        List<ShaderInteraction> contacts = ACTIVE_CONTACTS.values()
                 .stream()
                 .filter(contact -> contactDecay(contact, nowMillis) > MIN_VISIBLE_CONTACT_DECAY)
-                .sorted(Comparator.comparingDouble(contact -> contactPriority(player, contact, nowMillis)))
+                .map(contact -> ShaderInteraction.fromContact(contact, nowMillis))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        synchronized (TRANSIENT_FORCES) {
+            pruneTransientForces(nowMillis);
+            TRANSIENT_FORCES.stream()
+                    .map(force -> ShaderInteraction.fromForce(force, nowMillis))
+                    .filter(ShaderInteraction::visible)
+                    .forEach(contacts::add);
+        }
+        contacts = contacts.stream()
+                .sorted(Comparator.comparingDouble(contact -> contact.priority(player)))
                 .limit(ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS)
                 .toList();
+        List<ShaderInteraction> uploadedContacts = contacts;
         ResponsiveFoliageShaders.setFoliageInteractors(
                 contacts.size(),
-                (interactors, strengths, index) -> fillShaderInteractor(contacts.get(index), nowMillis, interactors, strengths, index)
+                (interactors, strengths, index) -> fillShaderInteractor(uploadedContacts.get(index), interactors, strengths, index)
         );
     }
 
-    private static void fillShaderInteractor(FoliageContact contact, long nowMillis, float[] interactors, float[] strengths, int index) {
-        ContactSample sample = contact.sample(nowMillis);
+    private static void fillShaderInteractor(ShaderInteraction sample, float[] interactors, float[] strengths, int index) {
         int offset = index * 4;
         interactors[offset] = sample.x();
         interactors[offset + 1] = sample.minY();
         interactors[offset + 2] = sample.z();
         interactors[offset + 3] = sample.radius();
-        strengths[index] = sample.strength() * contactDecay(contact, nowMillis);
-    }
-
-    private static double contactPriority(Entity player, FoliageContact contact, long nowMillis) {
-        ContactSample sample = contact.sample(nowMillis);
-        double dx = sample.x() - player.getX();
-        double dy = sample.minY() - player.getY();
-        double dz = sample.z() - player.getZ();
-        return dx * dx + dy * dy + dz * dz - sample.strength() * 18.0D;
+        strengths[index] = sample.strength();
     }
 
     private static float contactDecay(FoliageContact contact, long nowMillis) {
@@ -477,11 +522,15 @@ public final class ResponsiveFoliagePhysics {
         float horizontalSize = (float) Math.max(bounds.getXsize(), bounds.getZsize());
         float extraWidth = Math.max(0.0F, horizontalSize - PLAYER_REFERENCE_WIDTH);
         float extraHeight = Math.max(0.0F, (float) bounds.getYsize() - PLAYER_REFERENCE_HEIGHT);
-        return Mth.clamp(
+        float radius = Mth.clamp(
                 BASE_EDGE_INFLUENCE_RADIUS + extraWidth * SIZE_RADIUS_SCALE + extraHeight * HEIGHT_RADIUS_SCALE,
                 BASE_EDGE_INFLUENCE_RADIUS,
                 MAX_EDGE_INFLUENCE_RADIUS
         );
+        if (entity instanceof Projectile) return Math.min(radius, 0.55F);
+        if (entity instanceof AbstractMinecart) return Math.max(radius, 1.45F);
+        if (entity instanceof Player player && player.isFallFlying()) return Math.max(radius, 1.8F);
+        return radius;
     }
 
     private static float entitySizeStrength(Entity entity) {
@@ -489,11 +538,111 @@ public final class ResponsiveFoliagePhysics {
         float horizontalSize = (float) Math.max(bounds.getXsize(), bounds.getZsize());
         float extraWidth = Math.max(0.0F, horizontalSize - PLAYER_REFERENCE_WIDTH);
         float extraHeight = Math.max(0.0F, (float) bounds.getYsize() - PLAYER_REFERENCE_HEIGHT);
-        return Mth.clamp(
+        float strength = Mth.clamp(
                 1.0F + extraWidth * SIZE_STRENGTH_SCALE + extraHeight * HEIGHT_STRENGTH_SCALE,
                 1.0F,
                 MAX_SIZE_STRENGTH
         );
+        if (entity instanceof Projectile) return 0.22F;
+        if (entity instanceof AbstractHorse) return Math.max(strength, 1.65F);
+        if (entity instanceof AbstractMinecart) return Math.max(strength, 1.4F);
+        if (entity instanceof Player player && player.isFallFlying()) return Math.max(strength, 1.55F);
+        return strength;
+    }
+
+    private static void detectLocalForceEvents(ClientLevel level, Entity cameraPlayer) {
+        AABB bounds = cameraPlayer.getBoundingBox().inflate(ENTITY_VISIBILITY_RADIUS);
+        for (LightningBolt lightning : level.getEntitiesOfClass(LightningBolt.class, bounds, bolt -> bolt.tickCount == 1)) {
+            addRadialForce(lightning.getX(), lightning.getY(), lightning.getZ(), 7.5F, 1.7F, 650L);
+        }
+    }
+
+    private static void addRadialForce(double x, double y, double z, float radius, float strength, long lifetimeMillis) {
+        if (!ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY.getAsBoolean()) return;
+        long nowMillis = Util.getMillis();
+        synchronized (TRANSIENT_FORCES) {
+            pruneTransientForces(nowMillis);
+            if (TRANSIENT_FORCES.size() >= MAX_TRANSIENT_FORCES) TRANSIENT_FORCES.remove(0);
+            TRANSIENT_FORCES.add(new TransientForce((float) x, (float) y, (float) z, radius, strength, nowMillis, lifetimeMillis));
+        }
+    }
+
+    private static void pruneTransientForces(long nowMillis) {
+        TRANSIENT_FORCES.removeIf(force -> force.age(nowMillis) >= 1.0F);
+    }
+
+    private static void collectTransientForceImpulses(ClientLevel level, long nowMillis, Map<BlockPos, FoliageImpulse> touched) {
+        synchronized (TRANSIENT_FORCES) {
+            pruneTransientForces(nowMillis);
+            for (TransientForce force : TRANSIENT_FORCES) {
+                int minX = Mth.floor(force.x() - force.radius());
+                int maxX = Mth.floor(force.x() + force.radius());
+                int minY = Mth.floor(force.y() - Math.min(force.radius(), 3.0F));
+                int maxY = Mth.floor(force.y() + Math.min(force.radius(), 3.0F));
+                int minZ = Mth.floor(force.z() - force.radius());
+                int maxZ = Mth.floor(force.z() + force.radius());
+                BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+                for (int x = minX; x <= maxX; x++) for (int y = minY; y <= maxY; y++) for (int z = minZ; z <= maxZ; z++) {
+                    pos.set(x, y, z);
+                    if (!ResponsiveFoliage.isInteractive(level.getBlockState(pos))) continue;
+                    ForceSample sample = force.sampleAt(x + 0.5D, y + 0.5D, z + 0.5D, nowMillis);
+                    float offsetX = (float) sample.x() * INTERACTION_OFFSET_SCALE;
+                    float offsetZ = (float) sample.z() * INTERACTION_OFFSET_SCALE;
+                    if (offsetX * offsetX + offsetZ * offsetZ <= MIN_VISIBLE_IMPULSE * MIN_VISIBLE_IMPULSE) continue;
+                    touched.merge(pos.immutable(), FoliageImpulse.create(offsetX, offsetZ, nowMillis), FoliageImpulse::merge);
+                }
+            }
+        }
+    }
+
+    private record ForceSample(double x, double z) {
+    }
+
+    private record TransientForce(float x, float y, float z, float radius, float strength, long createdMillis, long lifetimeMillis) {
+        private TransientForce shift(long millis) {
+            return new TransientForce(x, y, z, radius, strength, createdMillis + millis, lifetimeMillis);
+        }
+        private float age(long nowMillis) {
+            return Mth.clamp((float) (nowMillis - createdMillis) / lifetimeMillis, 0.0F, 1.0F);
+        }
+
+        private float currentStrength(long nowMillis) {
+            return strength * smoothCurve(1.0F - age(nowMillis));
+        }
+
+        private ForceSample sampleAt(double sampleX, double sampleY, double sampleZ, long nowMillis) {
+            double dx = sampleX - x;
+            double dz = sampleZ - z;
+            double horizontal = Math.sqrt(dx * dx + dz * dz);
+            double dy = Math.abs(sampleY - y) * 0.35D;
+            double distance = Math.sqrt(horizontal * horizontal + dy * dy);
+            if (distance >= radius || horizontal < 0.001D) return new ForceSample(0.0D, 0.0D);
+            float influence = smoothCurve(1.0F - (float) distance / radius) * currentStrength(nowMillis);
+            return new ForceSample(dx / horizontal * influence, dz / horizontal * influence);
+        }
+    }
+
+    private record ShaderInteraction(float x, float minY, float z, float radius, float strength) {
+        private static ShaderInteraction fromContact(FoliageContact contact, long nowMillis) {
+            ContactSample sample = contact.sample(nowMillis);
+            return new ShaderInteraction(sample.x(), sample.minY(), sample.z(), sample.radius(),
+                    sample.strength() * contactDecay(contact, nowMillis));
+        }
+
+        private static ShaderInteraction fromForce(TransientForce force, long nowMillis) {
+            return new ShaderInteraction(force.x(), force.y() - 0.4F, force.z(), force.radius(), force.currentStrength(nowMillis));
+        }
+
+        private boolean visible() {
+            return strength > MIN_VISIBLE_CONTACT_DECAY;
+        }
+
+        private double priority(Entity player) {
+            double dx = x - player.getX();
+            double dy = minY - player.getY();
+            double dz = z - player.getZ();
+            return dx * dx + dy * dy + dz * dz - strength * 18.0D;
+        }
     }
 
     private record FoliageContact(

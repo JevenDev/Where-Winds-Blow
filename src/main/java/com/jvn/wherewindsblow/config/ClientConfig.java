@@ -327,8 +327,24 @@ public final class ClientConfig {
             .defineInRange("thunderWeatherSheenStrength", 2.0D, WEATHER_SHEEN_STRENGTH_MIN, WEATHER_SHEEN_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_REACTIVE_PRECIPITATION = BUILDER
-            .comment("Lets rain and snow lean and drift with the shared wind simulation, and applies atmospheric precipitation density and color tuning.")
+            .comment("Uses Where Winds Blow's atmospheric precipitation renderer. Disable this to use vanilla rain and snow.")
             .define("enableWindReactivePrecipitation", true);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_RAIN_EFFECTS = BUILDER
+            .comment("Renders atmospheric rain while Where Winds Blow's precipitation renderer is enabled.")
+            .define("enableRainEffects", true);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_SLANTED_RAIN = BUILDER
+            .comment("Lets rain lean with the shared wind simulation. Rain falls vertically when this is disabled.")
+            .define("enableSlantedRain", true);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_SNOW_EFFECTS = BUILDER
+            .comment("Renders atmospheric snow while Where Winds Blow's precipitation renderer is enabled.")
+            .define("enableSnowEffects", true);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_DRIVEN_SNOW = BUILDER
+            .comment("Lets snow drift and flutter with the shared wind simulation. Snow falls vertically when this is disabled.")
+            .define("enableWindDrivenSnow", true);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 
