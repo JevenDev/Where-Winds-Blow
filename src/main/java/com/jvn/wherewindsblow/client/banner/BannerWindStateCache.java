@@ -188,9 +188,15 @@ public final class BannerWindStateCache {
             float ambient = sample.ambientStrength() * (float) ClientConfig.BANNER_WIND_STRENGTH.getAsDouble();
             float gustStrength = sample.gustStrength() * (float) ClientConfig.BANNER_GUST_RESPONSE.getAsDouble();
             float effectiveStrength = Math.max(0.0F, ambient + gustStrength);
-            float wallPressure = wall ? Mth.clamp(0.35F + localOutward * 0.65F, 0.1F, 1.0F) : 1.0F;
+            // The vanilla banner cuboid is mounted against one side of its pole and cannot fold
+            // along its width. Only wind directed away from that mounting side should lift it;
+            // back-facing or edge-on wind leaves it pressed close to the pole instead of rotating
+            // the cloth through the support. Wall banners retain a small sheltered response.
+            float directionalPressure = wall
+                    ? Mth.clamp(0.35F + localOutward * 0.65F, 0.1F, 1.0F)
+                    : Mth.lerp(Math.max(0.0F, localOutward), 0.12F, 1.0F);
 
-            this.targetExtension = (1.0F - (float) Math.exp(-effectiveStrength * 0.85F)) * wallPressure;
+            this.targetExtension = (1.0F - (float) Math.exp(-effectiveStrength * 0.85F)) * directionalPressure;
             this.targetCrosswind = localSide * this.targetExtension;
             this.targetOutwardWind = localOutward * this.targetExtension;
             this.targetGust = Mth.clamp(gustStrength, 0.0F, 2.0F);

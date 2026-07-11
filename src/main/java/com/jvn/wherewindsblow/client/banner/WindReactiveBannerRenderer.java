@@ -167,6 +167,7 @@ public final class WindReactiveBannerRenderer {
         float vanillaAngle = (-0.0125F + 0.01F * Mth.cos(vanillaPhase + time * Mth.TWO_PI / 5.0F)) * Mth.PI;
 
         float extension = Mth.clamp(response.extension(partialTick), 0.0F, 1.0F);
+        float outwardWind = response.outwardWind(partialTick);
         float hingeResponse = response.hingeResponse(partialTick);
         float sideResponse = response.sideResponse(partialTick);
         float gust = Mth.clamp(response.gust(partialTick), 0.0F, 2.0F);
@@ -184,13 +185,24 @@ public final class WindReactiveBannerRenderer {
         float quickSway = Mth.sin(response.phase() * 1.73F + time * (3.8F + turbulence * 0.75F))
                 * (0.003F + extension * 0.007F + turbulence * 0.004F)
                 * flutterStrength;
-        float windAngle = Mth.clamp(-lift + broadSway + quickSway, -(wall ? 0.58F : 0.68F), 0.02F);
+        // Positive local outward wind is +Z after the banner render transform, which requires a
+        // negative model-space X rotation. The pole blocks motion toward -Z, so back-facing wind
+        // pins the cloth against its support instead of letting it pass through to the other side.
+        float outwardDirection = wall
+                ? 1.0F
+                : Mth.clamp(outwardWind / Math.max(extension, 0.001F), 0.0F, 1.0F);
+        float directionalLift = lift * outwardDirection;
+        float windAngle = Mth.clamp(
+                -directionalLift + broadSway + quickSway,
+                -(wall ? 0.58F : 0.68F),
+                0.02F
+        );
 
         // These angles stay deliberately tiny: they communicate crosswind and turbulent sway
         // while the silhouette still reads as Minecraft's single rigid banner cuboid.
         float sidewaysNoise = Mth.sin(response.phase() * 0.83F + time * 2.1F) * turbulence * 0.004F;
         float yaw = Mth.clamp(sideResponse * 0.035F + sidewaysNoise, -0.045F, 0.045F);
-        float roll = Mth.clamp(sideResponse * 0.016F - sidewaysNoise * 0.45F, -0.022F, 0.022F);
+        float roll = Mth.clamp(-sideResponse * 0.016F - sidewaysNoise * 0.45F, -0.022F, 0.022F);
 
         flag.xRot = Mth.lerp(distanceFade, vanillaAngle, windAngle);
         flag.yRot = yaw * distanceFade;
