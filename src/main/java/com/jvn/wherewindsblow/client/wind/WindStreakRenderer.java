@@ -56,6 +56,7 @@ public final class WindStreakRenderer {
     private static final double TERRAIN_SIDE_PUSH = 0.026D;
     private static final double STREAK_TERRAIN_CLEARANCE = 1.45D;
     private static final double STREAK_TERRAIN_LIFT_STRENGTH = 0.18D;
+    private static final double STREAK_PATH_ADVECTION = 0.08D;
     private static final double STREAK_MIN_STROKE_SCALE = 0.68D;
     private static final double STREAK_MIN_HORIZONTAL_SPACING = 7.5D;
     private static final double STREAK_MIN_VERTICAL_SPACING = 2.8D;
@@ -333,6 +334,9 @@ public final class WindStreakRenderer {
 
         streak.age++;
         refreshWind(streak, level);
+        if (streak.fadingOut) {
+            return;
+        }
         if (streak.fadeInAge < STREAK_FADE_IN_TICKS) {
             streak.fadeInAge++;
         }
@@ -374,14 +378,17 @@ public final class WindStreakRenderer {
         streak.terrainLift = terrainFlow.lift();
         streak.terrainSideFlow = terrainFlow.side();
         double motionScale = Mth.clamp(0.34D + streak.windStrength * 1.3D + streak.gustStrength * 0.72D, 0.18D, 3.1D);
-        double driftSpeed = streak.driftSpeed * motionScale;
+        // The bright brush is the moving air parcel. Keep the supporting streamline
+        // nearly world-anchored so the whole curved shape does not read as a decal
+        // being dragged across the scene.
+        double driftSpeed = streak.driftSpeed * motionScale * STREAK_PATH_ADVECTION;
         double turbulenceScale = 0.55D + Mth.clamp(streak.turbulence * 2.4D, 0.0D, 1.8D);
-        double sideDrift = streak.terrainSideFlow
+        double sideDrift = streak.terrainSideFlow * STREAK_PATH_ADVECTION
                 + Math.sin(streak.seed + (double) streak.age * 0.045D) * streak.crossDrift * turbulenceScale;
         Point next = keepAboveTerrainAndCollision(
                 level,
                 streak.x + streak.windX * driftSpeed + streak.crossX * sideDrift,
-                streak.y + streak.terrainLift,
+                streak.y + streak.terrainLift * STREAK_PATH_ADVECTION,
                 streak.z + streak.windZ * driftSpeed + streak.crossZ * sideDrift,
                 STREAK_TERRAIN_CLEARANCE
         );
@@ -448,26 +455,6 @@ public final class WindStreakRenderer {
                     (int) Math.ceil((1.18D + streak.wakeLength) / streak.speed)
             );
             streak.age = scatterAge ? RANDOM.nextInt(Math.max(1, streak.lifetime / 2)) : 0;
-            if (streak.age > 0) {
-                double travelled = streak.driftSpeed * (double) streak.age;
-                double seededSideDrift = Math.sin(streak.seed + (double) streak.age * 0.045D)
-                        * streak.crossDrift
-                        * (double) streak.age
-                        * 0.32D;
-                Point seededPosition = keepAboveTerrainAndCollision(
-                        level,
-                        streak.x + streak.windX * travelled + streak.crossX * seededSideDrift,
-                        streak.y,
-                        streak.z + streak.windZ * travelled + streak.crossZ * seededSideDrift,
-                        STREAK_TERRAIN_CLEARANCE
-                );
-                streak.x = seededPosition.x();
-                streak.y = seededPosition.y();
-                streak.z = seededPosition.z();
-                streak.xOld = streak.x;
-                streak.yOld = streak.y;
-                streak.zOld = streak.z;
-            }
             streak.fadingOut = false;
             streak.fadeInAge = 0;
             streak.fadeOutAge = 0;
@@ -1066,21 +1053,19 @@ public final class WindStreakRenderer {
         double headEase = smoothFade(Mth.clamp((1.0F - t) / 0.28F, 0.0F, 1.0F));
         double motionEnvelope = pathEnvelope * tailEase * headEase;
         double bodyCurve = pathEnvelope * streak.arc;
-        double sCurve = Math.sin(
-                t * Math.PI * streak.curveFrequency + streak.curvePhase + windTime * 0.18D * streak.curveSign
-        )
+        double sCurve = Math.sin(t * Math.PI * streak.curveFrequency + streak.curvePhase)
                 * streak.curveStrength
                 * motionEnvelope
                 * streak.curveSign;
-        double softRipple = Math.sin(flow + t * Math.PI * 1.35D + windTime * 0.26D) * 0.012D * motionEnvelope;
-        double fineRipple = Math.sin(streak.ripplePhase + t * Math.PI * streak.rippleFrequency + windTime * 0.52D)
+        double softRipple = Math.sin(flow + t * Math.PI * 1.35D) * 0.012D * motionEnvelope;
+        double fineRipple = Math.sin(streak.ripplePhase + t * Math.PI * streak.rippleFrequency)
                 * streak.rippleStrength
                 * motionEnvelope;
         double liveCurvature = 0.72D + Mth.clamp(streak.turbulence * 2.2D, 0.0D, 1.6D);
         double crossOffset = bodyCurve + (sCurve + softRipple + fineRipple) * liveCurvature;
         double x = baseX + streak.windX * along + streak.crossX * crossOffset;
         double y = baseY + pathEnvelope * streak.lift
-                + Math.cos(streak.ripplePhase + t * Math.PI * 1.7D + windTime * 0.42D) * streak.verticalRipple * motionEnvelope;
+                + Math.cos(streak.ripplePhase + t * Math.PI * 1.7D) * streak.verticalRipple * motionEnvelope;
         double z = baseZ + streak.windZ * along + streak.crossZ * crossOffset;
         return new Point(x, y, z);
     }
@@ -1511,7 +1496,21 @@ public final class WindStreakRenderer {
             return;
         }
 
-        applyWind(streak, sampleWind(level, streak.x, streak.y, streak.z), false);
+        WindSample wind = sampleWind(level, streak.x, streak.y, streak.z);
+        double alignment = streak.windX * wind.directionX() + streak.windZ * wind.directionZ();
+        if (alignment < 0.92D) {
+            beginFadeOut(streak);
+            return;
+        }
+
+        // A live direction update used to rotate every point of an existing long
+        // streak around its origin. Let old streamlines expire instead; newly
+        // spawned ones naturally pick up the changed flow direction.
+        double blend = 0.42D;
+        streak.windStrength = Mth.lerp(blend, streak.windStrength, wind.strength());
+        streak.gustStrength = Mth.lerp(blend, streak.gustStrength, wind.gustStrength());
+        streak.turbulence = Mth.lerp(blend, streak.turbulence, wind.turbulence());
+        streak.windSampleCountdown = WIND_SAMPLE_INTERVAL_TICKS;
     }
 
     private static void refreshWind(WindLeaf leaf, ClientLevel level) {
