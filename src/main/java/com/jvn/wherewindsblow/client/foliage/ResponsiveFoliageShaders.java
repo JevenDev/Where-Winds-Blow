@@ -155,7 +155,7 @@ public final class ResponsiveFoliageShaders {
         ResponsiveFoliagePhysics.updateShaderInteractors();
         GlobalWindState windState = DynamicWindManager.currentState();
         shader.safeGetUniform("WindTime").set(DynamicWindManager.simulationTime());
-        shader.safeGetUniform("AmbientWindStrength").set(windState.ambientStrength());
+        shader.safeGetUniform("AmbientWindStrength").set(DynamicWindManager.visualStrength(windState.ambientStrength()));
         shader.safeGetUniform("WindTurbulence").set(windState.ambientTurbulence());
         shader.safeGetUniform("PlantWindSwayStrength").set(plantWindSwayStrength());
         shader.safeGetUniform("LeafWindSwayStrength").set(leafWindSwayStrength());
@@ -196,7 +196,7 @@ public final class ResponsiveFoliageShaders {
                     gust.width()
             );
             shader.safeGetUniform("GustStrength" + index).set(
-                    gust.peakStrength() * profile.gustStrengthMultiplier(),
+                    DynamicWindManager.visualStrength(gust.peakStrength() * profile.gustStrengthMultiplier()),
                     gust.turbulence() * profile.turbulenceMultiplier(),
                     gust.noisePhase(),
                     gust.crossDrift()

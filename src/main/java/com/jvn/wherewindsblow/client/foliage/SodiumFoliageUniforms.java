@@ -71,7 +71,7 @@ public final class SodiumFoliageUniforms {
             refreshUniformLocations(program);
             GlobalWindState windState = DynamicWindManager.currentState();
             uploadUniform(windTimeUniform, DynamicWindManager.simulationTime());
-            uploadUniform(ambientWindStrengthUniform, windState.ambientStrength());
+            uploadUniform(ambientWindStrengthUniform, DynamicWindManager.visualStrength(windState.ambientStrength()));
             uploadUniform(windTurbulenceUniform, windState.ambientTurbulence());
             uploadUniform(plantSwayStrengthUniform, ResponsiveFoliageShaders.plantWindSwayStrength());
             uploadUniform(leafSwayStrengthUniform, ResponsiveFoliageShaders.leafWindSwayStrength());
@@ -176,7 +176,7 @@ public final class SodiumFoliageUniforms {
             );
             uploadVector4Uniform(
                     gustStrengthUniforms[index],
-                    gust.peakStrength() * profile.gustStrengthMultiplier(),
+                    DynamicWindManager.visualStrength(gust.peakStrength() * profile.gustStrengthMultiplier()),
                     gust.turbulence() * profile.turbulenceMultiplier(),
                     gust.noisePhase(),
                     gust.crossDrift()

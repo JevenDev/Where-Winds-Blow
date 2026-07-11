@@ -27,7 +27,6 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class DynamicWindManager {
     public static final int MAX_ACTIVE_GUSTS = 3;
-    private static final float WEATHER_SPEED_SCALE = 0.34F;
     private static final float MAX_UPDATE_DELTA_SECONDS = 0.25F;
     private static final GlobalWindState STILL_STATE = new GlobalWindState(
             0.0F, -1.0F,
@@ -130,18 +129,34 @@ public final class DynamicWindManager {
             altitude = 1.0F + (altitude - 1.0F) * profile.altitudeInfluence();
         }
         float localScale = exposure * altitude;
+        float scaledAmbient = localAmbient * localScale;
+        float scaledGust = localGustStrength * localScale;
+        float rawStrength = Math.max(0.0F, scaledAmbient + scaledGust);
+        float visualStrength = visualStrength(rawStrength);
+        float visualScale = rawStrength > 0.0001F ? visualStrength / rawStrength : 0.0F;
 
         return new WindSample(
                 directionX,
                 directionZ,
-                (localAmbient + localGustStrength) * localScale,
-                localAmbient * localScale,
-                localGustStrength * localScale,
+                visualStrength,
+                scaledAmbient * visualScale,
+                scaledGust * visualScale,
                 (ambientTurbulence + gust.turbulence()) * profile.turbulenceMultiplier() * exposure,
                 exposure,
                 current.weatherPower(),
                 profile.id()
         );
+    }
+
+    /**
+     * Converts physical wind power into a bounded visual response. Values through 1 retain their
+     * full range; stronger weather increasingly becomes steady pressure instead of unbounded
+     * displacement. The asymptotic visual maximum is 1.5.
+     */
+    public static float visualStrength(float rawStrength) {
+        float strength = Math.max(rawStrength, 0.0F);
+        float excess = Math.max(strength - 1.0F, 0.0F);
+        return Math.min(strength, 1.0F) + excess / (1.0F + excess * 2.0F);
     }
 
     public static WindSample sampleWind(BlockPos pos) {
@@ -287,7 +302,9 @@ public final class DynamicWindManager {
         } else {
             activeProfile = profile;
         }
-        simulationSpeed = 1.0F + weatherPower * WEATHER_SPEED_SCALE;
+        // Wind power controls force, not the rate at which every oscillator and gust clock runs.
+        // Coupling these made stronger ambient wind visibly accelerate foliage rocking.
+        simulationSpeed = 1.0F;
         simulationTimeSeconds += deltaSeconds * simulationSpeed;
 
         boolean dynamicWind = ClientConfig.ENABLE_DYNAMIC_WIND.getAsBoolean();

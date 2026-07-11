@@ -271,6 +271,7 @@ public final class WhereWindsBlowConfigScreen {
                         .option(weatherSheenOption(ClientConfig.CLEAR_WEATHER_SHEEN_STRENGTH))
                         .option(weatherSheenOption(ClientConfig.RAIN_WEATHER_SHEEN_STRENGTH))
                         .option(weatherSheenOption(ClientConfig.THUNDER_WEATHER_SHEEN_STRENGTH))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_REACTIVE_PRECIPITATION))
                         .build())
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.ambientWind"))

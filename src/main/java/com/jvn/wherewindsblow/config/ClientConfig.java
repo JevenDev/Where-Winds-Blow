@@ -326,6 +326,10 @@ public final class ClientConfig {
             .comment("Minimum wind sheen strength at full thunder.")
             .defineInRange("thunderWeatherSheenStrength", 2.0D, WEATHER_SHEEN_STRENGTH_MIN, WEATHER_SHEEN_STRENGTH_MAX);
 
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_REACTIVE_PRECIPITATION = BUILDER
+            .comment("Lets rain and snow lean and drift with the shared wind simulation, and applies atmospheric rain density and color tuning.")
+            .define("enableWindReactivePrecipitation", true);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     public enum WindDirectionMode {

@@ -9,7 +9,9 @@
     "client.BannerRendererMixin",
     "client.GameRendererMixin",
     "client.HangingSignRendererMixin",
+    "client.LevelRendererMixin",
     "client.ParticleEngineMixin",
+    "client.WaterDropParticleMixin",
     "client.compat.sodium.SodiumShaderLoaderMixin",
     "client.compat.sodium.SodiumShaderChunkRendererMixin"
   ],
