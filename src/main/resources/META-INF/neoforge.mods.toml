@@ -12,6 +12,8 @@ version="${mod_version}"
 displayName="${mod_name}"
 authors="${mod_authors}"
 displayURL="${mod_display_url}"
+logoFile="logo.png"
+logoBlur=false
 displayTest="NONE"
 description='''
 ${mod_description}

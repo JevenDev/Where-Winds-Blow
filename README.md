@@ -2,6 +2,8 @@
 
 <h2><strong>Where Winds Blow, I'd go with you.</strong></h2>
 
+![Grass swaying in the wind](https://i.imgur.com/RCgo20Y.gif)
+
 </div>
 
 <div align="center">
@@ -9,112 +11,60 @@
 <a href="https://github.com/JevenDev/Where-Winds-Blow" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/intergrav/devins-badges/refs/heads/v3/assets/cozy/supported/neoforge_64h.png" alt="Available for NeoForge"></a>
 <br>
 <a href="https://github.com/JevenDev/Where-Winds-Blow" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/intergrav/devins-badges/refs/heads/v3/assets/compact-minimal/available/github_46h.png" alt="Available on GitHub"></a>
-
-### The mod is <i><u>NOT</u></i> required on servers if you only want the visual effects. You can use the mod client-side for visual effects only.
+<a href="https://modrinth.com/mod/where-winds-blow" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/intergrav/devins-badges/refs/heads/v3/assets/compact-minimal/available/modrinth_46h.png" alt="Available on Modrinth"></a>
+<a href="https://www.curseforge.com/minecraft/mc-mods/where-winds-blow" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/intergrav/devins-badges/refs/heads/v3/assets/compact-minimal/available/curseforge_46h.png" alt="Available on CurseForge"></a>
 
 </div>
 
-Where Winds Blow is a Vanilla+ NeoForge mod for Minecraft focused on making biomes feel denser, softer, and more atmospheric without replacing vanilla terrain generation.
+Where Winds Blow adds a visible, weather-driven wind system and denser Vanilla+ foliage. Wind changes with the biome, weather, altitude, and nearby shelter, then drives atmospheric effects across the world without pushing entities or replacing vanilla terrain.
 
-Instead of turning the overworld into a completely different biome set, the mod builds on top of vanilla with data-driven grass placement, new foliage variants, dry-grass transitions, and optional responsive foliage rendering on the client.
-
-- Adds new grass variants that fit vanilla palettes
-- Backported desert dry grass from 1.21.5
-- Thickens grassy biomes with configurable biome modifier worldgen
-- Supports dry, dead, sparse, medium, dense, and overgrown grass families
-- Exposes biome placement through datapack JSON for easy pack customization
-- Adds a client config screen for tuning foliage density behavior and client-side effects
-- Includes responsive foliage rendering and shader hooks, with Sodium and Iris compatibility support
+> **Client-only friendly:** Install it on the client for visual wind and weather effects without requiring a server-side installation. For multiplayer with WWB blocks and world generation, install it on the server and connecting clients.
 
 ![features](https://cdn.modrinth.com/data/cached_images/ec0e4dc78ec1a652eb11b233dd2926f7461fe770.png)
 
+<div align="center">
+
+![Interactive foliage](https://i.imgur.com/ScczSwj.gif)
+
+</div>
+
 ## What It Adds
 
-Where Winds Blow adds several lightweight plant blocks designed to blend into vanilla biomes:
+| Feature | What it does |
+|---|---|
+| Dynamic wind | Creates smooth direction changes, gust fronts, calm lulls, and turbulence shaped by the biome, weather, altitude, and surrounding terrain |
+| Responsive foliage | Makes grass, crops, flowers, and leaves sway; nearby movement, projectiles, lightning, and explosions can disturb plants locally |
+| Visible air movement | Sends pale wind streaks and biome-tinted drifting leaves through the world, following the wind and reacting to terrain |
+| Atmospheric weather | Slants rain with the wind and gives snow drifting, fluttering movement as weather strength changes |
+| Reactive world details | Bends campfire smoke into wind-shaped plumes and moves banners, hanging signs, lanterns, and chains with the same wind |
+| Vanilla+ world generation | Adds flat, dry, dead, overgrown, and wild-wheat grass variants to create denser biome coverage and softer transitions |
+| Customization | Provides an in-game visual config plus datapack control over grass placement and biome-specific wind profiles |
 
-- Overgrown Grass
-- Flat Grass
-- Flat Dead Grass
-- Short Dead Grass
-- Short Dry Grass
-- Tall Dry Grass
-
-These blocks are used both as placeable natural blocks and as worldgen building blocks for the mod's biome features.
-
-## Worldgen
-
-Grass generation is split into separate families so packs can tune biome coverage with more control:
-
-- Dense short grass
-- Medium short grass
-- Sparse short grass
-- Tall grass
-- Overgrown grass
-- Overgrown grass fields
-- Short dry grass
-- Tall dry grass
-- Dead grass
-- Wild wheat (disabled by default)
-
-## Responsive Foliage
-
-On the client, Where Winds Blow can wrap supported foliage models with responsive movement behavior so grassy areas and leaf canopies feel less static.
-This is meant to stay lightweight and still look like Minecraft, not turn the game into a completely different rendering style.
-Wind sway can be toggled separately for grass/plants and leaf blocks.
-Hanging lanterns, chains, and hanging signs can also react to the same weather-driven wind, with separate strength controls for lanterns and signs.
-Local activity also creates short-lived visual forces: explosions, lightning, sweeping attacks, elytra flight, fast minecarts, horses, and projectiles can disturb nearby foliage without changing entity movement. Explosion pressure waves also push the mod's reactive campfire smoke.
-
-## Configuration
-
-Main config file:
-
-- Client visuals and wind effects: `config/where_winds_blow-client.toml`
-- World generation: `config/where_winds_blow-common.toml`
-- Dedicated-server world generation: `<server root>/config/where_winds_blow-common.toml`
-
-The in-game config screen exposes separate controls for atmospheric precipitation, rain visibility, slanted rain, snow visibility, and wind-driven snow. Disabling atmospheric precipitation restores vanilla rain and snow rendering.
-
-You can tune or disable the major worldgen groups independently, including:
-
-- Dense grass
-- Medium grass
-- Sparse grass
-- Tall grass
-- Short dry grass
-- Tall dry grass
-- Dead grass
-- Overgrown grass
-- Wild wheat
-
-Worldgen config changes require a world reload or restart and only affect newly generated chunks.
-
-## Datapacks and Pack Support
-
-Where Winds Blow is built to be pack-friendly.
-
-Biome membership, biome modifiers, and placed/configured features all live in resource JSON so modpacks and datapacks can move foliage families into different biomes, change patch density, or swap out what each patch places.
-
-Pack-facing documentation lives here:
-
-- [Datapack notes](DATAPACKS.md)
-
-Key resource areas:
-
-- `data/where_winds_blow/tags/worldgen/biome/`
-- `data/where_winds_blow/neoforge/biome_modifier/`
-- `data/where_winds_blow/worldgen/configured_feature/`
-- `data/where_winds_blow/worldgen/placed_feature/`
 ![compatibility](https://cdn.modrinth.com/data/cached_images/1252c11050b7daf8b8621712b58dd1005e7ba982.png)
+
+<div align="center">
+
+![Custom rain effects & weather based wind changes](https://i.imgur.com/8QBmRsr.gif)
+
+</div>
 
 ## Compatibility
 
-- Built for NeoForge `1.21.1`
-- Uses vanilla-style blocks, tags, and biome worldgen hooks
-- Includes optional compatibility paths for Sodium and Iris-related rendering behavior
+- The standard renderer and Sodium support the complete feature set.
+- Iris has full support while no shader pack is active.
+- With an Iris shader pack active, weather, streaks, leaves, smoke, banners, signs, world generation, and local plant interaction remain available. Foliage sway, wind sheen, and lantern/chain sway are disabled to avoid terrain-shader conflicts.
 
-Compatibility may vary with mods that heavily replace terrain generation, foliage rendering, or biome feature injection.
+Where Winds Blow is incompatible with **Chunks Fade In** because both mods alter terrain shader rendering.
+
+See the [datapack guide](https://github.com/JevenDev/Where-Winds-Blow/blob/1.21.1/DATAPACKS.md) for more information.
 
 ![credits & license](https://cdn.modrinth.com/data/cached_images/5fd3ad80e342e6985dd6ebda1f7afd9c48749fce.png)
+
+<div align="center">
+
+![Swinging hanging sign & lantern](https://i.imgur.com/S0X7Nm9.gif)
+
+</div>
 
 ## Modpacks
 
