@@ -274,6 +274,25 @@ public final class WhereWindsBlowConfigScreen {
                         .option(booleanOption(ClientConfig.ENABLE_WIND_REACTIVE_PRECIPITATION))
                         .option(booleanOption(ClientConfig.ENABLE_RAIN_EFFECTS))
                         .option(booleanOption(ClientConfig.ENABLE_SLANTED_RAIN))
+                        .option(doubleOption(
+                                ClientConfig.RAIN_ANGLE_VARIATION,
+                                ClientConfig.RAIN_ANGLE_VARIATION_MIN,
+                                ClientConfig.RAIN_ANGLE_VARIATION_MAX,
+                                1.0D
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.THUNDER_RAIN_ANGLE_VARIATION,
+                                ClientConfig.RAIN_ANGLE_VARIATION_MIN,
+                                ClientConfig.RAIN_ANGLE_VARIATION_MAX,
+                                1.0D
+                        ))
+                        .option(booleanOption(ClientConfig.ENABLE_DYNAMIC_RAIN_SQUALLS))
+                        .option(doubleOption(
+                                ClientConfig.RAIN_SQUALL_STRENGTH,
+                                ClientConfig.RAIN_SQUALL_STRENGTH_MIN,
+                                ClientConfig.RAIN_SQUALL_STRENGTH_MAX,
+                                SMALL_STEP
+                        ))
                         .option(booleanOption(ClientConfig.ENABLE_SNOW_EFFECTS))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_DRIVEN_SNOW))
                         .build())

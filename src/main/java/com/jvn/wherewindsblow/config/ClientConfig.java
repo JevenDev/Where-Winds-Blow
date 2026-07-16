@@ -67,6 +67,10 @@ public final class ClientConfig {
     public static final double WEATHER_SWAY_STRENGTH_MAX = 4.0D;
     public static final double WEATHER_SHEEN_STRENGTH_MIN = 0.0D;
     public static final double WEATHER_SHEEN_STRENGTH_MAX = 4.0D;
+    public static final double RAIN_ANGLE_VARIATION_MIN = 0.0D;
+    public static final double RAIN_ANGLE_VARIATION_MAX = 45.0D;
+    public static final double RAIN_SQUALL_STRENGTH_MIN = 0.0D;
+    public static final double RAIN_SQUALL_STRENGTH_MAX = 2.0D;
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
@@ -337,6 +341,22 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue ENABLE_SLANTED_RAIN = BUILDER
             .comment("Lets rain lean with the shared wind simulation. Rain falls vertically when this is disabled.")
             .define("enableSlantedRain", true);
+
+    public static final ModConfigSpec.DoubleValue RAIN_ANGLE_VARIATION = BUILDER
+            .comment("Maximum per-stream rain angle variation in degrees during normal rain. Zero keeps every rain stream parallel.")
+            .defineInRange("rainAngleVariation", 6.0D, RAIN_ANGLE_VARIATION_MIN, RAIN_ANGLE_VARIATION_MAX);
+
+    public static final ModConfigSpec.DoubleValue THUNDER_RAIN_ANGLE_VARIATION = BUILDER
+            .comment("Maximum per-stream rain angle variation in degrees at full thunder. Zero keeps every rain stream parallel.")
+            .defineInRange("thunderRainAngleVariation", 14.0D, RAIN_ANGLE_VARIATION_MIN, RAIN_ANGLE_VARIATION_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_DYNAMIC_RAIN_SQUALLS = BUILDER
+            .comment("Lets travelling gust fronts intensify rain while wind lulls soften it.")
+            .define("enableDynamicRainSqualls", true);
+
+    public static final ModConfigSpec.DoubleValue RAIN_SQUALL_STRENGTH = BUILDER
+            .comment("Scales changes to rain density, speed, opacity, and tilt during gusts and lulls.")
+            .defineInRange("rainSquallStrength", 1.0D, RAIN_SQUALL_STRENGTH_MIN, RAIN_SQUALL_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_SNOW_EFFECTS = BUILDER
             .comment("Renders atmospheric snow while Where Winds Blow's precipitation renderer is enabled.")
