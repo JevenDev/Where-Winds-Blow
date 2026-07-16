@@ -116,12 +116,24 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         List<BakedQuad> transformed = new ArrayList<>(quads.size());
         for (BakedQuad quad : quads) {
             if (interactionImpulse != null) {
-                transformed.add(transformPlantQuad(quad, segment.offset(), segment.height(), Float.intBitsToFloat(swayStartHeightBits), windExposure, false, interactionImpulse));
+                transformed.add(transformPlantQuad(
+                        quad,
+                        segment.offset(),
+                        segment.height(),
+                        segment.hangsFromTop(),
+                        segment.localHeightScale(),
+                        Float.intBitsToFloat(swayStartHeightBits),
+                        windExposure,
+                        false,
+                        interactionImpulse
+                ));
             } else {
                 PlantQuadKey key = new PlantQuadKey(
                         quad,
                         segment.offset(),
                         segment.height(),
+                        segment.hangsFromTop(),
+                        Float.floatToIntBits(segment.localHeightScale()),
                         swayStartHeightBits,
                         Float.floatToIntBits(windExposure),
                         encodeInteractionMarker
@@ -138,6 +150,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 key.quad(),
                 key.segmentOffset(),
                 key.segmentHeight(),
+                key.hangsFromTop(),
+                Float.intBitsToFloat(key.localHeightScaleBits()),
                 Float.intBitsToFloat(key.swayStartHeightBits()),
                 Float.intBitsToFloat(key.windExposureBits()),
                 key.encodeInteractionMarker(),
@@ -149,6 +163,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             BakedQuad quad,
             int segmentOffset,
             int segmentHeight,
+            boolean hangsFromTop,
+            float localHeightScale,
             float swayStartHeight,
             float windExposure,
             boolean encodeInteractionMarker,
@@ -162,7 +178,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             float x = Float.intBitsToFloat(vertices[offset]);
             float y = Float.intBitsToFloat(vertices[offset + 1]);
             float z = Float.intBitsToFloat(vertices[offset + 2]);
-            float columnY = segmentOffset + y;
+            float distanceFromAnchor = hangsFromTop ? 1.0F - y : y;
+            float columnY = segmentOffset + distanceFromAnchor * localHeightScale;
             float windWeight = plantBendWeight(columnY, segmentHeight, swayStartHeight) * windExposure;
             float interactionWeight = plantInteractionWeight(columnY, segmentHeight);
             float bakedInteractionWeight = hasInteraction ? smoothCurve(interactionWeight) : 0.0F;
@@ -301,6 +318,15 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private record LeafQuadKey(BakedQuad quad, int windExposureBits) {
     }
 
-    private record PlantQuadKey(BakedQuad quad, int segmentOffset, int segmentHeight, int swayStartHeightBits, int windExposureBits, boolean encodeInteractionMarker) {
+    private record PlantQuadKey(
+            BakedQuad quad,
+            int segmentOffset,
+            int segmentHeight,
+            boolean hangsFromTop,
+            int localHeightScaleBits,
+            int swayStartHeightBits,
+            int windExposureBits,
+            boolean encodeInteractionMarker
+    ) {
     }
 }

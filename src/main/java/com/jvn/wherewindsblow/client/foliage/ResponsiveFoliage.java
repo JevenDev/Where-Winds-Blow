@@ -14,12 +14,16 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.world.level.block.AzaleaBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.BushBlock;
 import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.LeavesBlock;
+import net.minecraft.world.level.block.PinkPetalsBlock;
+import net.minecraft.world.level.block.SeaPickleBlock;
+import net.minecraft.world.level.block.WaterlilyBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -34,12 +38,22 @@ public final class ResponsiveFoliage {
 
     public static boolean isInteractive(BlockState state) {
         Block block = state.getBlock();
-        return block instanceof BushBlock
-                || block instanceof CropBlock
-                || block instanceof DoublePlantBlock
-                || state.is(Blocks.SUGAR_CANE)
-                || state.is(ModBlocks.OVERGROWN_GRASS.get())
-                || state.is(ModBlocks.WILD_WHEAT.get());
+        return !isRigidOrHorizontalBush(block)
+                && (block instanceof BushBlock
+                    || block instanceof CropBlock
+                    || block instanceof DoublePlantBlock
+                    || state.is(Blocks.SUGAR_CANE)
+                    || isNetherVine(state)
+                    || state.is(ModBlocks.OVERGROWN_GRASS.get())
+                    || state.is(ModBlocks.WILD_WHEAT.get()));
+    }
+
+    private static boolean isRigidOrHorizontalBush(Block block) {
+        // These inherit BushBlock for placement behavior, but their models are not
+        // rooted crossed-plane foliage and distort when encoded as grass or flowers.
+        return block instanceof AzaleaBlock
+                || block instanceof SeaPickleBlock
+                || block instanceof WaterlilyBlock;
     }
 
     public static boolean isLeaf(BlockState state) {
@@ -47,6 +61,14 @@ public final class ResponsiveFoliage {
     }
 
     public static FoliageModelData.ColumnSegment columnSegment(BlockAndTintGetter level, BlockPos pos, BlockState state) {
+        if (isTwistingVine(state)) {
+            return netherVineColumn(level, pos, false);
+        }
+
+        if (isWeepingVine(state)) {
+            return netherVineColumn(level, pos, true);
+        }
+
         if (state.is(ModBlocks.OVERGROWN_GRASS.get()) || state.is(Blocks.SUGAR_CANE)) {
             Block columnBlock = state.getBlock();
             BlockPos root = pos;
@@ -70,7 +92,48 @@ public final class ResponsiveFoliage {
             return new FoliageModelData.ColumnSegment(root, half == DoubleBlockHalf.UPPER ? 1 : 0, 2);
         }
 
+        if (state.getBlock() instanceof PinkPetalsBlock) {
+            // Vanilla petals are only three pixels tall. Normalize that height so
+            // their tops reach the wind and interaction marker ranges.
+            return new FoliageModelData.ColumnSegment(pos, 0, 1, false, 16.0F / 3.0F);
+        }
+
         return new FoliageModelData.ColumnSegment(pos, 0, 1);
+    }
+
+    private static FoliageModelData.ColumnSegment netherVineColumn(
+            BlockAndTintGetter level,
+            BlockPos pos,
+            boolean hangsFromTop
+    ) {
+        BlockPos root = pos;
+        while (sameNetherVine(level.getBlockState(hangsFromTop ? root.above() : root.below()), hangsFromTop)) {
+            root = hangsFromTop ? root.above() : root.below();
+        }
+
+        int height = 0;
+        while (sameNetherVine(level.getBlockState(hangsFromTop ? root.below(height) : root.above(height)), hangsFromTop)) {
+            height++;
+        }
+
+        int offset = hangsFromTop ? root.getY() - pos.getY() : pos.getY() - root.getY();
+        return new FoliageModelData.ColumnSegment(root, offset, height, hangsFromTop, 1.0F);
+    }
+
+    private static boolean isNetherVine(BlockState state) {
+        return isTwistingVine(state) || isWeepingVine(state);
+    }
+
+    private static boolean isTwistingVine(BlockState state) {
+        return state.is(Blocks.TWISTING_VINES) || state.is(Blocks.TWISTING_VINES_PLANT);
+    }
+
+    private static boolean isWeepingVine(BlockState state) {
+        return state.is(Blocks.WEEPING_VINES) || state.is(Blocks.WEEPING_VINES_PLANT);
+    }
+
+    private static boolean sameNetherVine(BlockState state, boolean weeping) {
+        return weeping ? isWeepingVine(state) : isTwistingVine(state);
     }
 
     public static boolean isWindExposed(BlockAndTintGetter level, BlockPos pos) {

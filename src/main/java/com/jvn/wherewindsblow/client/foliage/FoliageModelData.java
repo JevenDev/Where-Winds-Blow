@@ -11,11 +11,18 @@ public final class FoliageModelData {
     private FoliageModelData() {
     }
 
-    public record ColumnSegment(BlockPos rootPos, int offset, int height) {
+    public record ColumnSegment(BlockPos rootPos, int offset, int height, boolean hangsFromTop, float localHeightScale) {
+        public ColumnSegment(BlockPos rootPos, int offset, int height) {
+            this(rootPos, offset, height, false, 1.0F);
+        }
+
         public ColumnSegment {
             rootPos = rootPos.immutable();
             offset = Math.max(0, offset);
             height = Math.max(1, height);
+            if (!Float.isFinite(localHeightScale) || localHeightScale <= 0.0F) {
+                localHeightScale = 1.0F;
+            }
         }
     }
 
