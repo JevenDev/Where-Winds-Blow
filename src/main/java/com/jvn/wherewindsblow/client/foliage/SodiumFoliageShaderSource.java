@@ -524,7 +524,10 @@ public final class SodiumFoliageShaderSource {
                 if (wwb_is_foliage_wind_vertex(wwbFoliageAlpha) || wwb_is_lantern_wind_vertex(wwbFoliageAlpha) || wwb_is_chain_wind_vertex(wwbFoliageAlpha)) {
                     v_Color.a = 1.0;
                 }
-                v_Color.rgb += vec3(wwbWindSheen * 0.44);""";
+                // v_Color already contains the terrain lightmap result. Keep wind sheen
+                // proportional to it so foliage does not flash white in dark areas.
+                float wwbLightLevel = clamp(max(max(v_Color.r, v_Color.g), v_Color.b), 0.0, 1.0);
+                v_Color.rgb += vec3(wwbWindSheen * 0.44 * wwbLightLevel);""";
 
     private SodiumFoliageShaderSource() {
     }

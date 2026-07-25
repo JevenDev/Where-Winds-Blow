@@ -455,6 +455,10 @@ void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);
 
     vertexDistance = fog_distance(pos, FogShape);
-    vertexColor = vec4(Color.rgb, 1.0) * minecraft_sample_lightmap(Sampler2, UV2);
+    vec4 lightmapColor = minecraft_sample_lightmap(Sampler2, UV2);
+    vertexColor = vec4(Color.rgb, 1.0) * lightmapColor;
+    // The sheen is blended toward white in the fragment shader.  Scale it by the
+    // sampled terrain light so moving foliage cannot emit a bright highlight at night.
+    windSheen *= clamp(max(max(lightmapColor.r, lightmapColor.g), lightmapColor.b), 0.0, 1.0);
     texCoord0 = UV0;
 }
