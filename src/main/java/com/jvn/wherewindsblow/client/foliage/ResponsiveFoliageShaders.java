@@ -63,6 +63,10 @@ public final class ResponsiveFoliageShaders {
         return shouldUseCustomFoliageShaders() ? shader : null;
     }
 
+    public static boolean isIrisLoaded() {
+        return isModLoaded("iris");
+    }
+
     public static boolean shouldUseCustomFoliageShaders() {
         if (!ClientConfig.ENABLE_CUSTOM_FOLIAGE_SHADER.getAsBoolean()
                 || customShaderDisabled

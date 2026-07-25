@@ -14,7 +14,9 @@ import com.jvn.wherewindsblow.client.wind.WindVisualShaders;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.jvn.wherewindsblow.wind.BiomeWindProfileReloadListener;
 import com.jvn.wherewindsblow.wind.BiomeWindProfiles;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.renderer.BiomeColors;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.level.GrassColor;
 import net.neoforged.bus.api.IEventBus;
@@ -23,6 +25,7 @@ import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.event.ClientPauseChangeEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
@@ -47,6 +50,7 @@ public final class WhereWindsBlowClient {
         NeoForge.EVENT_BUS.addListener(DynamicWindManager::onClientTick);
         NeoForge.EVENT_BUS.addListener(BannerWindStateCache::onClientTick);
         NeoForge.EVENT_BUS.addListener(WhereWindsBlowClient::onClientPauseChange);
+        NeoForge.EVENT_BUS.addListener(WhereWindsBlowClient::onClientLogin);
         NeoForge.EVENT_BUS.addListener(SwingingLanternAssemblyRenderer::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onRenderLevelStage);
         NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onClientTick);
@@ -99,5 +103,21 @@ public final class WhereWindsBlowClient {
     private static void onClientPauseChange(ClientPauseChangeEvent.Post event) {
         DynamicWindManager.onClientPauseChange(event);
         ResponsiveFoliagePhysics.onClientPauseChange(event);
+    }
+
+    private static void onClientLogin(ClientPlayerNetworkEvent.LoggingIn event) {
+        if (!ResponsiveFoliageShaders.isIrisLoaded() || ClientConfig.IRIS_WARNING_SHOWN.getAsBoolean()) {
+            return;
+        }
+
+        ClientConfig.IRIS_WARNING_SHOWN.set(true);
+        ClientConfig.IRIS_WARNING_SHOWN.save();
+
+        Component warning = Component.translatable("where_winds_blow.warning.iris.label")
+                .withStyle(ChatFormatting.RED, ChatFormatting.BOLD)
+                .append(Component.literal(" "))
+                .append(Component.translatable("where_winds_blow.warning.iris.body")
+                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD, ChatFormatting.ITALIC));
+        event.getPlayer().displayClientMessage(warning, false);
     }
 }

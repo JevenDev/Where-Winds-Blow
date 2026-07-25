@@ -123,8 +123,8 @@ public final class ClientConfig {
             .defineInRange("windLeafOpacity", 1.0D, WIND_LEAF_OPACITY_MIN, WIND_LEAF_OPACITY_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_THICKNESS = BUILDER
-            .comment("Sets the maximum wind streak line thickness in pixels. Individual strokes range down to about half this width.")
-            .defineInRange("windStreakThickness", 3.0D, WIND_STREAK_THICKNESS_MIN, WIND_STREAK_THICKNESS_MAX);
+            .comment("Sets the maximum wind streak line thickness in pixels. Each streak has a soft halo and a finer bright core.")
+            .defineInRange("windStreakThickness", 2.25D, WIND_STREAK_THICKNESS_MIN, WIND_STREAK_THICKNESS_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_DIRECTION_DEGREES = BUILDER
             .comment("Sets the fixed or prevailing wind direction in compass degrees clockwise from north. 0 is north, 90 is east, 180 is south, and 270 is west.")
@@ -273,6 +273,10 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue ENABLE_SODIUM_SHADER_PATCH = BUILDER
             .comment("Adds Where Winds Blow wind uniforms and source injections to Sodium's own terrain shader.")
             .define("enableSodiumShaderPatch", true);
+
+    public static final ModConfigSpec.BooleanValue IRIS_WARNING_SHOWN = BUILDER
+            .comment("Tracks whether the one-time client-side Iris compatibility warning has been shown.")
+            .define("irisCompatibilityWarningShown", false);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_FOLIAGE_SWAY = BUILDER
             .comment("Enables wind-driven foliage sway in the responsive foliage shader.")

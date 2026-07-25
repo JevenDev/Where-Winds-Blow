@@ -56,8 +56,11 @@ public final class WindStreakRenderer {
     private static final double TERRAIN_SIDE_PUSH = 0.026D;
     private static final double STREAK_TERRAIN_CLEARANCE = 1.45D;
     private static final double STREAK_TERRAIN_LIFT_STRENGTH = 0.18D;
-    private static final double STREAK_PATH_ADVECTION = 0.08D;
-    private static final double STREAK_MIN_STROKE_SCALE = 0.68D;
+    private static final double STREAK_PATH_ADVECTION = 0.34D;
+    private static final double STREAK_MIN_STROKE_SCALE = 0.58D;
+    private static final double STREAK_HALO_WIDTH_SCALE = 1.35D;
+    private static final double STREAK_CORE_WIDTH_SCALE = 0.56D;
+    private static final float STREAK_HALO_OPACITY = 0.2F;
     private static final double STREAK_MIN_HORIZONTAL_SPACING = 7.5D;
     private static final double STREAK_MIN_VERTICAL_SPACING = 2.8D;
     private static final double LEAF_TERRAIN_CLEARANCE = 0.78D;
@@ -188,8 +191,28 @@ public final class WindStreakRenderer {
                 MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(LINE_BUFFER);
                 for (WindStreak streak : STREAKS) {
                     if (streak.active) {
-                        VertexConsumer consumer = bufferSource.getBuffer(windStreakLines(streak.strokeScale));
-                        renderStreak(consumer, pose, minecraft.level, streak, cameraPos, partialTick, windTime, lineOpacity);
+                        VertexConsumer halo = bufferSource.getBuffer(windStreakLines(
+                                streak.strokeScale * STREAK_HALO_WIDTH_SCALE
+                        ));
+                        renderStreak(
+                                halo,
+                                pose,
+                                minecraft.level,
+                                streak,
+                                cameraPos,
+                                partialTick,
+                                windTime,
+                                lineOpacity * STREAK_HALO_OPACITY
+                        );
+                    }
+                }
+
+                for (WindStreak streak : STREAKS) {
+                    if (streak.active) {
+                        VertexConsumer core = bufferSource.getBuffer(windStreakLines(
+                                streak.strokeScale * STREAK_CORE_WIDTH_SCALE
+                        ));
+                        renderStreak(core, pose, minecraft.level, streak, cameraPos, partialTick, windTime, lineOpacity);
                     }
                 }
 
@@ -278,7 +301,7 @@ public final class WindStreakRenderer {
 
     private static RenderType windStreakLines(double strokeScale) {
         double maxLineWidth = ClientConfig.WIND_STREAK_THICKNESS.getAsDouble();
-        double scaledLineWidth = maxLineWidth * Mth.clamp(strokeScale, STREAK_MIN_STROKE_SCALE, 1.0D);
+        double scaledLineWidth = maxLineWidth * Mth.clamp(strokeScale, 0.32D, 1.35D);
         double lineWidth = Math.round(Math.max(0.5D, scaledLineWidth) * 4.0D) / 4.0D;
         return LINE_RENDER_TYPES.computeIfAbsent(lineWidth, width -> RenderType.create(
                 "where_winds_blow_wind_streaks_" + width,
@@ -378,9 +401,9 @@ public final class WindStreakRenderer {
         streak.terrainLift = terrainFlow.lift();
         streak.terrainSideFlow = terrainFlow.side();
         double motionScale = Mth.clamp(0.34D + streak.windStrength * 1.3D + streak.gustStrength * 0.72D, 0.18D, 3.1D);
-        // The bright brush is the moving air parcel. Keep the supporting streamline
-        // nearly world-anchored so the whole curved shape does not read as a decal
-        // being dragged across the scene.
+        // Move the supporting path with the air as well as sending the bright pulse
+        // down it. A little slip keeps the stroke readable without making it look
+        // painted onto the world.
         double driftSpeed = streak.driftSpeed * motionScale * STREAK_PATH_ADVECTION;
         double turbulenceScale = 0.55D + Mth.clamp(streak.turbulence * 2.4D, 0.0D, 1.8D);
         double sideDrift = streak.terrainSideFlow * STREAK_PATH_ADVECTION
@@ -422,6 +445,8 @@ public final class WindStreakRenderer {
             }
             applyWind(streak, localWind, true);
             double windBoost = windBoost(localWind);
+            double gustBoost = Mth.clamp(localWind.gustStrength() / 1.6D, 0.0D, 1.0D);
+            double flowEnergy = Mth.clamp(windBoost * 0.72D + gustBoost * 0.78D, 0.0D, 1.35D);
 
             streak.x = spawn.x();
             streak.y = spawn.y();
@@ -429,11 +454,11 @@ public final class WindStreakRenderer {
             streak.xOld = streak.x;
             streak.yOld = streak.y;
             streak.zOld = streak.z;
-            streak.length = randomBetween(7.6D, 12.6D) * (1.0D + windBoost * 0.16D);
+            streak.length = randomBetween(6.2D, 10.4D) * (0.9D + flowEnergy * 0.24D);
             streak.arc = randomBetween(-0.34D, 0.34D) * (1.0D + localWind.turbulence() * 0.48D);
             streak.lift = randomBetween(0.02D, 0.12D) * (1.0D + localWind.turbulence() * 0.4D);
-            streak.speed = randomBetween(0.018D, 0.029D) * (1.0D + windBoost * 0.12D);
-            streak.driftSpeed = randomBetween(0.038D, 0.082D) * (1.0D + windBoost * 0.16D);
+            streak.speed = randomBetween(0.021D, 0.033D) * (0.82D + flowEnergy * 0.42D);
+            streak.driftSpeed = randomBetween(0.052D, 0.098D) * (0.84D + flowEnergy * 0.38D);
             streak.crossDrift = randomBetween(0.0012D, 0.004D) * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
             streak.curveStrength = randomBetween(0.018D, 0.105D) * (1.0D + localWind.turbulence() * 1.4D);
             streak.curvePhase = RANDOM.nextDouble() * Math.PI * 2.0D;
@@ -443,10 +468,11 @@ public final class WindStreakRenderer {
             streak.rippleFrequency = randomBetween(1.2D, 2.25D);
             streak.ripplePhase = RANDOM.nextDouble() * Math.PI * 2.0D;
             streak.verticalRipple = randomBetween(0.003D, 0.016D) * (1.0D + localWind.turbulence());
-            streak.brushWidth = randomBetween(0.13D, 0.21D);
-            streak.wakeLength = randomBetween(0.58D, 0.76D);
-            streak.shimmerStrength = randomBetween(0.025D, 0.075D);
-            streak.strokeScale = randomBetween(STREAK_MIN_STROKE_SCALE, 1.0D);
+            streak.brushWidth = randomBetween(0.1D, 0.17D) * (1.0D + gustBoost * 0.18D);
+            streak.wakeLength = randomBetween(0.38D, 0.58D) * (1.0D + flowEnergy * 0.16D);
+            streak.shimmerStrength = randomBetween(0.018D, 0.052D);
+            streak.strokeScale = randomBetween(STREAK_MIN_STROKE_SCALE, 0.9D)
+                    * (1.0D + gustBoost * 0.12D);
             streak.seed = RANDOM.nextDouble() * Math.PI * 2.0D;
             streak.terrainLift = 0.0D;
             streak.terrainSideFlow = 0.0D;
@@ -879,7 +905,8 @@ public final class WindStreakRenderer {
 
         double cameraDistance = cameraPos.distanceTo(new Vec3(baseX, baseY, baseZ));
         float distanceFade = smoothFade(Mth.clamp((float) ((MAX_DISTANCE_FROM_PLAYER - cameraDistance) / 18.0D), 0.0F, 1.0F));
-        float alpha = 0.94F * opacity * fade * distanceFade * fadeOutMultiplier(streak, partialTick);
+        float nearFade = smoothFade(Mth.clamp((float) ((cameraDistance - 1.75D) / 3.25D), 0.0F, 1.0F));
+        float alpha = 0.88F * opacity * fade * nearFade * distanceFade * fadeOutMultiplier(streak, partialTick);
         if (alpha <= 0.006F) {
             return;
         }
@@ -1047,7 +1074,7 @@ public final class WindStreakRenderer {
 
     private static Point pointOnBody(WindStreak streak, double baseX, double baseY, double baseZ, float t, float windTime) {
         double along = t * streak.length;
-        double flow = streak.seed;
+        double flow = streak.seed + windTime * (0.12D + streak.turbulence * 0.08D);
         double pathEnvelope = Math.sin(t * Math.PI);
         double tailEase = smoothFade(Mth.clamp(t / 0.22F, 0.0F, 1.0F));
         double headEase = smoothFade(Mth.clamp((1.0F - t) / 0.28F, 0.0F, 1.0F));
@@ -1073,14 +1100,14 @@ public final class WindStreakRenderer {
     private static float motionTaper(WindStreak streak, float t, float windTime, float brushPosition) {
         float shapeFade = smoothFade(Mth.clamp(t / 0.12F, 0.0F, 1.0F))
                 * smoothFade(Mth.clamp((1.0F - t) / 0.2F, 0.0F, 1.0F));
-        float leadingEdge = movingBrush(t, brushPosition, (float) streak.brushWidth) * 0.9F;
+        float leadingEdge = movingBrush(t, brushPosition, (float) streak.brushWidth);
         float trailingWake = trailingWake(t, brushPosition, (float) streak.wakeLength);
-        float curveBoost = Mth.sin(t * Mth.PI) * 0.08F;
+        float curveBoost = Mth.sin(t * Mth.PI) * 0.06F;
         float shimmer = (float) (1.0D - streak.shimmerStrength
                 + streak.shimmerStrength * Mth.sin((float) streak.seed + windTime * 1.8F + t * Mth.PI * 3.0F));
-        float fineBreakup = 0.94F
-                + 0.06F * Mth.sin((float) streak.ripplePhase + windTime * 2.8F + t * Mth.PI * 7.0F);
-        float flowingStroke = Math.max(leadingEdge, trailingWake * (0.76F + curveBoost));
+        float fineBreakup = 0.965F
+                + 0.035F * Mth.sin((float) streak.ripplePhase + windTime * 2.4F + t * Mth.PI * 6.0F);
+        float flowingStroke = Math.max(leadingEdge, trailingWake * (0.68F + curveBoost));
         return shapeFade * shimmer * fineBreakup * flowingStroke;
     }
 
