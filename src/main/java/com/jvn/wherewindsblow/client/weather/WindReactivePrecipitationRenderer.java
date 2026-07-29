@@ -52,8 +52,8 @@ public final class WindReactivePrecipitationRenderer {
         }
 
         float thunder = level.getThunderLevel(partialTick);
-        WindSample cameraWind = DynamicWindManager.sampleWind(camX, camY, camZ);
-        float cameraWindStrength = Mth.clamp(cameraWind.strength(), 0.0F, 3.0F);
+        BlockPos cameraPos = BlockPos.containing(camX, camY, camZ);
+        WindSample cameraWind = DynamicWindManager.sampleWind(level, cameraPos);
         float rainAngleVariation = Mth.lerp(
                 thunder,
                 (float) ClientConfig.RAIN_ANGLE_VARIATION.getAsDouble(),
@@ -78,10 +78,10 @@ public final class WindReactivePrecipitationRenderer {
         BufferBuilder buffer = null;
         int activeType = -1;
         float animationTime = ticks + partialTick;
-        RainWeatherResponse cameraWeatherResponse = rainWeatherResponse(
+        PrecipitationResponse cameraWeatherResponse = precipitationResponse(
                 cameraWind, lullAmount, dynamicRainSqualls, squallStrength
         );
-        double rainAnimationTime = advanceRainAnimationTime(
+        double precipitationAnimationTime = advanceRainAnimationTime(
                 animationTime,
                 cameraWeatherResponse.speedMultiplier() * (1.0F + thunder * 0.8F)
         );
@@ -112,9 +112,9 @@ public final class WindReactivePrecipitationRenderer {
                     if (!ClientConfig.ENABLE_RAIN_EFFECTS.getAsBoolean()) {
                         continue;
                     }
-                    WindSample wind = DynamicWindManager.sampleWind(x + 0.5D, camY, z + 0.5D);
+                    WindSample wind = DynamicWindManager.sampleWind(level, pos);
                     float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
-                    RainWeatherResponse weatherResponse = rainWeatherResponse(
+                    PrecipitationResponse weatherResponse = precipitationResponse(
                             wind, lullAmount, dynamicRainSqualls, squallStrength
                     );
                     float primaryDensity = Mth.clamp(
@@ -143,7 +143,7 @@ public final class WindReactivePrecipitationRenderer {
 
                     float scrollSpeed = 2.8F
                             + unitFloat(hash ^ 0x243F6A8885A308D3L) * 1.8F;
-                    float scroll = (float) (-((rainAnimationTime + (hash & 255L)) / 32.0D * scrollSpeed) % 32.0D);
+                    float scroll = (float) (-((precipitationAnimationTime + (hash & 255L)) / 32.0D * scrollSpeed) % 32.0D);
                     float distance = horizontalDistance(x, z, camX, camZ) / radius;
                     float alpha = ((1.0F - distance * distance) * 0.5F + 0.5F) * rainLevel;
                     alpha *= Mth.lerp(thunder, 0.68F, 0.96F);
@@ -186,9 +186,26 @@ public final class WindReactivePrecipitationRenderer {
                     if (!ClientConfig.ENABLE_SNOW_EFFECTS.getAsBoolean()) {
                         continue;
                     }
+                    WindSample wind = DynamicWindManager.sampleWind(level, pos);
+                    float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
+                    PrecipitationResponse weatherResponse = precipitationResponse(
+                            wind, lullAmount, dynamicRainSqualls, squallStrength
+                    );
                     RandomSource random = RandomSource.create(hash);
-                    float primaryDensity = Mth.lerp(thunder, NORMAL_SNOW_DENSITY, 1.0F);
-                    if (unitFloat(hash ^ 0xBB67AE8584CAA73BL) > primaryDensity) {
+                    float primaryDensity = Mth.clamp(
+                            Mth.lerp(thunder, NORMAL_SNOW_DENSITY, 1.0F)
+                                    + weatherResponse.densityDelta() * 0.55F,
+                            0.52F,
+                            1.0F
+                    );
+                    float primaryVisibility = rainStreamVisibility(hash ^ 0xBB67AE8584CAA73BL, primaryDensity);
+                    float extraDensity = Mth.clamp(
+                            thunder * THUNDER_EXTRA_SNOW_DENSITY + weatherResponse.extraDensity() * 0.32F,
+                            0.0F,
+                            0.42F
+                    );
+                    float secondaryVisibility = rainStreamVisibility(hash ^ 0x3C6EF372FE94F82BL, extraDensity);
+                    if (primaryVisibility <= 0.01F && secondaryVisibility <= 0.01F) {
                         continue;
                     }
                     if (activeType != 1) {
@@ -200,30 +217,41 @@ public final class WindReactivePrecipitationRenderer {
                         buffer = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
                     }
 
-                    float verticalScroll = -((ticks & 511) + partialTick) / 512.0F;
+                    float verticalScroll = (float) (-(precipitationAnimationTime % 512.0D) / 512.0D);
                     float offsetU = (float) (random.nextDouble() + animationTime * 0.01D * random.nextGaussian());
                     float offsetV = (float) (random.nextDouble() + animationTime * random.nextGaussian() * 0.001D);
                     float distance = horizontalDistance(x, z, camX, camZ) / radius;
                     float alpha = ((1.0F - distance * distance) * 0.3F + 0.5F) * rainLevel;
+                    alpha *= weatherResponse.opacityMultiplier();
                     float driftX = 0.0F;
                     float driftZ = 0.0F;
                     if (ClientConfig.ENABLE_WIND_DRIVEN_SNOW.getAsBoolean()) {
-                        float slope = 0.04F + cameraWindStrength * 0.125F + thunder * 0.07F;
-                        float flutter = Mth.sin(animationTime * 0.035F + (hash & 255L)) * (0.12F + cameraWindStrength * 0.08F);
-                        driftX = -cameraWind.directionX() * Math.min((topY - bottomY) * slope, 5.5F) - cameraWind.directionZ() * flutter;
-                        driftZ = -cameraWind.directionZ() * Math.min((topY - bottomY) * slope, 5.5F) + cameraWind.directionX() * flutter;
+                        float slope = (0.035F + windStrength * 0.115F + thunder * 0.065F)
+                                * weatherResponse.tiltMultiplier();
+                        float flutterPhase = animationTime * (0.032F + weatherResponse.speedMultiplier() * 0.012F)
+                                + (hash & 255L);
+                        float flutter = Mth.sin(flutterPhase)
+                                * (0.10F + wind.turbulence() * 0.16F + windStrength * 0.045F)
+                                * weatherResponse.angleVariationMultiplier();
+                        driftX = -wind.directionX() * Math.min((topY - bottomY) * slope, 5.5F)
+                                - wind.directionZ() * flutter;
+                        driftZ = -wind.directionZ() * Math.min((topY - bottomY) * slope, 5.5F)
+                                + wind.directionX() * flutter;
                     }
                     pos.set(x, Math.max(surfaceY, centerY), z);
                     int light = LevelRenderer.getLightColor(level, pos);
                     int blockLight = light >> 16 & 65535;
                     int skyLight = light & 65535;
-                    addSnowQuad(buffer, x, z, bottomY, topY, camX, camY, camZ, widthX, widthZ,
-                            driftX, driftZ, verticalScroll, offsetU, offsetV, alpha,
+                    addSnowQuad(buffer, x, z, bottomY, topY, camX, camY, camZ,
+                            widthX, widthZ, driftX, driftZ, verticalScroll, offsetU, offsetV,
+                            alpha * primaryVisibility,
                             (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4, 0.0F);
 
-                    if (thunder > 0.0F && unitFloat(hash ^ 0x3C6EF372FE94F82BL) < thunder * THUNDER_EXTRA_SNOW_DENSITY) {
+                    if (secondaryVisibility > 0.01F) {
                         addSnowQuad(buffer, x, z, bottomY, topY, camX, camY, camZ, widthX, widthZ,
-                                driftX, driftZ, verticalScroll, offsetU + 0.37F, offsetV + 0.53F, alpha * 0.72F,
+                                driftX * 1.08F, driftZ * 1.08F, verticalScroll,
+                                offsetU + 0.37F, offsetV + 0.53F,
+                                alpha * 0.72F * secondaryVisibility,
                                 (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4, 0.48F);
                     }
                 }
@@ -319,19 +347,19 @@ public final class WindReactivePrecipitationRenderer {
         return rainScrollTime;
     }
 
-    private static RainWeatherResponse rainWeatherResponse(
+    private static PrecipitationResponse precipitationResponse(
             WindSample wind,
             float lullAmount,
             boolean enabled,
             float configuredStrength
     ) {
         if (!enabled || configuredStrength <= 0.0F) {
-            return RainWeatherResponse.NONE;
+            return PrecipitationResponse.NONE;
         }
 
         float squall = smoothFade(Mth.clamp(wind.gustStrength() * 2.4F, 0.0F, 1.0F)) * configuredStrength;
         float lull = smoothFade(lullAmount) * configuredStrength;
-        return new RainWeatherResponse(
+        return new PrecipitationResponse(
                 squall * 0.14F - lull * 0.20F,
                 squall * 0.22F - lull * 0.16F,
                 Math.max(0.55F, 1.0F + squall * 0.55F - lull * 0.28F),
@@ -372,7 +400,7 @@ public final class WindReactivePrecipitationRenderer {
         private static final RainDrift NONE = new RainDrift(0.0F, 0.0F);
     }
 
-    private record RainWeatherResponse(
+    private record PrecipitationResponse(
             float densityDelta,
             float extraDensity,
             float speedMultiplier,
@@ -380,7 +408,7 @@ public final class WindReactivePrecipitationRenderer {
             float tiltMultiplier,
             float angleVariationMultiplier
     ) {
-        private static final RainWeatherResponse NONE = new RainWeatherResponse(
+        private static final PrecipitationResponse NONE = new PrecipitationResponse(
                 0.0F, 0.0F, 1.0F, 1.0F, 1.0F, 1.0F
         );
     }

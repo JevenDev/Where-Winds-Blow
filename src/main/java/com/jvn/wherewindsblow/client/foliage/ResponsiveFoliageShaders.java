@@ -160,6 +160,7 @@ public final class ResponsiveFoliageShaders {
         shader.safeGetUniform("WindTime").set(DynamicWindManager.simulationTime());
         shader.safeGetUniform("AmbientWindStrength").set(DynamicWindManager.visualStrength(windState.ambientStrength()));
         shader.safeGetUniform("WindTurbulence").set(windState.ambientTurbulence());
+        shader.safeGetUniform("WeatherState").set(windState.rainLevel(), windState.thunderLevel(), windState.lullAmount());
         shader.safeGetUniform("PlantWindSwayStrength").set(plantWindSwayStrength());
         shader.safeGetUniform("LeafWindSwayStrength").set(leafWindSwayStrength());
         shader.safeGetUniform("LanternWindSwayStrength").set(lanternWindSwayStrength());

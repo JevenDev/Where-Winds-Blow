@@ -18,6 +18,7 @@ uniform int FogShape;
 uniform float WindTime;
 uniform float AmbientWindStrength;
 uniform float WindTurbulence;
+uniform vec3 WeatherState;
 uniform int ActiveGustCount;
 uniform vec4 GustOriginTime0;
 uniform vec4 GustDirectionSpeed0;
@@ -421,15 +422,35 @@ void main() {
             );
             // Preserve the original sway as the animation. Dynamic wind only supplies a smooth
             // direction and amplitude control signal instead of adding another oscillator.
-            float dynamicStrength = 1.0
+            float precipitationLoad = clamp(WeatherState.x + WeatherState.y * 0.45, 0.0, 1.0);
+            float stormEnergy = clamp(
+                    WeatherState.y + localGustStrength * 0.65 + localTurbulence * 0.25,
+                    0.0,
+                    1.5
+            );
+            float lullSoftening = 1.0 - smoothCurve(WeatherState.z) * 0.28;
+            float leafWind = 1.0 - plantWind;
+            float dynamicStrength = (1.0
                     + clamp(AmbientWindStrength, 0.0, 1.5) * 0.55
-                    + clamp(localGustStrength, 0.0, 1.5) * 0.45;
+                    + clamp(localGustStrength, 0.0, 1.5) * 0.45) * lullSoftening;
+            float aerodynamicResponse = mix(
+                    0.68 + stormEnergy * 0.18,
+                    1.0 - precipitationLoad * 0.12,
+                    plantWind
+            );
             float shimmer = sin(windPos.x * 2.17 + windPos.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
             float originalSway = 0.018 + wave * 0.145 * amplitudeDrift
                     + ripple * proceduralGust * 0.055
                     + shimmer;
+            float impactFlutter = sin(t * 9.7 + bladeSeed * 11.0 + across * 0.31)
+                    * sin(t * 6.3 + gustSeed * 7.0 - along * 0.17);
+            float steadyWeatherLean = plantWind * precipitationLoad * (0.010 + stormEnergy * 0.014)
+                    + gustLeadingEdge * (0.018 + plantWind * 0.018);
+            float leafFlutter = leafWind * impactFlutter
+                    * (precipitationLoad * 0.006 + localTurbulence * 0.026 + stormEnergy * 0.012);
             float strength = clamp(
-                    originalSway * dynamicStrength * windBend * swayStrength,
+                    (originalSway * dynamicStrength * aerodynamicResponse + steadyWeatherLean + leafFlutter)
+                            * windBend * swayStrength,
                     -0.08,
                     0.42
             );

@@ -17,6 +17,7 @@
     { "name": "WindTime", "type": "float", "count": 1, "values": [ 0.0 ] },
     { "name": "AmbientWindStrength", "type": "float", "count": 1, "values": [ 0.0 ] },
     { "name": "WindTurbulence", "type": "float", "count": 1, "values": [ 0.0 ] },
+    { "name": "WeatherState", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0 ] },
     { "name": "ActiveGustCount", "type": "int", "count": 1, "values": [ 0 ] },
     { "name": "GustOriginTime0", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
     { "name": "GustDirectionSpeed0", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },

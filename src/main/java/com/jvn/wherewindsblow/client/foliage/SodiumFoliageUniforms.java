@@ -14,6 +14,7 @@ public final class SodiumFoliageUniforms {
     private static int windTimeUniform = UNRESOLVED_UNIFORM;
     private static int ambientWindStrengthUniform = UNRESOLVED_UNIFORM;
     private static int windTurbulenceUniform = UNRESOLVED_UNIFORM;
+    private static int weatherStateUniform = UNRESOLVED_UNIFORM;
     private static int activeGustCountUniform = UNRESOLVED_UNIFORM;
     private static int plantSwayStrengthUniform = UNRESOLVED_UNIFORM;
     private static int leafSwayStrengthUniform = UNRESOLVED_UNIFORM;
@@ -38,6 +39,7 @@ public final class SodiumFoliageUniforms {
         windTimeUniform = UNRESOLVED_UNIFORM;
         ambientWindStrengthUniform = UNRESOLVED_UNIFORM;
         windTurbulenceUniform = UNRESOLVED_UNIFORM;
+        weatherStateUniform = UNRESOLVED_UNIFORM;
         activeGustCountUniform = UNRESOLVED_UNIFORM;
         plantSwayStrengthUniform = UNRESOLVED_UNIFORM;
         leafSwayStrengthUniform = UNRESOLVED_UNIFORM;
@@ -72,6 +74,7 @@ public final class SodiumFoliageUniforms {
             uploadUniform(windTimeUniform, DynamicWindManager.simulationTime());
             uploadUniform(ambientWindStrengthUniform, DynamicWindManager.visualStrength(windState.ambientStrength()));
             uploadUniform(windTurbulenceUniform, windState.ambientTurbulence());
+            uploadVector3Uniform(weatherStateUniform, windState.rainLevel(), windState.thunderLevel(), windState.lullAmount());
             uploadUniform(plantSwayStrengthUniform, ResponsiveFoliageShaders.plantWindSwayStrength());
             uploadUniform(leafSwayStrengthUniform, ResponsiveFoliageShaders.leafWindSwayStrength());
             uploadUniform(lanternSwayStrengthUniform, ResponsiveFoliageShaders.lanternWindSwayStrength());
@@ -98,6 +101,7 @@ public final class SodiumFoliageUniforms {
         windTimeUniform = GL20C.glGetUniformLocation(program, "u_WwbTime");
         ambientWindStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbAmbientWindStrength");
         windTurbulenceUniform = GL20C.glGetUniformLocation(program, "u_WwbWindTurbulence");
+        weatherStateUniform = GL20C.glGetUniformLocation(program, "u_WwbWeatherState");
         activeGustCountUniform = GL20C.glGetUniformLocation(program, "u_WwbActiveGustCount");
         plantSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSwayStrength");
         leafSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSwayStrength");
@@ -143,6 +147,12 @@ public final class SodiumFoliageUniforms {
     private static void uploadVector2Uniform(int location, float x, float y) {
         if (location >= 0) {
             GL20C.glUniform2f(location, x, y);
+        }
+    }
+
+    private static void uploadVector3Uniform(int location, float x, float y, float z) {
+        if (location >= 0) {
+            GL20C.glUniform3f(location, x, y, z);
         }
     }
 

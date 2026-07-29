@@ -20,6 +20,7 @@ public final class SodiumFoliageShaderSource {
             uniform float u_WwbTime;
             uniform float u_WwbAmbientWindStrength;
             uniform float u_WwbWindTurbulence;
+            uniform vec3 u_WwbWeatherState;
             uniform int u_WwbActiveGustCount;
             uniform vec4 u_WwbGustOriginTime0;
             uniform vec4 u_WwbGustDirectionSpeed0;
@@ -372,7 +373,8 @@ public final class SodiumFoliageShaderSource {
                     float alpha,
                     vec2 windDir,
                     float localGustStrength,
-                    float localTurbulence
+                    float localTurbulence,
+                    float localGustLeadingEdge
             ) {
                 if (!wwb_should_apply_foliage_wind(alpha)) {
                     return position;
@@ -403,15 +405,35 @@ public final class SodiumFoliageShaderSource {
                 float wave = pow(max(0.0, broad), 1.7);
                 float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
                 float proceduralGust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
-                float dynamicStrength = 1.0
+                float precipitationLoad = clamp(u_WwbWeatherState.x + u_WwbWeatherState.y * 0.45, 0.0, 1.0);
+                float stormEnergy = clamp(
+                        u_WwbWeatherState.y + localGustStrength * 0.65 + localTurbulence * 0.25,
+                        0.0,
+                        1.5
+                );
+                float lullSoftening = 1.0 - wwb_smooth_curve(u_WwbWeatherState.z) * 0.28;
+                float leafWind = 1.0 - plantWind;
+                float dynamicStrength = (1.0
                         + clamp(u_WwbAmbientWindStrength, 0.0, 1.5) * 0.55
-                        + clamp(localGustStrength, 0.0, 1.5) * 0.45;
+                        + clamp(localGustStrength, 0.0, 1.5) * 0.45) * lullSoftening;
+                float aerodynamicResponse = mix(
+                        0.68 + stormEnergy * 0.18,
+                        1.0 - precipitationLoad * 0.12,
+                        plantWind
+                );
                 float shimmer = sin(windPosition.x * 2.17 + windPosition.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
                 float originalSway = 0.018 + wave * 0.145 * amplitudeDrift
                         + ripple * proceduralGust * 0.055
                         + shimmer;
+                float impactFlutter = sin(t * 9.7 + bladeSeed * 11.0 + across * 0.31)
+                        * sin(t * 6.3 + gustSeed * 7.0 - along * 0.17);
+                float steadyWeatherLean = plantWind * precipitationLoad * (0.010 + stormEnergy * 0.014)
+                        + localGustLeadingEdge * (0.018 + plantWind * 0.018);
+                float leafFlutter = leafWind * impactFlutter
+                        * (precipitationLoad * 0.006 + localTurbulence * 0.026 + stormEnergy * 0.012);
                 float strength = clamp(
-                        originalSway * dynamicStrength * bend * wwb_sway_strength_for_alpha(alpha),
+                        (originalSway * dynamicStrength * aerodynamicResponse + steadyWeatherLean + leafFlutter)
+                                * bend * wwb_sway_strength_for_alpha(alpha),
                         -0.08,
                         0.42
                 );
@@ -515,7 +537,8 @@ public final class SodiumFoliageShaderSource {
                         wwbFoliageAlpha,
                         wwbLocalWindDirection,
                         wwbLocalGustStrength,
-                        wwbLocalTurbulence
+                        wwbLocalTurbulence,
+                        wwbGustLeadingEdge
                 );
                 position = wwb_apply_lantern_wind(position, wwbFoliageAlpha);
                 position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbPlantAnchor, wwbFoliageAlpha);""";
