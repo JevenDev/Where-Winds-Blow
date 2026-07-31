@@ -15,11 +15,13 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.neoforged.neoforge.common.Tags;
 
 public final class WindReactivePrecipitationRenderer {
     private static final ResourceLocation RAIN_LOCATION = ResourceLocation.withDefaultNamespace("textures/environment/rain.png");
@@ -54,6 +56,10 @@ public final class WindReactivePrecipitationRenderer {
         if (rainLevel <= 0.0F) {
             return;
         }
+
+        DesertStormRenderer.render(
+                level, ticks, rainSizeX, rainSizeZ, lightTexture, partialTick, camX, camY, camZ
+        );
 
         float thunder = level.getThunderLevel(partialTick);
         BlockPos cameraPos = BlockPos.containing(camX, camY, camZ);
@@ -98,7 +104,12 @@ public final class WindReactivePrecipitationRenderer {
                     double widthX = rainSizeX[sizeIndex] * 0.5D;
                     double widthZ = rainSizeZ[sizeIndex] * 0.5D;
                     pos.set(x, camY, z);
-                    Biome biome = level.getBiome(pos).value();
+                    Holder<Biome> biomeHolder = level.getBiome(pos);
+                    if (ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean()
+                            && biomeHolder.is(Tags.Biomes.IS_DESERT)) {
+                        continue;
+                    }
+                    Biome biome = biomeHolder.value();
                     if (!biome.hasPrecipitation()) {
                         continue;
                     }

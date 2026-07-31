@@ -272,6 +272,7 @@ public final class WhereWindsBlowConfigScreen {
                         .option(weatherSheenOption(ClientConfig.RAIN_WEATHER_SHEEN_STRENGTH))
                         .option(weatherSheenOption(ClientConfig.THUNDER_WEATHER_SHEEN_STRENGTH))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_REACTIVE_PRECIPITATION))
+                        .option(booleanOption(ClientConfig.ENABLE_DESERT_STORM_EFFECTS))
                         .option(booleanOption(ClientConfig.ENABLE_RAIN_EFFECTS))
                         .option(booleanOption(ClientConfig.ENABLE_SLANTED_RAIN))
                         .option(doubleOption(
@@ -316,6 +317,13 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_LEAF_DENSITY,
                                 ClientConfig.WIND_LEAF_DENSITY_MIN,
                                 ClientConfig.WIND_LEAF_DENSITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(booleanOption(ClientConfig.ENABLE_TUMBLEWEEDS))
+                        .option(doubleOption(
+                                ClientConfig.TUMBLEWEED_DENSITY,
+                                ClientConfig.TUMBLEWEED_DENSITY_MIN,
+                                ClientConfig.TUMBLEWEED_DENSITY_MAX,
                                 SMALL_STEP
                         ))
                         .option(doubleOption(

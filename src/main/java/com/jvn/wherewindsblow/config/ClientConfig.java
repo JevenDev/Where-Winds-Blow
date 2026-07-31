@@ -13,6 +13,8 @@ public final class ClientConfig {
     public static final double WIND_LINE_DENSITY_MAX = 4.0D;
     public static final double WIND_LEAF_DENSITY_MIN = 0.0D;
     public static final double WIND_LEAF_DENSITY_MAX = 4.0D;
+    public static final double TUMBLEWEED_DENSITY_MIN = 0.0D;
+    public static final double TUMBLEWEED_DENSITY_MAX = 4.0D;
     public static final double WIND_STREAK_OPACITY_MIN = 0.0D;
     public static final double WIND_STREAK_OPACITY_MAX = 1.0D;
     public static final double WIND_LEAF_OPACITY_MIN = 0.0D;
@@ -113,6 +115,14 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_LEAF_DENSITY = BUILDER
             .comment("Scales how many drifting leaf particles spawn.")
             .defineInRange("windLeafDensity", 1.0D, WIND_LEAF_DENSITY_MIN, WIND_LEAF_DENSITY_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_TUMBLEWEEDS = BUILDER
+            .comment("Lets occasional dead bushes tumble through desert and badlands biomes, with stronger activity during rain and thunder.")
+            .define("enableTumbleweeds", true);
+
+    public static final ModConfigSpec.DoubleValue TUMBLEWEED_DENSITY = BUILDER
+            .comment("Scales how often wind-blown tumbleweeds appear in desert and badlands biomes.")
+            .defineInRange("tumbleweedDensity", 1.0D, TUMBLEWEED_DENSITY_MIN, TUMBLEWEED_DENSITY_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_OPACITY = BUILDER
             .comment("Scales wind line opacity.")
@@ -337,6 +347,10 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_REACTIVE_PRECIPITATION = BUILDER
             .comment("Uses Where Winds Blow's atmospheric precipitation renderer. Disable this to use vanilla rain and snow.")
             .define("enableWindReactivePrecipitation", true);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_DESERT_STORM_EFFECTS = BUILDER
+            .comment("Replaces rainy weather in desert biomes with wind-driven airborne sand. Thunder makes the storm denser and more turbulent.")
+            .define("enableDesertStormEffects", true);
 
     public static final ModConfigSpec.BooleanValue ENABLE_RAIN_EFFECTS = BUILDER
             .comment("Renders atmospheric rain while Where Winds Blow's precipitation renderer is enabled.")
