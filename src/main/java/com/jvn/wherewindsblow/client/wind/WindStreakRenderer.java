@@ -29,6 +29,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.GrassColor;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
@@ -39,6 +40,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+import net.neoforged.neoforge.common.Tags;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
@@ -46,7 +48,16 @@ import org.joml.Vector3f;
 public final class WindStreakRenderer {
     private static final int MAX_STREAKS = 20;
     private static final int MAX_LEAVES = 18;
-    private static final int LEAF_TEXTURE_COUNT = 12;
+    private static final int MAX_FLOWER_PETALS = 18;
+    private static final int GENERIC_LEAF_TEXTURE_COUNT = 12;
+    private static final int ACACIA_LEAF_TEXTURE_COUNT = 7;
+    private static final int LEAF_TEXTURE_COUNT = GENERIC_LEAF_TEXTURE_COUNT + ACACIA_LEAF_TEXTURE_COUNT;
+    private static final int ROSE_PETAL_TEXTURE_COUNT = 11;
+    private static final int DANDELION_PETAL_TEXTURE_COUNT = 3;
+    private static final int AZURE_BLUET_PETAL_TEXTURE_COUNT = 6;
+    private static final int FLOWER_PETAL_TEXTURE_COUNT = ROSE_PETAL_TEXTURE_COUNT
+            + DANDELION_PETAL_TEXTURE_COUNT
+            + AZURE_BLUET_PETAL_TEXTURE_COUNT;
     private static final int BODY_SEGMENTS = 24;
     private static final int LEAF_BLOCK_SPAWN_ATTEMPTS = 22;
     private static final double MAX_DISTANCE_FROM_PLAYER = 56.0D;
@@ -81,7 +92,9 @@ public final class WindStreakRenderer {
     private static final Random RANDOM = new Random();
     private static final WindStreak[] STREAKS = new WindStreak[MAX_STREAKS];
     private static final WindLeaf[] LEAVES = new WindLeaf[MAX_LEAVES];
+    private static final WindLeaf[] FLOWER_PETALS = new WindLeaf[MAX_FLOWER_PETALS];
     private static final RenderType[] LEAF_RENDER_TYPES = new RenderType[LEAF_TEXTURE_COUNT];
+    private static final RenderType[] FLOWER_PETAL_RENDER_TYPES = new RenderType[FLOWER_PETAL_TEXTURE_COUNT];
     private static final ByteBufferBuilder LINE_BUFFER = new ByteBufferBuilder(65536);
     private static final ByteBufferBuilder LEAF_BUFFER = new ByteBufferBuilder(65536);
     private static final Map<Double, RenderType> LINE_RENDER_TYPES = new HashMap<>();
@@ -95,8 +108,16 @@ public final class WindStreakRenderer {
             LEAVES[index] = new WindLeaf();
         }
 
+        for (int index = 0; index < FLOWER_PETALS.length; index++) {
+            FLOWER_PETALS[index] = new WindLeaf();
+        }
+
         for (int index = 0; index < LEAF_RENDER_TYPES.length; index++) {
             LEAF_RENDER_TYPES[index] = windLeafTexture(leafTexture(index));
+        }
+
+        for (int index = 0; index < FLOWER_PETAL_RENDER_TYPES.length; index++) {
+            FLOWER_PETAL_RENDER_TYPES[index] = windLeafTexture(flowerPetalTexture(index));
         }
     }
 
@@ -120,6 +141,10 @@ public final class WindStreakRenderer {
         WindSample playerWind = DynamicWindManager.sampleWind(level, player.blockPosition());
         int desiredCount = canSpawnWind ? desiredStreakCount(playerWind) : 0;
         int desiredLeafCount = canSpawnWind ? desiredLeafCount(playerWind) : 0;
+        boolean canSpawnFlowerPetals = canSpawnWind
+                && ClientConfig.ENABLE_WIND_FLOWER_PETALS.getAsBoolean()
+                && isFlowerPetalBiome(level, player.blockPosition());
+        int desiredFlowerPetalCount = canSpawnFlowerPetals ? desiredFlowerPetalCount(playerWind) : 0;
         for (int index = 0; index < STREAKS.length; index++) {
             WindStreak streak = STREAKS[index];
             if (index >= desiredCount) {
@@ -149,6 +174,21 @@ public final class WindStreakRenderer {
                 tick(leaf, player, level, playerWind);
             }
         }
+
+        for (int index = 0; index < FLOWER_PETALS.length; index++) {
+            WindLeaf petal = FLOWER_PETALS[index];
+            if (index >= desiredFlowerPetalCount) {
+                beginFadeOut(petal);
+                tickFadeOut(petal);
+                continue;
+            }
+
+            if (!petal.active) {
+                spawnFlowerPetal(petal, player, level, playerWind, true);
+            } else {
+                tick(petal, player, level, playerWind);
+            }
+        }
     }
 
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
@@ -169,7 +209,8 @@ public final class WindStreakRenderer {
 
         float lineOpacity = (float) ClientConfig.WIND_STREAK_OPACITY.getAsDouble();
         float leafOpacity = (float) ClientConfig.WIND_LEAF_OPACITY.getAsDouble();
-        if (lineOpacity <= 0.0F && leafOpacity <= 0.0F) {
+        float flowerPetalOpacity = (float) ClientConfig.WIND_FLOWER_PETAL_OPACITY.getAsDouble();
+        if (lineOpacity <= 0.0F && leafOpacity <= 0.0F && flowerPetalOpacity <= 0.0F) {
             return;
         }
 
@@ -222,6 +263,10 @@ public final class WindStreakRenderer {
             if (leafOpacity > 0.0F) {
                 renderLeaves(minecraft.level, camera, pose, cameraPos, partialTick, windTime, leafOpacity);
             }
+
+            if (flowerPetalOpacity > 0.0F) {
+                renderFlowerPetals(minecraft.level, camera, pose, cameraPos, partialTick, windTime, flowerPetalOpacity);
+            }
         } finally {
             modelViewStack.popMatrix();
             RenderSystem.applyModelViewMatrix();
@@ -245,6 +290,12 @@ public final class WindStreakRenderer {
             leaf.fadingOut = false;
             leaf.fadeOutAge = 0;
         }
+
+        for (WindLeaf petal : FLOWER_PETALS) {
+            petal.active = false;
+            petal.fadingOut = false;
+            petal.fadeOutAge = 0;
+        }
     }
 
     private static boolean hasActiveWind() {
@@ -256,6 +307,12 @@ public final class WindStreakRenderer {
 
         for (WindLeaf leaf : LEAVES) {
             if (leaf.active) {
+                return true;
+            }
+        }
+
+        for (WindLeaf petal : FLOWER_PETALS) {
+            if (petal.active) {
                 return true;
             }
         }
@@ -299,6 +356,27 @@ public final class WindStreakRenderer {
         );
     }
 
+    private static int desiredFlowerPetalCount(WindSample wind) {
+        float visibility = (float) ClientConfig.WIND_STREAK_VISIBILITY.getAsDouble();
+        if (visibility <= 0.0F || wind.strength() <= 0.02F) {
+            return 0;
+        }
+
+        float petalDensity = (float) ClientConfig.WIND_FLOWER_PETAL_DENSITY.getAsDouble();
+        return Mth.clamp(
+                Math.round((1.0F + wind.strength() * 5.0F + wind.gustStrength() * 6.0F)
+                        * Math.min(visibility, 1.8F) * petalDensity),
+                0,
+                MAX_FLOWER_PETALS
+        );
+    }
+
+    private static boolean isFlowerPetalBiome(ClientLevel level, BlockPos pos) {
+        var biome = level.getBiome(pos);
+        return !biome.is(Tags.Biomes.IS_SNOWY)
+                && (biome.is(Tags.Biomes.IS_PLAINS) || biome.is(Tags.Biomes.IS_FLORAL));
+    }
+
     private static RenderType windStreakLines(double strokeScale) {
         double maxLineWidth = ClientConfig.WIND_STREAK_THICKNESS.getAsDouble();
         double scaledLineWidth = maxLineWidth * Mth.clamp(strokeScale, 0.32D, 1.35D);
@@ -322,7 +400,24 @@ public final class WindStreakRenderer {
     }
 
     private static ResourceLocation leafTexture(int index) {
-        return ResourceLocation.fromNamespaceAndPath(WhereWindsBlow.MOD_ID, "textures/particle/leaf_" + index + ".png");
+        String path = index < GENERIC_LEAF_TEXTURE_COUNT
+                ? "textures/particle/leaf_" + index + ".png"
+                : "textures/particle/acacia_leaf_" + (index - GENERIC_LEAF_TEXTURE_COUNT) + ".png";
+        return ResourceLocation.fromNamespaceAndPath(WhereWindsBlow.MOD_ID, path);
+    }
+
+    private static ResourceLocation flowerPetalTexture(int index) {
+        String path;
+        if (index < ROSE_PETAL_TEXTURE_COUNT) {
+            path = "textures/particle/rose_petal_" + index + ".png";
+        } else {
+            int flowerIndex = index - ROSE_PETAL_TEXTURE_COUNT;
+            path = flowerIndex < DANDELION_PETAL_TEXTURE_COUNT
+                    ? "textures/particle/dandelion_" + flowerIndex + ".png"
+                    : "textures/particle/azure_bluet_"
+                            + (flowerIndex - DANDELION_PETAL_TEXTURE_COUNT) + ".png";
+        }
+        return ResourceLocation.fromNamespaceAndPath(WhereWindsBlow.MOD_ID, path);
     }
 
     private static RenderType windLeafTexture(ResourceLocation texture) {
@@ -626,7 +721,11 @@ public final class WindStreakRenderer {
         double dz = leaf.z - player.getZ();
         if (leaf.age >= leaf.lifetime
                 || dx * dx + dy * dy + dz * dz > MAX_DISTANCE_FROM_PLAYER * MAX_DISTANCE_FROM_PLAYER) {
-            spawn(leaf, player, level, playerWind, false);
+            if (leaf.flowerPetal) {
+                spawnFlowerPetal(leaf, player, level, playerWind, false);
+            } else {
+                spawn(leaf, player, level, playerWind, false);
+            }
         }
     }
 
@@ -669,7 +768,16 @@ public final class WindStreakRenderer {
         leaf.xOld = leaf.x;
         leaf.yOld = leaf.y;
         leaf.zOld = leaf.z;
-        leaf.textureIndex = RANDOM.nextInt(LEAF_TEXTURE_COUNT);
+        leaf.flowerPetal = false;
+        BlockPos leafColorPos = leafBlockSpawn != null
+                ? leafBlockSpawn.source()
+                : BlockPos.containing(leaf.x, player.getY(), leaf.z);
+        boolean acaciaLeaf = leafBlockSpawn != null
+                ? level.getBlockState(leafBlockSpawn.source()).is(Blocks.ACACIA_LEAVES)
+                : level.getBiome(leafColorPos).is(Tags.Biomes.IS_SAVANNA);
+        leaf.textureIndex = acaciaLeaf
+                ? GENERIC_LEAF_TEXTURE_COUNT + RANDOM.nextInt(ACACIA_LEAF_TEXTURE_COUNT)
+                : RANDOM.nextInt(GENERIC_LEAF_TEXTURE_COUNT);
         boolean fromLeafBlock = leafBlockSpawn != null;
         leaf.size = randomBetween(fromLeafBlock ? 0.08D : 0.09D, fromLeafBlock ? 0.19D : 0.23D) * (1.0D + windBoost * 0.12D);
         leaf.speed = randomBetween(fromLeafBlock ? 0.095D : 0.16D, fromLeafBlock ? 0.235D : 0.31D);
@@ -698,13 +806,101 @@ public final class WindStreakRenderer {
         leaf.age = scatterAge ? RANDOM.nextInt(Math.max(1, leaf.lifetime / 2)) : 0;
         leaf.fadingOut = false;
         leaf.fadeOutAge = 0;
-        int color = leafBlockSpawn != null
-                ? sampleGrassColor(level, leafBlockSpawn.source().getX(), leafBlockSpawn.source().getY(), leafBlockSpawn.source().getZ())
-                : sampleGrassColor(level, leaf.x, player.getY(), leaf.z);
+        int color = acaciaLeaf
+                ? sampleAcaciaLeafColor(level, leafColorPos)
+                : sampleGrassColor(level, leafColorPos.getX(), leafColorPos.getY(), leafColorPos.getZ());
         leaf.red = color >> 16 & 255;
         leaf.green = color >> 8 & 255;
         leaf.blue = color & 255;
         leaf.active = true;
+    }
+
+    private static void spawnFlowerPetal(
+            WindLeaf petal,
+            LocalPlayer player,
+            ClientLevel level,
+            WindSample playerWind,
+            boolean scatterAge
+    ) {
+        Point spawn = randomOpenAirPosition(
+                player, level, playerWind,
+                -26.0D, 18.0D, -28.0D, 28.0D, -0.4D, 6.4D,
+                0.35D, 1.9D, LEAF_TERRAIN_CLEARANCE, 0.05D, 1.2D
+        );
+        if (spawn == null) {
+            petal.active = false;
+            return;
+        }
+
+        BlockPos spawnPos = BlockPos.containing(spawn.x(), spawn.y(), spawn.z());
+        if (!isFlowerPetalBiome(level, spawnPos)) {
+            petal.active = false;
+            return;
+        }
+
+        WindSample localWind = sampleWind(level, spawn.x(), spawn.y(), spawn.z());
+        if (!acceptSpawnForWind(localWind)) {
+            petal.active = false;
+            return;
+        }
+        applyWind(petal, localWind, true);
+        double windBoost = windBoost(localWind);
+
+        petal.x = spawn.x();
+        petal.y = spawn.y();
+        petal.z = spawn.z();
+        petal.xOld = petal.x;
+        petal.yOld = petal.y;
+        petal.zOld = petal.z;
+        petal.flowerPetal = true;
+        var biome = level.getBiome(spawnPos);
+        double roseChance = biome.is(Tags.Biomes.IS_FLOWER_FOREST)
+                ? 0.62D
+                : biome.is(Tags.Biomes.IS_FLORAL) ? 0.44D : 0.28D;
+        double azureBluetChance = biome.is(Tags.Biomes.IS_FLOWER_FOREST)
+                ? 0.24D
+                : biome.is(Tags.Biomes.IS_FLORAL) ? 0.34D : 0.30D;
+        double textureRoll = RANDOM.nextDouble();
+        if (textureRoll < roseChance) {
+            petal.textureIndex = RANDOM.nextInt(ROSE_PETAL_TEXTURE_COUNT);
+        } else if (textureRoll < roseChance + azureBluetChance) {
+            petal.textureIndex = ROSE_PETAL_TEXTURE_COUNT
+                    + DANDELION_PETAL_TEXTURE_COUNT
+                    + RANDOM.nextInt(AZURE_BLUET_PETAL_TEXTURE_COUNT);
+        } else {
+            petal.textureIndex = ROSE_PETAL_TEXTURE_COUNT
+                    + RANDOM.nextInt(DANDELION_PETAL_TEXTURE_COUNT);
+        }
+        petal.size = randomBetween(0.12D, 0.23D) * (1.0D + windBoost * 0.08D);
+        petal.speed = randomBetween(0.14D, 0.29D);
+        petal.crossDrift = randomBetween(-0.026D, 0.026D) * (1.0D + localWind.turbulence() * 2.5D);
+        petal.verticalDrift = randomBetween(0.006D, 0.018D) * (1.0D + localWind.turbulence() * 1.6D);
+        petal.fallSpeed = randomBetween(0.003D, 0.012D);
+        petal.bob = randomBetween(0.035D, 0.095D) * (1.0D + localWind.turbulence() * 1.2D);
+        petal.swirlStrength = randomBetween(0.012D, 0.052D) * (1.0D + localWind.turbulence() * 2.8D);
+        petal.swirlSpeed = randomBetween(0.12D, 0.26D) * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
+        petal.swirlPhase = RANDOM.nextDouble() * Math.PI * 2.0D;
+        petal.loopStrength = randomBetween(0.012D, 0.07D) * (1.0D + localWind.turbulence() * 2.9D);
+        petal.loopSpeed = randomBetween(0.085D, 0.18D) * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
+        petal.loopPhase = RANDOM.nextDouble() * Math.PI * 2.0D;
+        petal.terrainLift = 0.0D;
+        petal.terrainSideFlow = 0.0D;
+        petal.tilt = randomBetween(-Math.PI, Math.PI);
+        petal.tiltSpeed = randomBetween(0.075D, 0.19D) * (1.0D + localWind.turbulence() * 2.0D)
+                * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
+        petal.flipPhase = RANDOM.nextDouble() * Math.PI * 2.0D;
+        petal.flipSpeed = randomBetween(0.17D, 0.34D) * (1.0D + localWind.turbulence() * 1.8D)
+                * (RANDOM.nextBoolean() ? 1.0D : -1.0D);
+        petal.tumbleStrength = randomBetween(0.2D, 0.56D) * (1.0D + localWind.turbulence() * 2.2D);
+        petal.seed = RANDOM.nextDouble() * Math.PI * 2.0D;
+        petal.lifetime = Math.max(58, Math.round((82 + RANDOM.nextInt(66)) / (float) (1.0D + windBoost * 0.25D)));
+        petal.age = scatterAge ? RANDOM.nextInt(Math.max(1, petal.lifetime / 2)) : 0;
+        petal.fadingOut = false;
+        petal.fadeOutAge = 0;
+        petal.red = 255;
+        petal.green = 255;
+        petal.blue = 255;
+        petal.active = true;
     }
 
     private static LeafBlockSpawn randomLeafBlockSpawn(LocalPlayer player, ClientLevel level, WindSample playerWind) {
@@ -929,15 +1125,47 @@ public final class WindStreakRenderer {
             float windTime,
             float opacity
     ) {
+        renderWindParticles(
+                level, camera, pose, cameraPos, partialTick, windTime, opacity,
+                LEAVES, LEAF_RENDER_TYPES
+        );
+    }
+
+    private static void renderFlowerPetals(
+            ClientLevel level,
+            Camera camera,
+            Matrix4f pose,
+            Vec3 cameraPos,
+            float partialTick,
+            float windTime,
+            float opacity
+    ) {
+        renderWindParticles(
+                level, camera, pose, cameraPos, partialTick, windTime, opacity,
+                FLOWER_PETALS, FLOWER_PETAL_RENDER_TYPES
+        );
+    }
+
+    private static void renderWindParticles(
+            ClientLevel level,
+            Camera camera,
+            Matrix4f pose,
+            Vec3 cameraPos,
+            float partialTick,
+            float windTime,
+            float opacity,
+            WindLeaf[] particles,
+            RenderType[] renderTypes
+    ) {
         MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(LEAF_BUFFER);
-        for (int textureIndex = 0; textureIndex < LEAF_TEXTURE_COUNT; textureIndex++) {
+        for (int textureIndex = 0; textureIndex < renderTypes.length; textureIndex++) {
             VertexConsumer consumer = null;
-            for (WindLeaf leaf : LEAVES) {
-                if (leaf.active && leaf.textureIndex == textureIndex) {
+            for (WindLeaf particle : particles) {
+                if (particle.active && particle.textureIndex == textureIndex) {
                     if (consumer == null) {
-                        consumer = bufferSource.getBuffer(LEAF_RENDER_TYPES[textureIndex]);
+                        consumer = bufferSource.getBuffer(renderTypes[textureIndex]);
                     }
-                    renderLeaf(consumer, pose, leaf, level, camera, cameraPos, partialTick, windTime, opacity);
+                    renderLeaf(consumer, pose, particle, level, camera, cameraPos, partialTick, windTime, opacity);
                 }
             }
         }
@@ -1292,6 +1520,16 @@ public final class WindStreakRenderer {
         return BiomeColors.getAverageGrassColor(level, BlockPos.containing(x, y, z));
     }
 
+    private static int sampleAcaciaLeafColor(ClientLevel level, BlockPos pos) {
+        int color = Minecraft.getInstance().getBlockColors().getColor(
+                Blocks.ACACIA_LEAVES.defaultBlockState(),
+                level,
+                pos,
+                0
+        );
+        return color == -1 ? BiomeColors.getAverageFoliageColor(level, pos) : color;
+    }
+
     private static TerrainFlow terrainFlow(
             ClientLevel level,
             double x,
@@ -1633,6 +1871,7 @@ public final class WindStreakRenderer {
     private static final class WindLeaf {
         private boolean active;
         private boolean fadingOut;
+        private boolean flowerPetal;
         private int age;
         private int lifetime;
         private int fadeOutAge;

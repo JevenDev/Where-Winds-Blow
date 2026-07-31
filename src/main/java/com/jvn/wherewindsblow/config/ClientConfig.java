@@ -13,12 +13,16 @@ public final class ClientConfig {
     public static final double WIND_LINE_DENSITY_MAX = 4.0D;
     public static final double WIND_LEAF_DENSITY_MIN = 0.0D;
     public static final double WIND_LEAF_DENSITY_MAX = 4.0D;
+    public static final double WIND_FLOWER_PETAL_DENSITY_MIN = 0.0D;
+    public static final double WIND_FLOWER_PETAL_DENSITY_MAX = 4.0D;
     public static final double TUMBLEWEED_DENSITY_MIN = 0.0D;
     public static final double TUMBLEWEED_DENSITY_MAX = 4.0D;
     public static final double WIND_STREAK_OPACITY_MIN = 0.0D;
     public static final double WIND_STREAK_OPACITY_MAX = 1.0D;
     public static final double WIND_LEAF_OPACITY_MIN = 0.0D;
     public static final double WIND_LEAF_OPACITY_MAX = 1.0D;
+    public static final double WIND_FLOWER_PETAL_OPACITY_MIN = 0.0D;
+    public static final double WIND_FLOWER_PETAL_OPACITY_MAX = 1.0D;
     public static final double WIND_STREAK_THICKNESS_MIN = 1.0D;
     public static final double WIND_STREAK_THICKNESS_MAX = 4.0D;
     public static final double WIND_DIRECTION_DEGREES_MIN = 0.0D;
@@ -105,7 +109,7 @@ public final class ClientConfig {
             .define("enableWindStreaks", true);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_VISIBILITY = BUILDER
-            .comment("Scales overall ambient wind streak and drifting leaf density.")
+            .comment("Scales overall ambient wind streak, drifting leaf, and flower petal density.")
             .defineInRange("windStreakVisibility", 1.0D, WIND_STREAK_VISIBILITY_MIN, WIND_STREAK_VISIBILITY_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_LINE_DENSITY = BUILDER
@@ -115,6 +119,14 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_LEAF_DENSITY = BUILDER
             .comment("Scales how many drifting leaf particles spawn.")
             .defineInRange("windLeafDensity", 1.0D, WIND_LEAF_DENSITY_MIN, WIND_LEAF_DENSITY_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_FLOWER_PETALS = BUILDER
+            .comment("Lets rose, dandelion, and azure bluet petals ride the wind in non-snowy plains and floral biomes.")
+            .define("enableWindFlowerPetals", true);
+
+    public static final ModConfigSpec.DoubleValue WIND_FLOWER_PETAL_DENSITY = BUILDER
+            .comment("Scales how many wind-blown flower petals spawn.")
+            .defineInRange("windFlowerPetalDensity", 1.0D, WIND_FLOWER_PETAL_DENSITY_MIN, WIND_FLOWER_PETAL_DENSITY_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_TUMBLEWEEDS = BUILDER
             .comment("Lets occasional dead bushes tumble through desert and badlands biomes, with stronger activity during rain and thunder.")
@@ -131,6 +143,10 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_LEAF_OPACITY = BUILDER
             .comment("Scales drifting leaf particle opacity.")
             .defineInRange("windLeafOpacity", 1.0D, WIND_LEAF_OPACITY_MIN, WIND_LEAF_OPACITY_MAX);
+
+    public static final ModConfigSpec.DoubleValue WIND_FLOWER_PETAL_OPACITY = BUILDER
+            .comment("Scales wind-blown flower petal opacity.")
+            .defineInRange("windFlowerPetalOpacity", 1.0D, WIND_FLOWER_PETAL_OPACITY_MIN, WIND_FLOWER_PETAL_OPACITY_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_STREAK_THICKNESS = BUILDER
             .comment("Sets the maximum wind streak line thickness in pixels. Each streak has a soft halo and a finer bright core.")
@@ -349,7 +365,7 @@ public final class ClientConfig {
             .define("enableWindReactivePrecipitation", true);
 
     public static final ModConfigSpec.BooleanValue ENABLE_DESERT_STORM_EFFECTS = BUILDER
-            .comment("Replaces rainy weather in desert biomes with wind-driven airborne sand. Thunder makes the storm denser and more turbulent.")
+            .comment("Replaces rainy weather in desert and badlands biomes with sand- or red-sand-tinted windstorms. Thunder makes them denser and more turbulent.")
             .define("enableDesertStormEffects", true);
 
     public static final ModConfigSpec.BooleanValue ENABLE_RAIN_EFFECTS = BUILDER

@@ -106,7 +106,8 @@ public final class WindReactivePrecipitationRenderer {
                     pos.set(x, camY, z);
                     Holder<Biome> biomeHolder = level.getBiome(pos);
                     if (ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean()
-                            && biomeHolder.is(Tags.Biomes.IS_DESERT)) {
+                            && (biomeHolder.is(Tags.Biomes.IS_DESERT)
+                                    || biomeHolder.is(Tags.Biomes.IS_BADLANDS))) {
                         continue;
                     }
                     Biome biome = biomeHolder.value();

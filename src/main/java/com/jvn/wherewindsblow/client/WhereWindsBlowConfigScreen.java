@@ -319,6 +319,13 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_LEAF_DENSITY_MAX,
                                 SMALL_STEP
                         ))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_FLOWER_PETALS))
+                        .option(doubleOption(
+                                ClientConfig.WIND_FLOWER_PETAL_DENSITY,
+                                ClientConfig.WIND_FLOWER_PETAL_DENSITY_MIN,
+                                ClientConfig.WIND_FLOWER_PETAL_DENSITY_MAX,
+                                SMALL_STEP
+                        ))
                         .option(booleanOption(ClientConfig.ENABLE_TUMBLEWEEDS))
                         .option(doubleOption(
                                 ClientConfig.TUMBLEWEED_DENSITY,
@@ -336,6 +343,12 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_LEAF_OPACITY,
                                 ClientConfig.WIND_LEAF_OPACITY_MIN,
                                 ClientConfig.WIND_LEAF_OPACITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.WIND_FLOWER_PETAL_OPACITY,
+                                ClientConfig.WIND_FLOWER_PETAL_OPACITY_MIN,
+                                ClientConfig.WIND_FLOWER_PETAL_OPACITY_MAX,
                                 SMALL_STEP
                         ))
                         .option(doubleOption(
