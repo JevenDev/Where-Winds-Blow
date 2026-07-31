@@ -29,6 +29,10 @@ public final class WindReactivePrecipitationRenderer {
     private static final float RAIN_DENSITY_FADE_WIDTH = 0.10F;
     private static final float NORMAL_SNOW_DENSITY = 0.90F;
     private static final float THUNDER_EXTRA_SNOW_DENSITY = 0.08F;
+    private static final Biome.Precipitation[] PRECIPITATION_RENDER_ORDER = {
+            Biome.Precipitation.RAIN,
+            Biome.Precipitation.SNOW
+    };
     private static double rainScrollTime;
     private static float lastRainAnimationTime = Float.NaN;
 
@@ -75,8 +79,6 @@ public final class WindReactivePrecipitationRenderer {
         RenderSystem.setShader(GameRenderer::getParticleShader);
 
         Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder buffer = null;
-        int activeType = -1;
         float animationTime = ticks + partialTick;
         PrecipitationResponse cameraWeatherResponse = precipitationResponse(
                 cameraWind, lullAmount, dynamicRainSqualls, squallStrength
@@ -87,179 +89,186 @@ public final class WindReactivePrecipitationRenderer {
         );
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
-        for (int z = centerZ - radius; z <= centerZ + radius; z++) {
-            for (int x = centerX - radius; x <= centerX + radius; x++) {
-                int sizeIndex = (z - centerZ + 16) * 32 + x - centerX + 16;
-                double widthX = rainSizeX[sizeIndex] * 0.5D;
-                double widthZ = rainSizeZ[sizeIndex] * 0.5D;
-                pos.set(x, camY, z);
-                Biome biome = level.getBiome(pos).value();
-                if (!biome.hasPrecipitation()) {
-                    continue;
-                }
-
-                int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
-                int bottomY = Math.max(centerY - radius, surfaceY);
-                int topY = Math.max(centerY + radius, surfaceY);
-                if (bottomY == topY) {
-                    continue;
-                }
-
-                pos.set(x, bottomY, z);
-                Biome.Precipitation precipitation = biome.getPrecipitationAt(pos);
-                long hash = precipitationHash(x, z);
-                if (precipitation == Biome.Precipitation.RAIN) {
-                    if (!ClientConfig.ENABLE_RAIN_EFFECTS.getAsBoolean()) {
+        for (Biome.Precipitation renderPass : PRECIPITATION_RENDER_ORDER) {
+            BufferBuilder buffer = null;
+            int activeType = -1;
+            for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                for (int x = centerX - radius; x <= centerX + radius; x++) {
+                    int sizeIndex = (z - centerZ + 16) * 32 + x - centerX + 16;
+                    double widthX = rainSizeX[sizeIndex] * 0.5D;
+                    double widthZ = rainSizeZ[sizeIndex] * 0.5D;
+                    pos.set(x, camY, z);
+                    Biome biome = level.getBiome(pos).value();
+                    if (!biome.hasPrecipitation()) {
                         continue;
                     }
-                    WindSample wind = DynamicWindManager.sampleWind(level, pos);
-                    float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
-                    PrecipitationResponse weatherResponse = precipitationResponse(
-                            wind, lullAmount, dynamicRainSqualls, squallStrength
-                    );
-                    float primaryDensity = Mth.clamp(
-                            Mth.lerp(thunder, NORMAL_RAIN_DENSITY, 1.0F) + weatherResponse.densityDelta(),
-                            0.45F,
-                            1.0F
-                    );
-                    float primaryVisibility = rainStreamVisibility(hash, primaryDensity);
-                    float extraDensity = Mth.clamp(
-                            thunder * THUNDER_EXTRA_RAIN_DENSITY + weatherResponse.extraDensity(),
-                            0.0F,
-                            0.85F
-                    );
-                    float secondaryVisibility = rainStreamVisibility(hash ^ 0x6A09E667F3BCC909L, extraDensity);
-                    if (primaryVisibility <= 0.01F && secondaryVisibility <= 0.01F) {
+
+                    int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+                    int bottomY = Math.max(centerY - radius, surfaceY);
+                    int topY = Math.max(centerY + radius, surfaceY);
+                    if (bottomY == topY) {
                         continue;
                     }
-                    if (activeType != 0) {
-                        if (activeType >= 0) {
-                            BufferUploader.drawWithShader(buffer.buildOrThrow());
+
+                    pos.set(x, bottomY, z);
+                    Biome.Precipitation precipitation = biome.getPrecipitationAt(pos);
+                    if (precipitation != renderPass) {
+                        continue;
+                    }
+                    long hash = precipitationHash(x, z);
+                    if (precipitation == Biome.Precipitation.RAIN) {
+                        if (!ClientConfig.ENABLE_RAIN_EFFECTS.getAsBoolean()) {
+                            continue;
                         }
-                        activeType = 0;
-                        RenderSystem.setShaderTexture(0, RAIN_LOCATION);
-                        buffer = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-                    }
-
-                    float scrollSpeed = 2.8F
-                            + unitFloat(hash ^ 0x243F6A8885A308D3L) * 1.8F;
-                    float scroll = (float) (-((precipitationAnimationTime + (hash & 255L)) / 32.0D * scrollSpeed) % 32.0D);
-                    float distance = horizontalDistance(x, z, camX, camZ) / radius;
-                    float alpha = ((1.0F - distance * distance) * 0.5F + 0.5F) * rainLevel;
-                    alpha *= Mth.lerp(thunder, 0.68F, 0.96F);
-                    alpha *= Mth.lerp(unitFloat(hash ^ 0xA4093822299F31D0L), 0.86F, 1.08F);
-                    alpha *= weatherResponse.opacityMultiplier();
-                    alpha = Mth.clamp(alpha, 0.0F, 1.0F);
-                    pos.set(x, Math.max(surfaceY, centerY), z);
-                    int light = LevelRenderer.getLightColor(level, pos);
-
-                    if (primaryVisibility > 0.01F) {
-                        float widthScale = Mth.lerp(unitFloat(hash ^ 0x082EFA98EC4E6C89L), 0.78F, 1.22F);
-                        RainDrift primaryDrift = ClientConfig.ENABLE_SLANTED_RAIN.getAsBoolean()
-                                ? rainDrift(
-                                        wind, windStrength, thunder,
-                                        rainAngleVariation * weatherResponse.angleVariationMultiplier(),
-                                        topY - bottomY, hash, weatherResponse.tiltMultiplier()
-                                )
-                                : RainDrift.NONE;
-                        addRainQuad(buffer, x, z, bottomY, topY, camX, camY, camZ,
-                                widthX * widthScale, widthZ * widthScale,
-                                primaryDrift.x(), primaryDrift.z(), scroll, alpha * primaryVisibility, light, 0.0F);
-                    }
-
-                    if (secondaryVisibility > 0.01F) {
-                        RainDrift secondaryDrift = ClientConfig.ENABLE_SLANTED_RAIN.getAsBoolean()
-                                ? rainDrift(
-                                        wind, windStrength, thunder,
-                                        rainAngleVariation * weatherResponse.angleVariationMultiplier(),
-                                        topY - bottomY, hash ^ 0x452821E638D01377L,
-                                        weatherResponse.tiltMultiplier() * 1.18F
-                                )
-                                : RainDrift.NONE;
-                        float secondaryWidth = Mth.lerp(unitFloat(hash ^ 0xBE5466CF34E90C6CL), 0.72F, 1.08F);
-                        addRainQuad(buffer, x, z, bottomY, topY, camX, camY, camZ,
-                                widthX * secondaryWidth, widthZ * secondaryWidth,
-                                secondaryDrift.x(), secondaryDrift.z(), (scroll + 11.0F) % 32.0F,
-                                alpha * 0.78F * secondaryVisibility, light, 0.28F);
-                    }
-                } else if (precipitation == Biome.Precipitation.SNOW) {
-                    if (!ClientConfig.ENABLE_SNOW_EFFECTS.getAsBoolean()) {
-                        continue;
-                    }
-                    WindSample wind = DynamicWindManager.sampleWind(level, pos);
-                    float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
-                    PrecipitationResponse weatherResponse = precipitationResponse(
-                            wind, lullAmount, dynamicRainSqualls, squallStrength
-                    );
-                    RandomSource random = RandomSource.create(hash);
-                    float primaryDensity = Mth.clamp(
-                            Mth.lerp(thunder, NORMAL_SNOW_DENSITY, 1.0F)
-                                    + weatherResponse.densityDelta() * 0.55F,
-                            0.52F,
-                            1.0F
-                    );
-                    float primaryVisibility = rainStreamVisibility(hash ^ 0xBB67AE8584CAA73BL, primaryDensity);
-                    float extraDensity = Mth.clamp(
-                            thunder * THUNDER_EXTRA_SNOW_DENSITY + weatherResponse.extraDensity() * 0.32F,
-                            0.0F,
-                            0.42F
-                    );
-                    float secondaryVisibility = rainStreamVisibility(hash ^ 0x3C6EF372FE94F82BL, extraDensity);
-                    if (primaryVisibility <= 0.01F && secondaryVisibility <= 0.01F) {
-                        continue;
-                    }
-                    if (activeType != 1) {
-                        if (activeType >= 0) {
-                            BufferUploader.drawWithShader(buffer.buildOrThrow());
+                        WindSample wind = DynamicWindManager.sampleWind(level, pos);
+                        float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
+                        PrecipitationResponse weatherResponse = precipitationResponse(
+                                wind, lullAmount, dynamicRainSqualls, squallStrength
+                        );
+                        float primaryDensity = Mth.clamp(
+                                Mth.lerp(thunder, NORMAL_RAIN_DENSITY, 1.0F) + weatherResponse.densityDelta(),
+                                0.45F,
+                                1.0F
+                        );
+                        float primaryVisibility = rainStreamVisibility(hash, primaryDensity);
+                        float extraDensity = Mth.clamp(
+                                thunder * THUNDER_EXTRA_RAIN_DENSITY + weatherResponse.extraDensity(),
+                                0.0F,
+                                0.85F
+                        );
+                        float secondaryVisibility = rainStreamVisibility(hash ^ 0x6A09E667F3BCC909L, extraDensity);
+                        if (primaryVisibility <= 0.01F && secondaryVisibility <= 0.01F) {
+                            continue;
                         }
-                        activeType = 1;
-                        RenderSystem.setShaderTexture(0, SNOW_LOCATION);
-                        buffer = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-                    }
+                        if (activeType != 0) {
+                            if (activeType >= 0) {
+                                BufferUploader.drawWithShader(buffer.buildOrThrow());
+                            }
+                            activeType = 0;
+                            RenderSystem.setShaderTexture(0, RAIN_LOCATION);
+                            buffer = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+                        }
 
-                    float verticalScroll = (float) (-(precipitationAnimationTime % 512.0D) / 512.0D);
-                    float offsetU = (float) (random.nextDouble() + animationTime * 0.01D * random.nextGaussian());
-                    float offsetV = (float) (random.nextDouble() + animationTime * random.nextGaussian() * 0.001D);
-                    float distance = horizontalDistance(x, z, camX, camZ) / radius;
-                    float alpha = ((1.0F - distance * distance) * 0.3F + 0.5F) * rainLevel;
-                    alpha *= weatherResponse.opacityMultiplier();
-                    float driftX = 0.0F;
-                    float driftZ = 0.0F;
-                    if (ClientConfig.ENABLE_WIND_DRIVEN_SNOW.getAsBoolean()) {
-                        float slope = (0.035F + windStrength * 0.115F + thunder * 0.065F)
-                                * weatherResponse.tiltMultiplier();
-                        float flutterPhase = animationTime * (0.032F + weatherResponse.speedMultiplier() * 0.012F)
-                                + (hash & 255L);
-                        float flutter = Mth.sin(flutterPhase)
-                                * (0.10F + wind.turbulence() * 0.16F + windStrength * 0.045F)
-                                * weatherResponse.angleVariationMultiplier();
-                        driftX = -wind.directionX() * Math.min((topY - bottomY) * slope, 5.5F)
-                                - wind.directionZ() * flutter;
-                        driftZ = -wind.directionZ() * Math.min((topY - bottomY) * slope, 5.5F)
-                                + wind.directionX() * flutter;
-                    }
-                    pos.set(x, Math.max(surfaceY, centerY), z);
-                    int light = LevelRenderer.getLightColor(level, pos);
-                    int blockLight = light >> 16 & 65535;
-                    int skyLight = light & 65535;
-                    addSnowQuad(buffer, x, z, bottomY, topY, camX, camY, camZ,
-                            widthX, widthZ, driftX, driftZ, verticalScroll, offsetU, offsetV,
-                            alpha * primaryVisibility,
-                            (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4, 0.0F);
+                        float scrollSpeed = 2.8F
+                                + unitFloat(hash ^ 0x243F6A8885A308D3L) * 1.8F;
+                        float scroll = (float) (-((precipitationAnimationTime + (hash & 255L)) / 32.0D * scrollSpeed) % 32.0D);
+                        float distance = horizontalDistance(x, z, camX, camZ) / radius;
+                        float alpha = ((1.0F - distance * distance) * 0.5F + 0.5F) * rainLevel;
+                        alpha *= Mth.lerp(thunder, 0.68F, 0.96F);
+                        alpha *= Mth.lerp(unitFloat(hash ^ 0xA4093822299F31D0L), 0.86F, 1.08F);
+                        alpha *= weatherResponse.opacityMultiplier();
+                        alpha = Mth.clamp(alpha, 0.0F, 1.0F);
+                        pos.set(x, Math.max(surfaceY, centerY), z);
+                        int light = LevelRenderer.getLightColor(level, pos);
 
-                    if (secondaryVisibility > 0.01F) {
-                        addSnowQuad(buffer, x, z, bottomY, topY, camX, camY, camZ, widthX, widthZ,
-                                driftX * 1.08F, driftZ * 1.08F, verticalScroll,
-                                offsetU + 0.37F, offsetV + 0.53F,
-                                alpha * 0.72F * secondaryVisibility,
-                                (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4, 0.48F);
+                        if (primaryVisibility > 0.01F) {
+                            float widthScale = Mth.lerp(unitFloat(hash ^ 0x082EFA98EC4E6C89L), 0.78F, 1.22F);
+                            RainDrift primaryDrift = ClientConfig.ENABLE_SLANTED_RAIN.getAsBoolean()
+                                    ? rainDrift(
+                                            wind, windStrength, thunder,
+                                            rainAngleVariation * weatherResponse.angleVariationMultiplier(),
+                                            topY - bottomY, hash, weatherResponse.tiltMultiplier()
+                                    )
+                                    : RainDrift.NONE;
+                            addRainQuad(buffer, x, z, bottomY, topY, camX, camY, camZ,
+                                    widthX * widthScale, widthZ * widthScale,
+                                    primaryDrift.x(), primaryDrift.z(), scroll, alpha * primaryVisibility, light, 0.0F);
+                        }
+
+                        if (secondaryVisibility > 0.01F) {
+                            RainDrift secondaryDrift = ClientConfig.ENABLE_SLANTED_RAIN.getAsBoolean()
+                                    ? rainDrift(
+                                            wind, windStrength, thunder,
+                                            rainAngleVariation * weatherResponse.angleVariationMultiplier(),
+                                            topY - bottomY, hash ^ 0x452821E638D01377L,
+                                            weatherResponse.tiltMultiplier() * 1.18F
+                                    )
+                                    : RainDrift.NONE;
+                            float secondaryWidth = Mth.lerp(unitFloat(hash ^ 0xBE5466CF34E90C6CL), 0.72F, 1.08F);
+                            addRainQuad(buffer, x, z, bottomY, topY, camX, camY, camZ,
+                                    widthX * secondaryWidth, widthZ * secondaryWidth,
+                                    secondaryDrift.x(), secondaryDrift.z(), (scroll + 11.0F) % 32.0F,
+                                    alpha * 0.78F * secondaryVisibility, light, 0.28F);
+                        }
+                    } else if (precipitation == Biome.Precipitation.SNOW) {
+                        if (!ClientConfig.ENABLE_SNOW_EFFECTS.getAsBoolean()) {
+                            continue;
+                        }
+                        WindSample wind = DynamicWindManager.sampleWind(level, pos);
+                        float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
+                        PrecipitationResponse weatherResponse = precipitationResponse(
+                                wind, lullAmount, dynamicRainSqualls, squallStrength
+                        );
+                        RandomSource random = RandomSource.create(hash);
+                        float primaryDensity = Mth.clamp(
+                                Mth.lerp(thunder, NORMAL_SNOW_DENSITY, 1.0F)
+                                        + weatherResponse.densityDelta() * 0.55F,
+                                0.52F,
+                                1.0F
+                        );
+                        float primaryVisibility = rainStreamVisibility(hash ^ 0xBB67AE8584CAA73BL, primaryDensity);
+                        float extraDensity = Mth.clamp(
+                                thunder * THUNDER_EXTRA_SNOW_DENSITY + weatherResponse.extraDensity() * 0.32F,
+                                0.0F,
+                                0.42F
+                        );
+                        float secondaryVisibility = rainStreamVisibility(hash ^ 0x3C6EF372FE94F82BL, extraDensity);
+                        if (primaryVisibility <= 0.01F && secondaryVisibility <= 0.01F) {
+                            continue;
+                        }
+                        if (activeType != 1) {
+                            if (activeType >= 0) {
+                                BufferUploader.drawWithShader(buffer.buildOrThrow());
+                            }
+                            activeType = 1;
+                            RenderSystem.setShaderTexture(0, SNOW_LOCATION);
+                            buffer = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
+                        }
+
+                        float verticalScroll = (float) (-(precipitationAnimationTime % 512.0D) / 512.0D);
+                        float offsetU = (float) (random.nextDouble() + animationTime * 0.01D * random.nextGaussian());
+                        float offsetV = (float) (random.nextDouble() + animationTime * random.nextGaussian() * 0.001D);
+                        float distance = horizontalDistance(x, z, camX, camZ) / radius;
+                        float alpha = ((1.0F - distance * distance) * 0.3F + 0.5F) * rainLevel;
+                        alpha *= weatherResponse.opacityMultiplier();
+                        float driftX = 0.0F;
+                        float driftZ = 0.0F;
+                        if (ClientConfig.ENABLE_WIND_DRIVEN_SNOW.getAsBoolean()) {
+                            float slope = (0.035F + windStrength * 0.115F + thunder * 0.065F)
+                                    * weatherResponse.tiltMultiplier();
+                            float flutterPhase = animationTime * (0.032F + weatherResponse.speedMultiplier() * 0.012F)
+                                    + (hash & 255L);
+                            float flutter = Mth.sin(flutterPhase)
+                                    * (0.10F + wind.turbulence() * 0.16F + windStrength * 0.045F)
+                                    * weatherResponse.angleVariationMultiplier();
+                            driftX = -wind.directionX() * Math.min((topY - bottomY) * slope, 5.5F)
+                                    - wind.directionZ() * flutter;
+                            driftZ = -wind.directionZ() * Math.min((topY - bottomY) * slope, 5.5F)
+                                    + wind.directionX() * flutter;
+                        }
+                        pos.set(x, Math.max(surfaceY, centerY), z);
+                        int light = LevelRenderer.getLightColor(level, pos);
+                        int blockLight = light >> 16 & 65535;
+                        int skyLight = light & 65535;
+                        addSnowQuad(buffer, x, z, bottomY, topY, camX, camY, camZ,
+                                widthX, widthZ, driftX, driftZ, verticalScroll, offsetU, offsetV,
+                                alpha * primaryVisibility,
+                                (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4, 0.0F);
+
+                        if (secondaryVisibility > 0.01F) {
+                            addSnowQuad(buffer, x, z, bottomY, topY, camX, camY, camZ, widthX, widthZ,
+                                    driftX * 1.08F, driftZ * 1.08F, verticalScroll,
+                                    offsetU + 0.37F, offsetV + 0.53F,
+                                    alpha * 0.72F * secondaryVisibility,
+                                    (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4, 0.48F);
+                        }
                     }
                 }
             }
-        }
 
-        if (activeType >= 0) {
-            BufferUploader.drawWithShader(buffer.buildOrThrow());
+            if (activeType >= 0) {
+                BufferUploader.drawWithShader(buffer.buildOrThrow());
+            }
         }
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
