@@ -35,7 +35,7 @@ Where Winds Blow adds a visible, weather-driven wind system and denser Vanilla+ 
 | Dynamic wind | Creates smooth direction changes, gust fronts, calm lulls, and turbulence shaped by the biome, weather, altitude, and surrounding terrain |
 | Responsive foliage | Makes grass, crops, flowers, and leaves sway; nearby movement, projectiles, lightning, and explosions can disturb plants locally |
 | Visible air movement | Sends pale wind streaks and biome-tinted drifting leaves through the world, following the wind and reacting to terrain |
-| Atmospheric weather | Slants rain with the wind and gives snow drifting, fluttering movement as weather strength changes |
+| Atmospheric weather | Slants rain with the wind, gives snow drifting movement, and builds severe snowy weather into ground-blown spindrift and whiteout blizzards |
 | Reactive world details | Bends campfire smoke into wind-shaped plumes and moves banners, hanging signs, lanterns, and chains with the same wind |
 | Vanilla+ world generation | Adds flat, dry, dead, overgrown, and wild-wheat grass variants to create denser biome coverage and softer transitions |
 | Customization | Provides an in-game visual config plus datapack control over grass placement and biome-specific wind profiles |

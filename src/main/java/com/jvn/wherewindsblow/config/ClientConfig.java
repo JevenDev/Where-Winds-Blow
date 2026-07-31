@@ -77,6 +77,8 @@ public final class ClientConfig {
     public static final double RAIN_ANGLE_VARIATION_MAX = 45.0D;
     public static final double RAIN_SQUALL_STRENGTH_MIN = 0.0D;
     public static final double RAIN_SQUALL_STRENGTH_MAX = 2.0D;
+    public static final double BLIZZARD_INTENSITY_MIN = 0.0D;
+    public static final double BLIZZARD_INTENSITY_MAX = 2.0D;
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
@@ -399,6 +401,14 @@ public final class ClientConfig {
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_DRIVEN_SNOW = BUILDER
             .comment("Lets snow drift and flutter with the shared wind simulation. Snow falls vertically when this is disabled.")
             .define("enableWindDrivenSnow", true);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_BLIZZARD_EFFECTS = BUILDER
+            .comment("Adds wind-driven surface snow, rooftop spindrift, and reduced visibility during severe snowy weather.")
+            .define("enableBlizzardEffects", true);
+
+    public static final ModConfigSpec.DoubleValue BLIZZARD_INTENSITY = BUILDER
+            .comment("Scales blowing snow and whiteout intensity without changing ordinary snowfall.")
+            .defineInRange("blizzardIntensity", 1.0D, BLIZZARD_INTENSITY_MIN, BLIZZARD_INTENSITY_MAX);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
 

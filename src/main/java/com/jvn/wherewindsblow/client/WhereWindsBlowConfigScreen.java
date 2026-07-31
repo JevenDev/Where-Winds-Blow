@@ -296,6 +296,13 @@ public final class WhereWindsBlowConfigScreen {
                         ))
                         .option(booleanOption(ClientConfig.ENABLE_SNOW_EFFECTS))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_DRIVEN_SNOW))
+                        .option(booleanOption(ClientConfig.ENABLE_BLIZZARD_EFFECTS))
+                        .option(doubleOption(
+                                ClientConfig.BLIZZARD_INTENSITY,
+                                ClientConfig.BLIZZARD_INTENSITY_MIN,
+                                ClientConfig.BLIZZARD_INTENSITY_MAX,
+                                SMALL_STEP
+                        ))
                         .build())
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.ambientWind"))
