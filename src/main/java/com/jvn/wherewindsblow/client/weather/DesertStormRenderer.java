@@ -35,11 +35,12 @@ public final class DesertStormRenderer {
 
     public static void render(
             ClientLevel level,
-            int ticks,
             float[] rainSizeX,
             float[] rainSizeZ,
             LightTexture lightTexture,
-            float partialTick,
+            float rainLevel,
+            float thunder,
+            double animationTime,
             double camX,
             double camY,
             double camZ
@@ -48,13 +49,10 @@ public final class DesertStormRenderer {
             return;
         }
 
-        float rainLevel = level.getRainLevel(partialTick);
         if (rainLevel <= 0.0F) {
             return;
         }
 
-        float thunder = level.getThunderLevel(partialTick);
-        float animationTime = ticks + partialTick;
         int centerX = Mth.floor(camX);
         int centerY = Mth.floor(camY);
         int centerZ = Mth.floor(camZ);
@@ -147,30 +145,25 @@ public final class DesertStormRenderer {
                 float slope = (0.18F + windStrength * 0.28F + thunder * 0.24F)
                         * Mth.lerp(unitFloat(hash ^ 0x94D049BB133111EBL), 0.86F, 1.32F);
                 float drift = Math.min(fallDistance * slope, Mth.lerp(thunder, 9.5F, 14.0F));
-                float flutterPhase = animationTime * (0.065F + windStrength * 0.018F) + (hash & 255L);
+                // animationTime is an integrated weather clock, so changing wind/thunder adjusts
+                // its rate without re-evaluating an absolute-time phase and teleporting the dust.
+                float flutterPhase = (float) animationTime * 0.083F + (hash & 255L);
                 float flutter = Mth.sin(flutterPhase)
                         * (0.18F + wind.turbulence() * 0.34F + thunder * 0.24F);
                 float driftX = -wind.directionX() * drift - wind.directionZ() * flutter;
                 float driftZ = -wind.directionZ() * drift + wind.directionX() * flutter;
 
-                float speed = 0.012F + windStrength * 0.0065F + thunder * 0.008F;
                 float travelRange = 8.0F + windStrength * 2.0F + thunder * 4.0F;
-                float travelSpeed = 0.055F + windStrength * 0.075F
-                        + wind.gustStrength() * 0.10F + thunder * 0.06F;
-                float travel = (unitFloat(hash ^ 0x165667B19E3779F9L) * travelRange
-                        + animationTime * travelSpeed) % travelRange - travelRange * 0.5F;
+                float travelPhase = fractionalPart(
+                        unitFloat(hash ^ 0x165667B19E3779F9L) + (float) animationTime * 0.014F
+                );
+                float travel = Mth.sin(travelPhase * Mth.TWO_PI) * travelRange * 0.5F;
                 float crossTravel = Mth.sin(flutterPhase * 0.53F + unitFloat(hash) * Mth.TWO_PI)
                         * (0.15F + wind.turbulence() * 0.5F + thunder * 0.12F);
                 float motionX = wind.directionX() * travel - wind.directionZ() * crossTravel;
                 float motionZ = wind.directionZ() * travel + wind.directionX() * crossTravel;
 
-                float projectedWind = wind.directionX() * (float) widthX
-                        + wind.directionZ() * (float) widthZ;
-                float screenDirection = projectedWind < 0.0F ? -1.0F : 1.0F;
-                float projectionStrength = 0.45F + Math.min(Math.abs(projectedWind) * 1.4F, 0.95F);
-                float horizontalScroll = -animationTime * speed
-                        * (0.34F + windStrength * 0.08F + thunder * 0.10F)
-                        * screenDirection * projectionStrength;
+                float horizontalScroll = -(float) animationTime * 0.018F;
                 float offsetU = unitFloat(hash ^ 0xDB4F0B9175AE2165L);
                 float offsetV = unitFloat(hash ^ 0xBBE0563303A4615FL)
                         + Mth.sin(flutterPhase * 0.41F)
@@ -262,6 +255,10 @@ public final class DesertStormRenderer {
         float transition = (density - unitFloat(hash)) / DENSITY_FADE_WIDTH + 0.5F;
         transition = Mth.clamp(transition, 0.0F, 1.0F);
         return transition * transition * (3.0F - 2.0F * transition);
+    }
+
+    private static float fractionalPart(float value) {
+        return value - Mth.floor(value);
     }
 
     private static float unitFloat(long hash) {

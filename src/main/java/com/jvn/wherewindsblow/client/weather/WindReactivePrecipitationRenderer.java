@@ -52,16 +52,19 @@ public final class WindReactivePrecipitationRenderer {
             double camY,
             double camZ
     ) {
-        float rainLevel = level.getRainLevel(partialTick);
+        float animationTime = ticks + partialTick;
+        WeatherLevels weather = smoothWeatherLevels(
+                level,
+                animationTime,
+                level.getRainLevel(partialTick),
+                level.getThunderLevel(partialTick)
+        );
+        float rainLevel = weather.rain();
         if (rainLevel <= 0.0F) {
             return;
         }
 
-        DesertStormRenderer.render(
-                level, ticks, rainSizeX, rainSizeZ, lightTexture, partialTick, camX, camY, camZ
-        );
-
-        float thunder = level.getThunderLevel(partialTick);
+        float thunder = weather.thunder();
         BlockPos cameraPos = BlockPos.containing(camX, camY, camZ);
         WindSample cameraWind = DynamicWindManager.sampleWind(level, cameraPos);
         float rainAngleVariation = Mth.lerp(
@@ -77,15 +80,7 @@ public final class WindReactivePrecipitationRenderer {
         int centerZ = Mth.floor(camZ);
         int radius = Minecraft.useFancyGraphics() ? 10 : 5;
 
-        lightTexture.turnOnLightLayer();
-        RenderSystem.disableCull();
-        RenderSystem.enableBlend();
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(Minecraft.useShaderTransparency());
-        RenderSystem.setShader(GameRenderer::getParticleShader);
-
         Tesselator tesselator = Tesselator.getInstance();
-        float animationTime = ticks + partialTick;
         PrecipitationResponse cameraWeatherResponse = precipitationResponse(
                 cameraWind, lullAmount, dynamicRainSqualls, squallStrength
         );
@@ -93,6 +88,20 @@ public final class WindReactivePrecipitationRenderer {
                 animationTime,
                 cameraWeatherResponse.speedMultiplier() * (1.0F + thunder * 0.8F)
         );
+        DesertStormRenderer.render(
+                level, rainSizeX, rainSizeZ, lightTexture,
+                rainLevel, thunder, precipitationAnimationTime, camX, camY, camZ
+        );
+
+        // DesertStormRenderer restores the render state after its pass, so configure the shared
+        // rain/snow state afterward rather than relying on state set before the desert pass.
+        lightTexture.turnOnLightLayer();
+        RenderSystem.disableCull();
+        RenderSystem.enableBlend();
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(Minecraft.useShaderTransparency());
+        RenderSystem.setShader(GameRenderer::getParticleShader);
+
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
         for (Biome.Precipitation renderPass : PRECIPITATION_RENDER_ORDER) {
@@ -238,8 +247,10 @@ public final class WindReactivePrecipitationRenderer {
                         }
 
                         float verticalScroll = (float) (-(precipitationAnimationTime % 512.0D) / 512.0D);
-                        float offsetU = (float) (random.nextDouble() + animationTime * 0.01D * random.nextGaussian());
-                        float offsetV = (float) (random.nextDouble() + animationTime * random.nextGaussian() * 0.001D);
+                        float offsetU = (float) (random.nextDouble()
+                                + precipitationAnimationTime * 0.01D * random.nextGaussian());
+                        float offsetV = (float) (random.nextDouble()
+                                + precipitationAnimationTime * random.nextGaussian() * 0.001D);
                         float distance = horizontalDistance(x, z, camX, camZ) / radius;
                         float alpha = ((1.0F - distance * distance) * 0.3F + 0.5F) * rainLevel;
                         alpha *= weatherResponse.opacityMultiplier();
@@ -248,8 +259,10 @@ public final class WindReactivePrecipitationRenderer {
                         if (ClientConfig.ENABLE_WIND_DRIVEN_SNOW.getAsBoolean()) {
                             float slope = (0.035F + windStrength * 0.115F + thunder * 0.065F)
                                     * weatherResponse.tiltMultiplier();
-                            float flutterPhase = animationTime * (0.032F + weatherResponse.speedMultiplier() * 0.012F)
-                                    + (hash & 255L);
+                            // The shared clock integrates weather speed. Multiplying absolute world
+                            // time by a changing speed here made snow jump to a different phase as a
+                            // squall or thunder transition changed that speed.
+                            float flutterPhase = (float) precipitationAnimationTime * 0.044F + (hash & 255L);
                             float flutter = Mth.sin(flutterPhase)
                                     * (0.10F + wind.turbulence() * 0.16F + windStrength * 0.045F)
                                     * weatherResponse.angleVariationMultiplier();
@@ -368,6 +381,15 @@ public final class WindReactivePrecipitationRenderer {
         return rainScrollTime;
     }
 
+    private static WeatherLevels smoothWeatherLevels(
+            ClientLevel level,
+            float animationTime,
+            float targetRain,
+            float targetThunder
+    ) {
+        return WeatherTransitionState.sample(level, animationTime, targetRain, targetThunder);
+    }
+
     private static PrecipitationResponse precipitationResponse(
             WindSample wind,
             float lullAmount,
@@ -419,6 +441,56 @@ public final class WindReactivePrecipitationRenderer {
 
     private record RainDrift(float x, float z) {
         private static final RainDrift NONE = new RainDrift(0.0F, 0.0F);
+    }
+
+    private record WeatherLevels(float rain, float thunder) {
+    }
+
+    private static final class WeatherTransitionState {
+        private static ClientLevel activeLevel;
+        private static float rain;
+        private static float thunder;
+        private static float lastAnimationTime = Float.NaN;
+
+        private WeatherTransitionState() {
+        }
+
+        private static WeatherLevels sample(
+                ClientLevel level,
+                float animationTime,
+                float targetRain,
+                float targetThunder
+        ) {
+            if (activeLevel != level || !Float.isFinite(lastAnimationTime)) {
+                activeLevel = level;
+                rain = targetRain;
+                thunder = targetThunder;
+                lastAnimationTime = animationTime;
+                return new WeatherLevels(rain, thunder);
+            }
+
+            float delta = animationTime - lastAnimationTime;
+            lastAnimationTime = animationTime;
+            if (delta < 0.0F || delta > 5.0F) {
+                rain = targetRain;
+                thunder = targetThunder;
+                return new WeatherLevels(rain, thunder);
+            }
+
+            // Vanilla weather levels usually move gradually, but servers and commands can replace
+            // them in a single update. A short render-side ease keeps all precipitation variants on
+            // the same continuous clear/rain/thunder curve without making weather feel delayed.
+            float blend = 1.0F - (float) Math.exp(-delta * 0.12F);
+            rain = Mth.lerp(blend, rain, targetRain);
+            thunder = Mth.lerp(blend, thunder, targetThunder);
+            if (Math.abs(rain - targetRain) < 0.0001F) {
+                rain = targetRain;
+            }
+            if (Math.abs(thunder - targetThunder) < 0.0001F) {
+                thunder = targetThunder;
+            }
+            return new WeatherLevels(rain, thunder);
+        }
     }
 
     private record PrecipitationResponse(
