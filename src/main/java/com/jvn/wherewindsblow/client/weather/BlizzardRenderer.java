@@ -29,6 +29,7 @@ public final class BlizzardRenderer {
             "where_winds_blow", "textures/environment/desert_dust.png"
     );
     private static final float DENSITY_FADE_WIDTH = 0.10F;
+    private static final float EDGE_FADE_START = 0.70F;
 
     private BlizzardRenderer() {
     }
@@ -50,7 +51,8 @@ public final class BlizzardRenderer {
                 || !ClientConfig.ENABLE_WIND_DRIVEN_SNOW.getAsBoolean()
                 || !ClientConfig.ENABLE_BLIZZARD_EFFECTS.getAsBoolean()
                 || configuredIntensity <= 0.0F
-                || rainLevel <= 0.0F) {
+                || rainLevel <= 0.0F
+                || BlizzardWeatherEffects.blizzardActivity(thunder) <= 0.001F) {
             return;
         }
 
@@ -83,6 +85,10 @@ public final class BlizzardRenderer {
                 int bottomY = Math.max(centerY - radius, surfaceY);
                 int topY = Math.max(centerY + radius, surfaceY);
                 if (bottomY == topY) {
+                    continue;
+                }
+                float edgeVisibility = edgeVisibility(x, z, camX, camZ, radius);
+                if (edgeVisibility <= 0.01F) {
                     continue;
                 }
 
@@ -142,7 +148,7 @@ public final class BlizzardRenderer {
                     );
                     if (driftTopY > surfaceY) {
                         float driftAlpha = Mth.clamp(
-                                rainLevel * (0.15F + stormEnergy * 0.34F) * driftVisibility,
+                                rainLevel * (0.15F + stormEnergy * 0.34F) * driftVisibility * edgeVisibility,
                                 0.0F,
                                 0.62F
                         );
@@ -160,7 +166,7 @@ public final class BlizzardRenderer {
                     int plumeTopY = Math.min(topY, surfaceY + 2 + Mth.floor(stormEnergy * 2.2F));
                     if (plumeTopY > surfaceY) {
                         float plumeAlpha = Mth.clamp(
-                                rainLevel * (0.20F + stormEnergy * 0.28F),
+                                rainLevel * (0.20F + stormEnergy * 0.28F) * edgeVisibility,
                                 0.0F,
                                 0.58F
                         );
@@ -248,6 +254,16 @@ public final class BlizzardRenderer {
         buffer.addVertex(rightX + driftX, top, rightZ + driftZ).setUv(1.0F + flowingU, bottomY * 0.25F + offsetV).setColor(0.94F, 0.97F, 1.0F, alpha).setUv2(skyLight, blockLight);
         buffer.addVertex(rightX, bottom, rightZ).setUv(1.0F + flowingU, topY * 0.25F + offsetV).setColor(0.94F, 0.97F, 1.0F, alpha).setUv2(skyLight, blockLight);
         buffer.addVertex(leftX, bottom, leftZ).setUv(flowingU, topY * 0.25F + offsetV).setColor(0.94F, 0.97F, 1.0F, alpha).setUv2(skyLight, blockLight);
+    }
+
+    private static float edgeVisibility(
+            int x, int z, double camX, double camZ, int radius
+    ) {
+        double dx = x + 0.5D - camX;
+        double dz = z + 0.5D - camZ;
+        float normalizedDistance = (float) Math.sqrt(dx * dx + dz * dz) / radius;
+        float edge = (normalizedDistance - EDGE_FADE_START) / (1.0F - EDGE_FADE_START);
+        return 1.0F - smoothFade(edge);
     }
 
     private static long precipitationHash(int x, int z) {

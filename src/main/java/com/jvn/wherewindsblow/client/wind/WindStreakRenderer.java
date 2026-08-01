@@ -3,6 +3,7 @@ package com.jvn.wherewindsblow.client.wind;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
+import com.jvn.wherewindsblow.client.weather.BlizzardWeatherEffects;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -225,6 +226,8 @@ public final class WindStreakRenderer {
             Camera camera = event.getCamera();
             Vec3 cameraPos = camera.getPosition();
             float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
+            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog =
+                    BlizzardWeatherEffects.fogProfile(camera, partialTick);
             float windTime = DynamicWindManager.simulationTime();
             Matrix4f pose = event.getPoseStack().last().pose();
 
@@ -243,7 +246,8 @@ public final class WindStreakRenderer {
                                 cameraPos,
                                 partialTick,
                                 windTime,
-                                lineOpacity * STREAK_HALO_OPACITY
+                                lineOpacity * STREAK_HALO_OPACITY,
+                                blizzardFog
                         );
                     }
                 }
@@ -253,7 +257,10 @@ public final class WindStreakRenderer {
                         VertexConsumer core = bufferSource.getBuffer(windStreakLines(
                                 streak.strokeScale * STREAK_CORE_WIDTH_SCALE
                         ));
-                        renderStreak(core, pose, minecraft.level, streak, cameraPos, partialTick, windTime, lineOpacity);
+                        renderStreak(
+                                core, pose, minecraft.level, streak, cameraPos,
+                                partialTick, windTime, lineOpacity, blizzardFog
+                        );
                     }
                 }
 
@@ -261,11 +268,17 @@ public final class WindStreakRenderer {
             }
 
             if (leafOpacity > 0.0F) {
-                renderLeaves(minecraft.level, camera, pose, cameraPos, partialTick, windTime, leafOpacity);
+                renderLeaves(
+                        minecraft.level, camera, pose, cameraPos,
+                        partialTick, windTime, leafOpacity, blizzardFog
+                );
             }
 
             if (flowerPetalOpacity > 0.0F) {
-                renderFlowerPetals(minecraft.level, camera, pose, cameraPos, partialTick, windTime, flowerPetalOpacity);
+                renderFlowerPetals(
+                        minecraft.level, camera, pose, cameraPos,
+                        partialTick, windTime, flowerPetalOpacity, blizzardFog
+                );
             }
         } finally {
             modelViewStack.popMatrix();
@@ -1076,7 +1089,8 @@ public final class WindStreakRenderer {
             Vec3 cameraPos,
             float partialTick,
             float windTime,
-            float opacity
+            float opacity,
+            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
     ) {
         float life = ((float) streak.age + partialTick) / (float) streak.lifetime;
         float fadeIn = smoothFade(Mth.clamp(
@@ -1111,7 +1125,10 @@ public final class WindStreakRenderer {
         for (int segment = 0; segment < BODY_SEGMENTS; segment++) {
             float t0 = (float) segment / (float) BODY_SEGMENTS;
             float t1 = (float) (segment + 1) / (float) BODY_SEGMENTS;
-            drawSegment(consumer, pose, level, streak, cameraPos, baseX, baseY, baseZ, t0, t1, windTime, brushPosition, alpha);
+            drawSegment(
+                    consumer, pose, level, streak, cameraPos,
+                    baseX, baseY, baseZ, t0, t1, windTime, brushPosition, alpha, blizzardFog
+            );
         }
 
     }
@@ -1123,11 +1140,12 @@ public final class WindStreakRenderer {
             Vec3 cameraPos,
             float partialTick,
             float windTime,
-            float opacity
+            float opacity,
+            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
     ) {
         renderWindParticles(
                 level, camera, pose, cameraPos, partialTick, windTime, opacity,
-                LEAVES, LEAF_RENDER_TYPES
+                LEAVES, LEAF_RENDER_TYPES, blizzardFog
         );
     }
 
@@ -1138,11 +1156,12 @@ public final class WindStreakRenderer {
             Vec3 cameraPos,
             float partialTick,
             float windTime,
-            float opacity
+            float opacity,
+            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
     ) {
         renderWindParticles(
                 level, camera, pose, cameraPos, partialTick, windTime, opacity,
-                FLOWER_PETALS, FLOWER_PETAL_RENDER_TYPES
+                FLOWER_PETALS, FLOWER_PETAL_RENDER_TYPES, blizzardFog
         );
     }
 
@@ -1155,7 +1174,8 @@ public final class WindStreakRenderer {
             float windTime,
             float opacity,
             WindLeaf[] particles,
-            RenderType[] renderTypes
+            RenderType[] renderTypes,
+            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
     ) {
         MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(LEAF_BUFFER);
         for (int textureIndex = 0; textureIndex < renderTypes.length; textureIndex++) {
@@ -1165,7 +1185,10 @@ public final class WindStreakRenderer {
                     if (consumer == null) {
                         consumer = bufferSource.getBuffer(renderTypes[textureIndex]);
                     }
-                    renderLeaf(consumer, pose, particle, level, camera, cameraPos, partialTick, windTime, opacity);
+                    renderLeaf(
+                            consumer, pose, particle, level, camera, cameraPos,
+                            partialTick, windTime, opacity, blizzardFog
+                    );
                 }
             }
         }
@@ -1181,7 +1204,8 @@ public final class WindStreakRenderer {
             Vec3 cameraPos,
             float partialTick,
             float windTime,
-            float opacity
+            float opacity,
+            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
     ) {
         float life = ((float) leaf.age + partialTick) / (float) leaf.lifetime;
         float fade = smoothFade(Mth.clamp(life / 0.24F, 0.0F, 1.0F))
@@ -1212,7 +1236,9 @@ public final class WindStreakRenderer {
         double dz = centerZ - cameraPos.z();
         double cameraDistance = Math.sqrt(dx * dx + dy * dy + dz * dz);
         float distanceFade = smoothFade(Mth.clamp((float) ((MAX_DISTANCE_FROM_PLAYER - cameraDistance) / 18.0D), 0.0F, 1.0F));
-        float alpha = 0.95F * opacity * fade * distanceFade * fadeOutMultiplier(leaf, partialTick);
+        float alpha = 0.95F * opacity * fade * distanceFade
+                * blizzardFog.visibility(cameraDistance)
+                * fadeOutMultiplier(leaf, partialTick);
         if (alpha <= 0.006F) {
             return;
         }
@@ -1267,7 +1293,8 @@ public final class WindStreakRenderer {
             float t1,
             float windTime,
             float brushPosition,
-            float alpha
+            float alpha,
+            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
     ) {
         Point start = pointOnBody(streak, baseX, baseY, baseZ, t0, windTime);
         Point end = pointOnBody(streak, baseX, baseY, baseZ, t1, windTime);
@@ -1286,6 +1313,8 @@ public final class WindStreakRenderer {
 
         float widthTaper0 = 0.42F + Mth.sqrt(Mth.clamp(taper0, 0.0F, 1.0F)) * 0.58F;
         float widthTaper1 = 0.42F + Mth.sqrt(Mth.clamp(taper1, 0.0F, 1.0F)) * 0.58F;
+        float startVisibility = blizzardFog.visibility(distanceTo(cameraPos, start));
+        float endVisibility = blizzardFog.visibility(distanceTo(cameraPos, end));
         emitLine(
                 consumer,
                 pose,
@@ -1293,8 +1322,8 @@ public final class WindStreakRenderer {
                 streak,
                 start,
                 end,
-                alpha * taper0,
-                alpha * taper1,
+                alpha * taper0 * startVisibility,
+                alpha * taper1 * endVisibility,
                 widthTaper0,
                 widthTaper1
         );
@@ -1356,6 +1385,13 @@ public final class WindStreakRenderer {
         }
 
         return false;
+    }
+
+    private static double distanceTo(Vec3 cameraPos, Point point) {
+        double dx = point.x() - cameraPos.x();
+        double dy = point.y() - cameraPos.y();
+        double dz = point.z() - cameraPos.z();
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     private static void emitLine(

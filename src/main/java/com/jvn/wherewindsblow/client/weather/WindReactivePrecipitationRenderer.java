@@ -18,22 +18,17 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.neoforge.common.Tags;
 
 public final class WindReactivePrecipitationRenderer {
     private static final ResourceLocation RAIN_LOCATION = ResourceLocation.withDefaultNamespace("textures/environment/rain.png");
-    private static final ResourceLocation SNOW_LOCATION = ResourceLocation.withDefaultNamespace("textures/environment/snow.png");
     private static final float NORMAL_RAIN_DENSITY = 0.82F;
     private static final float THUNDER_EXTRA_RAIN_DENSITY = 0.42F;
     private static final float RAIN_DENSITY_FADE_WIDTH = 0.10F;
-    private static final float NORMAL_SNOW_DENSITY = 0.90F;
-    private static final float THUNDER_EXTRA_SNOW_DENSITY = 0.08F;
     private static final Biome.Precipitation[] PRECIPITATION_RENDER_ORDER = {
-            Biome.Precipitation.RAIN,
-            Biome.Precipitation.SNOW
+            Biome.Precipitation.RAIN
     };
     private static double rainScrollTime;
     private static float lastRainAnimationTime = Float.NaN;
@@ -96,9 +91,13 @@ public final class WindReactivePrecipitationRenderer {
                 level, rainSizeX, rainSizeZ, lightTexture,
                 rainLevel, thunder, precipitationAnimationTime, camX, camY, camZ
         );
+        SnowfallRenderer.render(
+                level, lightTexture, rainLevel, thunder,
+                animationTime, camX, camY, camZ
+        );
 
-        // DesertStormRenderer restores the render state after its pass, so configure the shared
-        // rain/snow state afterward rather than relying on state set before the desert pass.
+        // The dedicated weather passes restore render state, so configure the rain stream state
+        // afterward rather than relying on state set before them.
         lightTexture.turnOnLightLayer();
         RenderSystem.disableCull();
         RenderSystem.enableBlend();
@@ -215,99 +214,6 @@ public final class WindReactivePrecipitationRenderer {
                                     secondaryDrift.x(), secondaryDrift.z(), (scroll + 11.0F) % 32.0F,
                                     alpha * 0.78F * secondaryVisibility, light, 0.28F);
                         }
-                    } else if (precipitation == Biome.Precipitation.SNOW) {
-                        if (!ClientConfig.ENABLE_SNOW_EFFECTS.getAsBoolean()) {
-                            continue;
-                        }
-                        WindSample wind = DynamicWindManager.sampleWind(level, pos);
-                        float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
-                        PrecipitationResponse weatherResponse = precipitationResponse(
-                                wind, lullAmount, dynamicRainSqualls, squallStrength
-                        );
-                        RandomSource random = RandomSource.create(hash);
-                        float primaryDensity = Mth.clamp(
-                                Mth.lerp(thunder, NORMAL_SNOW_DENSITY, 1.0F)
-                                        + weatherResponse.densityDelta() * 0.55F,
-                                0.52F,
-                                1.0F
-                        );
-                        float primaryVisibility = rainStreamVisibility(hash ^ 0xBB67AE8584CAA73BL, primaryDensity);
-                        float extraDensity = Mth.clamp(
-                                thunder * THUNDER_EXTRA_SNOW_DENSITY + weatherResponse.extraDensity() * 0.32F,
-                                0.0F,
-                                0.42F
-                        );
-                        float secondaryVisibility = rainStreamVisibility(hash ^ 0x3C6EF372FE94F82BL, extraDensity);
-                        if (primaryVisibility <= 0.01F && secondaryVisibility <= 0.01F) {
-                            continue;
-                        }
-                        if (activeType != 1) {
-                            if (activeType >= 0) {
-                                BufferUploader.drawWithShader(buffer.buildOrThrow());
-                            }
-                            activeType = 1;
-                            RenderSystem.setShaderTexture(0, SNOW_LOCATION);
-                            buffer = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-                        }
-
-                        float verticalScroll = (float) (-(precipitationAnimationTime % 512.0D) / 512.0D);
-                        float offsetU = (float) (random.nextDouble()
-                                + precipitationAnimationTime * 0.01D * random.nextGaussian());
-                        float offsetV = (float) (random.nextDouble()
-                                + precipitationAnimationTime * random.nextGaussian() * 0.001D);
-                        float distance = horizontalDistance(x, z, camX, camZ) / radius;
-                        float alpha = ((1.0F - distance * distance) * 0.3F + 0.5F) * rainLevel;
-                        alpha *= weatherResponse.opacityMultiplier();
-                        float driftX = 0.0F;
-                        float driftZ = 0.0F;
-                        if (ClientConfig.ENABLE_WIND_DRIVEN_SNOW.getAsBoolean()) {
-                            float slope = (0.035F + windStrength * 0.115F + thunder * 0.065F)
-                                    * weatherResponse.tiltMultiplier();
-                            // The shared clock integrates weather speed. Multiplying absolute world
-                            // time by a changing speed here made snow jump to a different phase as a
-                            // squall or thunder transition changed that speed.
-                            float flutterPhase = (float) precipitationAnimationTime * 0.044F + (hash & 255L);
-                            float flutter = Mth.sin(flutterPhase)
-                                    * (0.10F + wind.turbulence() * 0.16F + windStrength * 0.045F)
-                                    * weatherResponse.angleVariationMultiplier();
-                            driftX = -wind.directionX() * Math.min((topY - bottomY) * slope, 5.5F)
-                                    - wind.directionZ() * flutter;
-                            driftZ = -wind.directionZ() * Math.min((topY - bottomY) * slope, 5.5F)
-                                    + wind.directionX() * flutter;
-                        }
-                        pos.set(x, Math.max(surfaceY, centerY), z);
-                        int light = LevelRenderer.getLightColor(level, pos);
-                        int blockLight = light >> 16 & 65535;
-                        int skyLight = light & 65535;
-                        SnowClip primaryClip = clipSnowToTerrain(
-                                level, x, z, bottomY, topY, widthX, widthZ, driftX, driftZ, 0.0F
-                        );
-                        if (primaryClip.bottomY() < topY) {
-                            addSnowQuad(buffer, x, z, primaryClip.bottomY(), topY, camX, camY, camZ,
-                                    widthX, widthZ, driftX, driftZ,
-                                    primaryClip.bottomDriftX(), primaryClip.bottomDriftZ(),
-                                    verticalScroll, offsetU, offsetV,
-                                    alpha * primaryVisibility,
-                                    (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4, 0.0F);
-                        }
-
-                        if (secondaryVisibility > 0.01F) {
-                            float secondaryDriftX = driftX * 1.08F;
-                            float secondaryDriftZ = driftZ * 1.08F;
-                            SnowClip secondaryClip = clipSnowToTerrain(
-                                    level, x, z, bottomY, topY, widthX, widthZ,
-                                    secondaryDriftX, secondaryDriftZ, 0.48F
-                            );
-                            if (secondaryClip.bottomY() < topY) {
-                                addSnowQuad(buffer, x, z, secondaryClip.bottomY(), topY,
-                                        camX, camY, camZ, widthX, widthZ,
-                                        secondaryDriftX, secondaryDriftZ,
-                                        secondaryClip.bottomDriftX(), secondaryClip.bottomDriftZ(),
-                                        verticalScroll, offsetU + 0.37F, offsetV + 0.53F,
-                                        alpha * 0.72F * secondaryVisibility,
-                                        (skyLight * 3 + 240) / 4, (blockLight * 3 + 240) / 4, 0.48F);
-                            }
-                        }
                     }
                 }
             }
@@ -334,73 +240,6 @@ public final class WindReactivePrecipitationRenderer {
         buffer.addVertex(rightX + driftX, top, rightZ + driftZ).setUv(1.0F, bottomY * 0.25F + scroll).setColor(0.82F, 0.86F, 0.72F, alpha).setLight(light);
         buffer.addVertex(rightX, bottom, rightZ).setUv(1.0F, topY * 0.25F + scroll).setColor(0.82F, 0.86F, 0.72F, alpha).setLight(light);
         buffer.addVertex(leftX, bottom, leftZ).setUv(0.0F, topY * 0.25F + scroll).setColor(0.82F, 0.86F, 0.72F, alpha).setLight(light);
-    }
-
-    private static void addSnowQuad(BufferBuilder buffer, int x, int z, int bottomY, int topY,
-                                    double camX, double camY, double camZ, double widthX, double widthZ,
-                                    float driftX, float driftZ, float bottomDriftX, float bottomDriftZ,
-                                    float scroll, float offsetU, float offsetV,
-                                    float alpha, int skyLight, int blockLight, float lateralOffset) {
-        float offsetX = (float) widthX * lateralOffset;
-        float offsetZ = (float) widthZ * lateralOffset;
-        float leftX = (float) (x - camX - widthX + 0.5D) + offsetX;
-        float rightX = (float) (x - camX + widthX + 0.5D) + offsetX;
-        float leftZ = (float) (z - camZ - widthZ + 0.5D) + offsetZ;
-        float rightZ = (float) (z - camZ + widthZ + 0.5D) + offsetZ;
-        float top = (float) (topY - camY);
-        float bottom = (float) (bottomY - camY);
-        buffer.addVertex(leftX + driftX, top, leftZ + driftZ).setUv(offsetU, bottomY * 0.25F + scroll + offsetV).setColor(1.0F, 1.0F, 1.0F, alpha).setUv2(skyLight, blockLight);
-        buffer.addVertex(rightX + driftX, top, rightZ + driftZ).setUv(1.0F + offsetU, bottomY * 0.25F + scroll + offsetV).setColor(1.0F, 1.0F, 1.0F, alpha).setUv2(skyLight, blockLight);
-        buffer.addVertex(rightX + bottomDriftX, bottom, rightZ + bottomDriftZ).setUv(1.0F + offsetU, topY * 0.25F + scroll + offsetV).setColor(1.0F, 1.0F, 1.0F, alpha).setUv2(skyLight, blockLight);
-        buffer.addVertex(leftX + bottomDriftX, bottom, leftZ + bottomDriftZ).setUv(offsetU, topY * 0.25F + scroll + offsetV).setColor(1.0F, 1.0F, 1.0F, alpha).setUv2(skyLight, blockLight);
-    }
-
-    /**
-     * Clips a slanted snow sheet against every heightmap column its center and outer edges cross.
-     * Testing only the landing column lets the upper, wind-displaced edge cut diagonally beneath
-     * roofs; retaining the drift at the clipped bottom also keeps the remaining segment straight.
-     */
-    private static SnowClip clipSnowToTerrain(
-            ClientLevel level,
-            int x,
-            int z,
-            int bottomY,
-            int topY,
-            double widthX,
-            double widthZ,
-            float driftX,
-            float driftZ,
-            float lateralOffset
-    ) {
-        float lateralX = (float) widthX * lateralOffset;
-        float lateralZ = (float) widthZ * lateralOffset;
-        int clippedBottomY = bottomY;
-        for (int step = 0; step <= 4; step++) {
-            float progress = step * 0.25F;
-            double centerX = x + 0.5D + lateralX + driftX * progress;
-            double centerZ = z + 0.5D + lateralZ + driftZ * progress;
-            clippedBottomY = Math.max(clippedBottomY, surfaceHeight(level, centerX, centerZ));
-            clippedBottomY = Math.max(clippedBottomY, surfaceHeight(
-                    level, centerX - widthX * 0.92D, centerZ - widthZ * 0.92D
-            ));
-            clippedBottomY = Math.max(clippedBottomY, surfaceHeight(
-                    level, centerX + widthX * 0.92D, centerZ + widthZ * 0.92D
-            ));
-        }
-
-        clippedBottomY = Math.min(clippedBottomY, topY);
-        float visibleProgress = topY > bottomY
-                ? Mth.clamp((clippedBottomY - bottomY) / (float) (topY - bottomY), 0.0F, 1.0F)
-                : 1.0F;
-        return new SnowClip(
-                clippedBottomY,
-                driftX * visibleProgress,
-                driftZ * visibleProgress
-        );
-    }
-
-    private static int surfaceHeight(ClientLevel level, double x, double z) {
-        return level.getHeight(Heightmap.Types.MOTION_BLOCKING, Mth.floor(x), Mth.floor(z));
     }
 
     private static float horizontalDistance(int x, int z, double camX, double camZ) {
@@ -511,9 +350,6 @@ public final class WindReactivePrecipitationRenderer {
 
     private record RainDrift(float x, float z) {
         private static final RainDrift NONE = new RainDrift(0.0F, 0.0F);
-    }
-
-    private record SnowClip(int bottomY, float bottomDriftX, float bottomDriftZ) {
     }
 
     private record WeatherLevels(float rain, float thunder) {
