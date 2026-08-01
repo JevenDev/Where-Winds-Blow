@@ -14,6 +14,8 @@ uniform vec3 CameraUp;
 uniform vec4 Wind;
 uniform vec4 Weather;
 uniform float SnowTime;
+uniform float FlutterTime;
+uniform float SnowflakeSize;
 uniform float Radius;
 uniform float VerticalSpan;
 uniform float HeightBase;
@@ -90,7 +92,7 @@ void main() {
     float fallPhase = clamp((CameraState.y + halfSpan - flakeY) / VerticalSpan, 0.0, 1.0);
 
     float driftRange = 0.45 + Wind.z * 2.3 + Weather.x * 0.85 + Weather.y * 0.75;
-    float flutterPhase = SnowTime * 0.055 + tiltSeed * TWO_PI;
+    float flutterPhase = FlutterTime * 0.055 + tiltSeed * TWO_PI;
     float flutter = sin(flutterPhase) * (0.08 + Wind.w * 0.30 + Wind.z * 0.05);
     vec2 crossWind = vec2(-Wind.y, Wind.x);
     vec2 finalFromCenter = baseFromCenter
@@ -144,7 +146,7 @@ void main() {
         uvCorner = vec2(-1.0, -1.0);
     }
 
-    float size = mix(0.10, 0.19, sizeSeed);
+    float size = mix(0.10, 0.19, sizeSeed) * SnowflakeSize;
     float tilt = tiltSeed * TWO_PI + sin(flutterPhase * 0.73) * 0.32;
     float tiltCos = cos(tilt);
     float tiltSin = sin(tilt);

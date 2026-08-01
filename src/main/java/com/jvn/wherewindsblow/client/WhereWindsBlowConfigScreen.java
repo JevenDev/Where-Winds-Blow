@@ -33,6 +33,9 @@ public final class WhereWindsBlowConfigScreen {
                 .title(translatable("title"))
                 .category(terrainCategory())
                 .category(windCategory())
+                .category(rainCategory())
+                .category(thunderCategory())
+                .category(snowCategory())
                 .category(renderingCategory())
                 .save(WhereWindsBlowConfigScreen::saveAll)
                 .build()
@@ -211,6 +214,148 @@ public final class WhereWindsBlowConfigScreen {
                 .build();
     }
 
+    private static ConfigCategory rainCategory() {
+        return ConfigCategory.createBuilder()
+                .name(translatable("rain"))
+                .tooltip(translatable("rain.tooltip"))
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.rainResponse"))
+                        .description(description("group.rainResponse.description"))
+                        .option(weatherWindPowerOption(ClientConfig.RAIN_WEATHER_WIND_POWER))
+                        .option(weatherSwayOption(ClientConfig.RAIN_WEATHER_SWAY_STRENGTH))
+                        .option(weatherSheenOption(ClientConfig.RAIN_WEATHER_SHEEN_STRENGTH))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.rainfall"))
+                        .description(description("group.rainfall.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_RAIN_EFFECTS))
+                        .option(booleanOption(ClientConfig.ENABLE_SLANTED_RAIN))
+                        .option(doubleOption(
+                                ClientConfig.RAIN_ANGLE_VARIATION,
+                                ClientConfig.RAIN_ANGLE_VARIATION_MIN,
+                                ClientConfig.RAIN_ANGLE_VARIATION_MAX,
+                                1.0D
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.rainSqualls"))
+                        .description(description("group.rainSqualls.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_DYNAMIC_RAIN_SQUALLS))
+                        .option(doubleOption(
+                                ClientConfig.RAIN_SQUALL_STRENGTH,
+                                ClientConfig.RAIN_SQUALL_STRENGTH_MIN,
+                                ClientConfig.RAIN_SQUALL_STRENGTH_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.desertStorms"))
+                        .description(description("group.desertStorms.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_DESERT_STORM_EFFECTS))
+                        .build())
+                .build();
+    }
+
+    private static ConfigCategory thunderCategory() {
+        return ConfigCategory.createBuilder()
+                .name(translatable("thunder"))
+                .tooltip(translatable("thunder.tooltip"))
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.thunderResponse"))
+                        .description(description("group.thunderResponse.description"))
+                        .option(weatherWindPowerOption(ClientConfig.THUNDER_WEATHER_WIND_POWER))
+                        .option(weatherSwayOption(ClientConfig.THUNDER_WEATHER_SWAY_STRENGTH))
+                        .option(weatherSheenOption(ClientConfig.THUNDER_WEATHER_SHEEN_STRENGTH))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.thunderRain"))
+                        .description(description("group.thunderRain.description"))
+                        .option(doubleOption(
+                                ClientConfig.THUNDER_RAIN_ANGLE_VARIATION,
+                                ClientConfig.RAIN_ANGLE_VARIATION_MIN,
+                                ClientConfig.RAIN_ANGLE_VARIATION_MAX,
+                                1.0D
+                        ))
+                        .build())
+                .build();
+    }
+
+    private static ConfigCategory snowCategory() {
+        return ConfigCategory.createBuilder()
+                .name(translatable("snow"))
+                .tooltip(translatable("snow.tooltip"))
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.snowfall"))
+                        .description(description("group.snowfall.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_SNOW_EFFECTS))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_DRIVEN_SNOW))
+                        .option(doubleOption(
+                                ClientConfig.SNOWFLAKE_AMOUNT,
+                                ClientConfig.SNOWFLAKE_AMOUNT_MIN,
+                                ClientConfig.SNOWFLAKE_AMOUNT_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.SNOWFLAKE_SIZE,
+                                ClientConfig.SNOWFLAKE_SIZE_MIN,
+                                ClientConfig.SNOWFLAKE_SIZE_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.SNOWFLAKE_SPEED,
+                                ClientConfig.SNOWFLAKE_SPEED_MIN,
+                                ClientConfig.SNOWFLAKE_SPEED_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.snowFog"))
+                        .description(description("group.snowFog.description"))
+                        .option(enumOption(
+                                ClientConfig.SNOW_FOG_MODE,
+                                ClientConfig.SnowFogMode.class,
+                                () -> {
+                                }
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.SNOW_FOG_INTENSITY,
+                                ClientConfig.SNOW_FOG_INTENSITY_MIN,
+                                ClientConfig.SNOW_FOG_INTENSITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.blizzards"))
+                        .description(description("group.blizzards.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_BLIZZARD_EFFECTS))
+                        .option(doubleOption(
+                                ClientConfig.BLIZZARD_SNOWFLAKE_AMOUNT,
+                                ClientConfig.SNOWFLAKE_AMOUNT_MIN,
+                                ClientConfig.SNOWFLAKE_AMOUNT_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.BLIZZARD_SNOWFLAKE_SIZE,
+                                ClientConfig.SNOWFLAKE_SIZE_MIN,
+                                ClientConfig.SNOWFLAKE_SIZE_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.BLIZZARD_SNOWFLAKE_SPEED,
+                                ClientConfig.SNOWFLAKE_SPEED_MIN,
+                                ClientConfig.SNOWFLAKE_SPEED_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.BLIZZARD_INTENSITY,
+                                ClientConfig.BLIZZARD_INTENSITY_MIN,
+                                ClientConfig.BLIZZARD_INTENSITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .build();
+    }
+
     private static ConfigCategory renderingCategory() {
         return ConfigCategory.createBuilder()
                 .name(translatable("rendering"))
@@ -260,49 +405,16 @@ public final class WhereWindsBlowConfigScreen {
                         ))
                         .build())
                 .group(OptionGroup.createBuilder()
-                        .name(translatable("group.weather"))
-                        .description(description("group.weather.description"))
+                        .name(translatable("group.clearWeather"))
+                        .description(description("group.clearWeather.description"))
                         .option(weatherWindPowerOption(ClientConfig.CLEAR_WEATHER_WIND_POWER))
-                        .option(weatherWindPowerOption(ClientConfig.RAIN_WEATHER_WIND_POWER))
-                        .option(weatherWindPowerOption(ClientConfig.THUNDER_WEATHER_WIND_POWER))
                         .option(weatherSwayOption(ClientConfig.CLEAR_WEATHER_SWAY_STRENGTH))
-                        .option(weatherSwayOption(ClientConfig.RAIN_WEATHER_SWAY_STRENGTH))
-                        .option(weatherSwayOption(ClientConfig.THUNDER_WEATHER_SWAY_STRENGTH))
                         .option(weatherSheenOption(ClientConfig.CLEAR_WEATHER_SHEEN_STRENGTH))
-                        .option(weatherSheenOption(ClientConfig.RAIN_WEATHER_SHEEN_STRENGTH))
-                        .option(weatherSheenOption(ClientConfig.THUNDER_WEATHER_SHEEN_STRENGTH))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.precipitation"))
+                        .description(description("group.precipitation.description"))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_REACTIVE_PRECIPITATION))
-                        .option(booleanOption(ClientConfig.ENABLE_DESERT_STORM_EFFECTS))
-                        .option(booleanOption(ClientConfig.ENABLE_RAIN_EFFECTS))
-                        .option(booleanOption(ClientConfig.ENABLE_SLANTED_RAIN))
-                        .option(doubleOption(
-                                ClientConfig.RAIN_ANGLE_VARIATION,
-                                ClientConfig.RAIN_ANGLE_VARIATION_MIN,
-                                ClientConfig.RAIN_ANGLE_VARIATION_MAX,
-                                1.0D
-                        ))
-                        .option(doubleOption(
-                                ClientConfig.THUNDER_RAIN_ANGLE_VARIATION,
-                                ClientConfig.RAIN_ANGLE_VARIATION_MIN,
-                                ClientConfig.RAIN_ANGLE_VARIATION_MAX,
-                                1.0D
-                        ))
-                        .option(booleanOption(ClientConfig.ENABLE_DYNAMIC_RAIN_SQUALLS))
-                        .option(doubleOption(
-                                ClientConfig.RAIN_SQUALL_STRENGTH,
-                                ClientConfig.RAIN_SQUALL_STRENGTH_MIN,
-                                ClientConfig.RAIN_SQUALL_STRENGTH_MAX,
-                                SMALL_STEP
-                        ))
-                        .option(booleanOption(ClientConfig.ENABLE_SNOW_EFFECTS))
-                        .option(booleanOption(ClientConfig.ENABLE_WIND_DRIVEN_SNOW))
-                        .option(booleanOption(ClientConfig.ENABLE_BLIZZARD_EFFECTS))
-                        .option(doubleOption(
-                                ClientConfig.BLIZZARD_INTENSITY,
-                                ClientConfig.BLIZZARD_INTENSITY_MIN,
-                                ClientConfig.BLIZZARD_INTENSITY_MAX,
-                                SMALL_STEP
-                        ))
                         .build())
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.ambientWind"))

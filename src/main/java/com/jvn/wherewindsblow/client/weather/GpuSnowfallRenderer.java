@@ -41,8 +41,8 @@ public final class GpuSnowfallRenderer {
     private static final int HEIGHT_MAP_SIZE = HEIGHT_MAP_RADIUS * 2 + 1;
     private static final int HEIGHT_REFRESH_TICKS = 5;
     private static final int WORLD_HASH_PERIOD = 8192;
-    private static final SnowMesh FANCY_MESH = new SnowMesh(12, 6, 22.0F);
-    private static final SnowMesh FAST_MESH = new SnowMesh(7, 3, 14.0F);
+    private static final SnowMesh FANCY_MESH = new SnowMesh(12, 12, 22.0F);
+    private static final SnowMesh FAST_MESH = new SnowMesh(7, 6, 14.0F);
 
     private static DynamicTexture heightTexture;
     private static ClientLevel cachedLevel;
@@ -90,6 +90,7 @@ public final class GpuSnowfallRenderer {
             );
             float windStrength = windDriven ? Mth.clamp(wind.strength(), 0.0F, 3.0F) : 0.0F;
             float stormActivity = BlizzardWeatherEffects.blizzardActivity(thunder);
+            SnowfallRenderer.SnowfallProfile profile = SnowfallRenderer.configuredProfile(stormActivity);
             boolean dynamicSqualls = ClientConfig.ENABLE_DYNAMIC_RAIN_SQUALLS.getAsBoolean();
             float squallStrength = (float) ClientConfig.RAIN_SQUALL_STRENGTH.getAsDouble();
             float squall = dynamicSqualls
@@ -100,16 +101,17 @@ public final class GpuSnowfallRenderer {
                     ? smoothFade(DynamicWindManager.currentState().lullAmount())
                             * squallStrength * stormActivity
                     : 0.0F;
-            float density = Mth.clamp(
+            float baseDensity = Mth.clamp(
                     0.68F + rainLevel * 0.20F + thunder * 0.08F
                             + squall * 0.12F - lull * 0.18F,
                     0.38F,
                     1.0F
             );
+            float density = Mth.clamp(baseDensity * profile.densityScale(), 0.0F, 1.0F);
             float opacity = rainLevel * Math.max(0.52F, 1.0F + squall * 0.16F - lull * 0.28F);
             double snowTime = advanceSnowfallAnimationTime(
                     animationTime,
-                    1.0F + thunder * 0.16F
+                    (1.0F + thunder * 0.16F) * profile.speedScale()
             );
 
             Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
@@ -150,6 +152,8 @@ public final class GpuSnowfallRenderer {
             );
             shader.safeGetUniform("Weather").set(thunder, squall, density, opacity);
             shader.safeGetUniform("SnowTime").set((float) snowTime);
+            shader.safeGetUniform("FlutterTime").set((float) animationTime);
+            shader.safeGetUniform("SnowflakeSize").set(profile.sizeScale());
             shader.safeGetUniform("Radius").set((float) mesh.radius);
             shader.safeGetUniform("VerticalSpan").set(mesh.verticalSpan);
             shader.safeGetUniform("HeightBase").set((float) level.getMinBuildHeight());

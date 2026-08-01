@@ -16,6 +16,8 @@
     { "name": "Wind", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
     { "name": "Weather", "type": "float", "count": 4, "values": [ 0.0, 0.0, 1.0, 1.0 ] },
     { "name": "SnowTime", "type": "float", "count": 1, "values": [ 0.0 ] },
+    { "name": "FlutterTime", "type": "float", "count": 1, "values": [ 0.0 ] },
+    { "name": "SnowflakeSize", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "Radius", "type": "float", "count": 1, "values": [ 12.0 ] },
     { "name": "VerticalSpan", "type": "float", "count": 1, "values": [ 22.0 ] },
     { "name": "HeightBase", "type": "float", "count": 1, "values": [ -64.0 ] },

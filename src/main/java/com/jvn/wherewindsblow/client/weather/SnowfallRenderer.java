@@ -34,8 +34,8 @@ public final class SnowfallRenderer {
             ResourceLocation.withDefaultNamespace("textures/environment/snow.png");
     private static final int FANCY_RADIUS = 12;
     private static final int FAST_RADIUS = 7;
-    private static final int FANCY_FLAKES_PER_COLUMN = 6;
-    private static final int FAST_FLAKES_PER_COLUMN = 3;
+    private static final int FANCY_FLAKES_PER_COLUMN = 12;
+    private static final int FAST_FLAKES_PER_COLUMN = 6;
     private static final float FANCY_VERTICAL_SPAN = 22.0F;
     private static final float FAST_VERTICAL_SPAN = 14.0F;
     private static final float EDGE_FADE_START = 0.72F;
@@ -94,12 +94,13 @@ public final class SnowfallRenderer {
         boolean dynamicSqualls = ClientConfig.ENABLE_DYNAMIC_RAIN_SQUALLS.getAsBoolean();
         float squallStrength = (float) ClientConfig.RAIN_SQUALL_STRENGTH.getAsDouble();
         float stormActivity = BlizzardWeatherEffects.blizzardActivity(thunder);
+        SnowfallProfile profile = configuredProfile(stormActivity);
         float lull = dynamicSqualls
                 ? DynamicWindManager.currentState().lullAmount() * stormActivity
                 : 0.0F;
         double flakeAnimationTime = advanceSnowfallAnimationTime(
                 animationTime,
-                1.0F + thunder * 0.16F
+                (1.0F + thunder * 0.16F) * profile.speedScale()
         );
 
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
@@ -139,12 +140,13 @@ public final class SnowfallRenderer {
                                 * squallStrength * stormActivity
                         : 0.0F;
                 float lullFade = dynamicSqualls ? smoothFade(lull) * squallStrength : 0.0F;
-                float density = Mth.clamp(
+                float baseDensity = Mth.clamp(
                         0.68F + rainLevel * 0.20F + thunder * 0.08F
                                 + squall * 0.12F - lullFade * 0.18F,
                         0.38F,
                         1.0F
                 );
+                float density = Mth.clamp(baseDensity * profile.densityScale(), 0.0F, 1.0F);
                 float opacity = Math.max(0.52F, 1.0F + squall * 0.16F - lullFade * 0.28F);
 
                 for (int lane = 0; lane < flakesPerColumn; lane++) {
@@ -241,7 +243,7 @@ public final class SnowfallRenderer {
                             unitFloat(hash ^ 0xC6BC279692B5CC83L),
                             0.10F,
                             0.19F
-                    );
+                    ) * profile.sizeScale();
                     float tilt = unitFloat(hash ^ 0xD1B54A32D192ED03L) * Mth.TWO_PI
                             + Mth.sin(flutterPhase * 0.73F) * 0.32F;
                     float alpha = Mth.clamp(
@@ -363,6 +365,28 @@ public final class SnowfallRenderer {
         return snowfallAnimationTime;
     }
 
+    static SnowfallProfile configuredProfile(float stormActivity) {
+        float blend = Mth.clamp(stormActivity, 0.0F, 1.0F);
+        float amount = blendedConfig(
+                ClientConfig.SNOWFLAKE_AMOUNT, ClientConfig.BLIZZARD_SNOWFLAKE_AMOUNT, blend
+        );
+        return new SnowfallProfile(
+                amount / (float) ClientConfig.SNOWFLAKE_AMOUNT_MAX,
+                blendedConfig(ClientConfig.SNOWFLAKE_SIZE, ClientConfig.BLIZZARD_SNOWFLAKE_SIZE, blend),
+                blendedConfig(ClientConfig.SNOWFLAKE_SPEED, ClientConfig.BLIZZARD_SNOWFLAKE_SPEED, blend)
+        );
+    }
+
+    private static float blendedConfig(
+            net.neoforged.neoforge.common.ModConfigSpec.DoubleValue ordinary,
+            net.neoforged.neoforge.common.ModConfigSpec.DoubleValue blizzard,
+            float blend
+    ) {
+        return Mth.lerp(
+                blend, (float) ordinary.getAsDouble(), (float) blizzard.getAsDouble()
+        );
+    }
+
     private static float radialVisibility(float normalizedDistance) {
         float edge = (normalizedDistance - EDGE_FADE_START) / (1.0F - EDGE_FADE_START);
         return 1.0F - smoothFade(edge);
@@ -424,6 +448,9 @@ public final class SnowfallRenderer {
                 (centerX + 2.5F) / 64.0F,
                 (centerY + 2.5F) / 256.0F
         );
+    }
+
+    record SnowfallProfile(float densityScale, float sizeScale, float speedScale) {
     }
 
     private record FlakeUv(float u0, float v0, float u1, float v1) {

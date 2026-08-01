@@ -164,6 +164,31 @@ public final class BlizzardWeatherEffects {
         );
     }
 
+    static float snowFogEnergy(
+            WindSample wind,
+            float rainLevel,
+            float thunder,
+            float configuredIntensity,
+            ClientConfig.SnowFogMode mode
+    ) {
+        if (mode == ClientConfig.SnowFogMode.DISABLED || configuredIntensity <= 0.0F) {
+            return 0.0F;
+        }
+
+        float blizzardEnergy = blizzardEnergy(wind, rainLevel, thunder, configuredIntensity);
+        if (mode == ClientConfig.SnowFogMode.BLIZZARDS_ONLY) {
+            return blizzardEnergy;
+        }
+
+        float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
+        float snowfallEnergy = Mth.clamp(
+                rainLevel * configuredIntensity * (0.42F + windStrength * 0.06F),
+                0.0F,
+                1.35F
+        );
+        return Math.max(snowfallEnergy, blizzardEnergy);
+    }
+
     static float blizzardActivity(float thunder) {
         return smoothFade((thunder - BLIZZARD_THUNDER_START)
                 / (BLIZZARD_THUNDER_FULL - BLIZZARD_THUNDER_START));
@@ -183,10 +208,10 @@ public final class BlizzardWeatherEffects {
     }
 
     private static float targetWhiteoutAtCamera(ClientLevel level, Camera camera, float partialTick) {
-        float configuredIntensity = (float) ClientConfig.BLIZZARD_INTENSITY.getAsDouble();
+        ClientConfig.SnowFogMode fogMode = ClientConfig.SNOW_FOG_MODE.get();
+        float configuredIntensity = (float) ClientConfig.SNOW_FOG_INTENSITY.getAsDouble();
         if (!ClientConfig.ENABLE_SNOW_EFFECTS.getAsBoolean()
-                || !ClientConfig.ENABLE_WIND_DRIVEN_SNOW.getAsBoolean()
-                || !ClientConfig.ENABLE_BLIZZARD_EFFECTS.getAsBoolean()
+                || fogMode == ClientConfig.SnowFogMode.DISABLED
                 || configuredIntensity <= 0.0F) {
             return 0.0F;
         }
@@ -203,8 +228,8 @@ public final class BlizzardWeatherEffects {
             return 0.0F;
         }
         WindSample wind = DynamicWindManager.sampleWind(level, cameraPos);
-        float energy = blizzardEnergy(
-                wind, rainLevel, level.getThunderLevel(partialTick), configuredIntensity
+        float energy = snowFogEnergy(
+                wind, rainLevel, level.getThunderLevel(partialTick), configuredIntensity, fogMode
         );
         float whiteout = smoothFade((energy - WHITEOUT_START_ENERGY)
                 / (WHITEOUT_FULL_ENERGY - WHITEOUT_START_ENERGY));

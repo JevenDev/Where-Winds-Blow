@@ -79,6 +79,14 @@ public final class ClientConfig {
     public static final double RAIN_SQUALL_STRENGTH_MAX = 2.0D;
     public static final double BLIZZARD_INTENSITY_MIN = 0.0D;
     public static final double BLIZZARD_INTENSITY_MAX = 2.0D;
+    public static final double SNOW_FOG_INTENSITY_MIN = 0.0D;
+    public static final double SNOW_FOG_INTENSITY_MAX = 2.0D;
+    public static final double SNOWFLAKE_AMOUNT_MIN = 0.0D;
+    public static final double SNOWFLAKE_AMOUNT_MAX = 2.0D;
+    public static final double SNOWFLAKE_SIZE_MIN = 0.25D;
+    public static final double SNOWFLAKE_SIZE_MAX = 3.0D;
+    public static final double SNOWFLAKE_SPEED_MIN = 0.25D;
+    public static final double SNOWFLAKE_SPEED_MAX = 3.0D;
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
@@ -402,12 +410,44 @@ public final class ClientConfig {
             .comment("Lets snow drift and flutter with the shared wind simulation. Snow falls vertically when this is disabled.")
             .define("enableWindDrivenSnow", true);
 
+    public static final ModConfigSpec.DoubleValue SNOWFLAKE_AMOUNT = BUILDER
+            .comment("Scales the number of falling snowflakes during ordinary snowfall.")
+            .defineInRange("snowflakeAmount", 1.0D, SNOWFLAKE_AMOUNT_MIN, SNOWFLAKE_AMOUNT_MAX);
+
+    public static final ModConfigSpec.DoubleValue SNOWFLAKE_SIZE = BUILDER
+            .comment("Scales the size of falling snowflakes during ordinary snowfall.")
+            .defineInRange("snowflakeSize", 1.0D, SNOWFLAKE_SIZE_MIN, SNOWFLAKE_SIZE_MAX);
+
+    public static final ModConfigSpec.DoubleValue SNOWFLAKE_SPEED = BUILDER
+            .comment("Scales the fall speed of snowflakes during ordinary snowfall.")
+            .defineInRange("snowflakeSpeed", 1.0D, SNOWFLAKE_SPEED_MIN, SNOWFLAKE_SPEED_MAX);
+
+    public static final ModConfigSpec.EnumValue<SnowFogMode> SNOW_FOG_MODE = BUILDER
+            .comment("Controls whether visibility fog is disabled, limited to blizzards, or present during all snowfall.")
+            .defineEnum("snowFogMode", SnowFogMode.BLIZZARDS_ONLY);
+
+    public static final ModConfigSpec.DoubleValue SNOW_FOG_INTENSITY = BUILDER
+            .comment("Scales snowy-weather fog without changing snowfall or blowing snow.")
+            .defineInRange("snowFogIntensity", 1.0D, SNOW_FOG_INTENSITY_MIN, SNOW_FOG_INTENSITY_MAX);
+
     public static final ModConfigSpec.BooleanValue ENABLE_BLIZZARD_EFFECTS = BUILDER
-            .comment("Adds wind-driven surface snow, rooftop spindrift, and reduced visibility during severe snowy weather.")
+            .comment("Adds wind-driven surface snow and rooftop spindrift during severe snowy weather.")
             .define("enableBlizzardEffects", true);
 
+    public static final ModConfigSpec.DoubleValue BLIZZARD_SNOWFLAKE_AMOUNT = BUILDER
+            .comment("Scales the number of falling snowflakes reached during a full blizzard.")
+            .defineInRange("blizzardSnowflakeAmount", 1.0D, SNOWFLAKE_AMOUNT_MIN, SNOWFLAKE_AMOUNT_MAX);
+
+    public static final ModConfigSpec.DoubleValue BLIZZARD_SNOWFLAKE_SIZE = BUILDER
+            .comment("Scales the snowflake size reached during a full blizzard.")
+            .defineInRange("blizzardSnowflakeSize", 1.0D, SNOWFLAKE_SIZE_MIN, SNOWFLAKE_SIZE_MAX);
+
+    public static final ModConfigSpec.DoubleValue BLIZZARD_SNOWFLAKE_SPEED = BUILDER
+            .comment("Scales the snowflake fall speed reached during a full blizzard.")
+            .defineInRange("blizzardSnowflakeSpeed", 1.0D, SNOWFLAKE_SPEED_MIN, SNOWFLAKE_SPEED_MAX);
+
     public static final ModConfigSpec.DoubleValue BLIZZARD_INTENSITY = BUILDER
-            .comment("Scales blowing snow and whiteout intensity without changing ordinary snowfall.")
+            .comment("Scales blowing surface snow and rooftop spindrift without changing snowfall or fog.")
             .defineInRange("blizzardIntensity", 1.0D, BLIZZARD_INTENSITY_MIN, BLIZZARD_INTENSITY_MAX);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
@@ -415,6 +455,12 @@ public final class ClientConfig {
     public enum WindDirectionMode {
         DYNAMIC,
         FIXED
+    }
+
+    public enum SnowFogMode {
+        DISABLED,
+        BLIZZARDS_ONLY,
+        ALL_SNOWFALL
     }
 
     private ClientConfig() {
