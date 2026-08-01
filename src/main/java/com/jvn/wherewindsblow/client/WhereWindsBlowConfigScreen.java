@@ -35,6 +35,7 @@ public final class WhereWindsBlowConfigScreen {
                 .category(windCategory())
                 .category(rainCategory())
                 .category(thunderCategory())
+                .category(sandstormCategory())
                 .category(snowCategory())
                 .category(renderingCategory())
                 .save(WhereWindsBlowConfigScreen::saveAll)
@@ -248,11 +249,6 @@ public final class WhereWindsBlowConfigScreen {
                                 SMALL_STEP
                         ))
                         .build())
-                .group(OptionGroup.createBuilder()
-                        .name(translatable("group.desertStorms"))
-                        .description(description("group.desertStorms.description"))
-                        .option(booleanOption(ClientConfig.ENABLE_DESERT_STORM_EFFECTS))
-                        .build())
                 .build();
     }
 
@@ -350,6 +346,80 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.BLIZZARD_INTENSITY,
                                 ClientConfig.BLIZZARD_INTENSITY_MIN,
                                 ClientConfig.BLIZZARD_INTENSITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .build();
+    }
+
+    private static ConfigCategory sandstormCategory() {
+        return ConfigCategory.createBuilder()
+                .name(translatable("sandstorms"))
+                .tooltip(translatable("sandstorms.tooltip"))
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.blowingSand"))
+                        .description(description("group.blowingSand.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_DESERT_STORM_EFFECTS))
+                        .option(doubleOption(
+                                ClientConfig.SAND_DUST_AMOUNT,
+                                ClientConfig.SAND_DUST_AMOUNT_MIN,
+                                ClientConfig.SAND_DUST_AMOUNT_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.SAND_DUST_SIZE,
+                                ClientConfig.SAND_DUST_SIZE_MIN,
+                                ClientConfig.SAND_DUST_SIZE_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.SAND_DUST_SPEED,
+                                ClientConfig.SAND_DUST_SPEED_MIN,
+                                ClientConfig.SAND_DUST_SPEED_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.sandstormFog"))
+                        .description(description("group.sandstormFog.description"))
+                        .option(enumOption(
+                                ClientConfig.SANDSTORM_FOG_MODE,
+                                ClientConfig.SandstormFogMode.class,
+                                () -> {
+                                }
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.SANDSTORM_FOG_INTENSITY,
+                                ClientConfig.SANDSTORM_FOG_INTENSITY_MIN,
+                                ClientConfig.SANDSTORM_FOG_INTENSITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.severeSandstorms"))
+                        .description(description("group.severeSandstorms.description"))
+                        .option(doubleOption(
+                                ClientConfig.SANDSTORM_DUST_AMOUNT,
+                                ClientConfig.SAND_DUST_AMOUNT_MIN,
+                                ClientConfig.SAND_DUST_AMOUNT_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.SANDSTORM_DUST_SIZE,
+                                ClientConfig.SAND_DUST_SIZE_MIN,
+                                ClientConfig.SAND_DUST_SIZE_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.SANDSTORM_DUST_SPEED,
+                                ClientConfig.SAND_DUST_SPEED_MIN,
+                                ClientConfig.SAND_DUST_SPEED_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.SANDSTORM_INTENSITY,
+                                ClientConfig.SANDSTORM_INTENSITY_MIN,
+                                ClientConfig.SANDSTORM_INTENSITY_MAX,
                                 SMALL_STEP
                         ))
                         .build())

@@ -88,8 +88,7 @@ public final class WindReactivePrecipitationRenderer {
                 rainLevel, thunder, precipitationAnimationTime, camX, camY, camZ
         );
         DesertStormRenderer.render(
-                level, rainSizeX, rainSizeZ, lightTexture,
-                rainLevel, thunder, precipitationAnimationTime, camX, camY, camZ
+                level, rainLevel, thunder, animationTime, camX, camY, camZ
         );
         SnowfallRenderer.render(
                 level, lightTexture, rainLevel, thunder,

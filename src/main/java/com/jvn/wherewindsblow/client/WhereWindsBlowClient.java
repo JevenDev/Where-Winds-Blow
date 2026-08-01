@@ -8,6 +8,7 @@ import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.lantern.LanternSway;
 import com.jvn.wherewindsblow.client.lantern.SwingingLanternAssemblyRenderer;
 import com.jvn.wherewindsblow.client.weather.BlizzardWeatherEffects;
+import com.jvn.wherewindsblow.client.weather.DesertStormShaders;
 import com.jvn.wherewindsblow.client.weather.SnowfallShaders;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindDebugOverlay;
@@ -96,6 +97,7 @@ public final class WhereWindsBlowClient {
         ResponsiveFoliageShaders.register(event);
         WindVisualShaders.register(event);
         SnowfallShaders.register(event);
+        DesertStormShaders.register(event);
     }
 
     private static void registerReloadListeners(RegisterClientReloadListenersEvent event) {

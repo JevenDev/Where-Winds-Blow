@@ -1,43 +1,80 @@
 package com.jvn.wherewindsblow.client.weather;
 
+import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FastColor;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.neoforge.common.Tags;
+import org.joml.Vector3f;
 
-/** Renders dry, wind-driven precipitation in biomes that cannot display vanilla rain. */
+/**
+ * Draws a persistent grid of GPU-simulated dust clusters in deserts and badlands. A small terrain
+ * texture tells the shader where the ground is and whether its palette should come from sand or
+ * red sand; the CPU does not rebuild storm geometry each frame.
+ */
 public final class DesertStormRenderer {
-    private static final ResourceLocation SAND_GRAIN_TEXTURE = ResourceLocation.fromNamespaceAndPath(
-            "where_winds_blow", "textures/environment/desert_dust.png"
+    private static final ResourceLocation DUST_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+            WhereWindsBlow.MOD_ID,
+            "textures/environment/desert_dust.png"
     );
-    private static final float DENSITY_FADE_WIDTH = 0.08F;
+    private static final ResourceLocation SAND_TEXTURE =
+            ResourceLocation.withDefaultNamespace("textures/block/sand.png");
+    private static final ResourceLocation RED_SAND_TEXTURE =
+            ResourceLocation.withDefaultNamespace("textures/block/red_sand.png");
+    private static final ResourceLocation TERRAIN_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+            WhereWindsBlow.MOD_ID,
+            "dynamic/gpu_desert_storm_terrain"
+    );
+    private static final ResourceLocation COLLISION_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+            WhereWindsBlow.MOD_ID,
+            "dynamic/gpu_desert_storm_collision"
+    );
+    private static final int TERRAIN_RADIUS = 25;
+    private static final int TERRAIN_SIZE = TERRAIN_RADIUS * 2 + 1;
+    private static final int TERRAIN_REFRESH_TICKS = 5;
+    private static final int COLLISION_LAYERS = 32;
+    private static final int COLLISION_LAYERS_BELOW_CAMERA = 16;
+    private static final int WORLD_HASH_PERIOD = 8192;
+    private static final StormMesh FANCY_MESH = new StormMesh(14, 6, 22.0F, 9);
+    private static final StormMesh FAST_MESH = new StormMesh(8, 4, 15.0F, 7);
+
+    private static DynamicTexture terrainTexture;
+    private static DynamicTexture collisionTexture;
+    private static ClientLevel cachedLevel;
+    private static int cachedCenterX = Integer.MIN_VALUE;
+    private static int cachedCenterY = Integer.MIN_VALUE;
+    private static int cachedCenterZ = Integer.MIN_VALUE;
+    private static long lastTerrainRefreshTick = Long.MIN_VALUE;
+    private static double dustAnimationTime;
+    private static double lastDustAnimationTime = Double.NaN;
+    private static boolean gpuDisabled;
 
     private DesertStormRenderer() {
     }
 
     public static void render(
             ClientLevel level,
-            float[] rainSizeX,
-            float[] rainSizeZ,
-            LightTexture lightTexture,
             float rainLevel,
             float thunder,
             double animationTime,
@@ -45,226 +82,358 @@ public final class DesertStormRenderer {
             double camY,
             double camZ
     ) {
-        if (!ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean()) {
+        if (!ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean() || rainLevel <= 0.0F) {
             return;
         }
 
-        if (rainLevel <= 0.0F) {
+        ShaderInstance shader = DesertStormShaders.shader();
+        if (gpuDisabled || shader == null) {
             return;
         }
 
-        int centerX = Mth.floor(camX);
-        int centerY = Mth.floor(camY);
-        int centerZ = Mth.floor(camZ);
-        int radius = Minecraft.useFancyGraphics() ? 12 : 7;
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        BufferBuilder buffer = null;
+        try {
+            StormMesh mesh = Minecraft.useFancyGraphics() ? FANCY_MESH : FAST_MESH;
+            mesh.ensureUploaded();
 
-        lightTexture.turnOnLightLayer();
-        RenderSystem.disableCull();
-        RenderSystem.enableBlend();
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(Minecraft.useShaderTransparency());
-        RenderSystem.setShader(GameRenderer::getParticleShader);
-        RenderSystem.setShaderTexture(0, SAND_GRAIN_TEXTURE);
+            int centerX = Mth.floor(camX);
+            int centerY = Mth.floor(camY);
+            int centerZ = Mth.floor(camZ);
+            if (!updateTerrainTexture(level, centerX, centerY, centerZ)) {
+                return;
+            }
 
-        Tesselator tesselator = Tesselator.getInstance();
-        for (int z = centerZ - radius; z <= centerZ + radius; z++) {
-            for (int x = centerX - radius; x <= centerX + radius; x++) {
-                pos.set(x, camY, z);
-                Holder<Biome> biome = level.getBiome(pos);
-                if (!biome.is(Tags.Biomes.IS_DESERT) && !biome.is(Tags.Biomes.IS_BADLANDS)) {
-                    continue;
-                }
+            WindSample wind = DynamicWindManager.sampleWind(
+                    level,
+                    new BlockPos(centerX, centerY, centerZ)
+            );
+            float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
+            float gust = smoothFade(Mth.clamp(wind.gustStrength() * 2.3F, 0.0F, 1.0F));
+            float stormActivity = BlizzardWeatherEffects.blizzardActivity(thunder);
+            DesertStormProfile profile = configuredProfile(stormActivity);
+            float severeIntensity = Mth.lerp(
+                    stormActivity,
+                    1.0F,
+                    (float) ClientConfig.SANDSTORM_INTENSITY.getAsDouble()
+            );
+            float density = Mth.clamp(
+                    (0.60F + rainLevel * 0.24F + thunder * 0.10F
+                            + gust * 0.10F + windStrength * 0.025F)
+                            * profile.amountScale() * severeIntensity,
+                    0.0F,
+                    1.0F
+            );
+            float opacity = Mth.clamp(
+                    rainLevel * (0.96F + thunder * 0.08F + gust * 0.08F)
+                            * Mth.sqrt(Math.max(severeIntensity, 0.0F)),
+                    0.0F,
+                    1.0F
+            );
+            float weatherSpeedMultiplier = 0.90F
+                    + Math.min(windStrength, 2.0F) * 0.12F
+                    + thunder * 0.12F
+                    + gust * 0.08F;
+            double animatedDustTime = advanceDustAnimationTime(
+                    animationTime,
+                    profile.speedScale() * weatherSpeedMultiplier
+            );
+            float partialTick = (float) (animationTime - Math.floor(animationTime));
+            float stormLight = Mth.lerp(
+                    Mth.clamp(level.getSkyDarken(partialTick), 0.0F, 1.0F),
+                    0.64F,
+                    1.0F
+            );
 
+            Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+            Vector3f left = camera.getLeftVector();
+            Vector3f up = camera.getUpVector();
+
+            RenderSystem.disableCull();
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.enableDepthTest();
+            RenderSystem.depthMask(Minecraft.useShaderTransparency());
+            RenderSystem.setShader(() -> shader);
+            RenderSystem.setShaderTexture(0, DUST_TEXTURE);
+            RenderSystem.setShaderTexture(1, TERRAIN_TEXTURE);
+            RenderSystem.setShaderTexture(2, SAND_TEXTURE);
+            RenderSystem.setShaderTexture(3, RED_SAND_TEXTURE);
+            RenderSystem.setShaderTexture(4, COLLISION_TEXTURE);
+
+            shader.safeGetUniform("CameraState").set(
+                    (float) (camX - centerX),
+                    (float) camY,
+                    (float) (camZ - centerZ)
+            );
+            shader.safeGetUniform("WorldCell").set(
+                    (float) Math.floorMod(centerX, WORLD_HASH_PERIOD),
+                    (float) Math.floorMod(centerZ, WORLD_HASH_PERIOD)
+            );
+            shader.safeGetUniform("CameraLeft").set(left.x(), left.y(), left.z());
+            shader.safeGetUniform("CameraUp").set(up.x(), up.y(), up.z());
+            shader.safeGetUniform("Wind").set(
+                    wind.directionX(),
+                    wind.directionZ(),
+                    windStrength,
+                    wind.turbulence()
+            );
+            shader.safeGetUniform("Storm").set(rainLevel, thunder, gust, density);
+            shader.safeGetUniform("DustTime").set((float) animatedDustTime);
+            shader.safeGetUniform("DustSize").set(profile.sizeScale());
+            shader.safeGetUniform("Opacity").set(opacity);
+            shader.safeGetUniform("Radius").set((float) mesh.radius);
+            shader.safeGetUniform("VerticalSpan").set(mesh.verticalSpan);
+            shader.safeGetUniform("HeightBase").set((float) level.getMinBuildHeight());
+            shader.safeGetUniform("HeightRadius").set(TERRAIN_RADIUS);
+            shader.safeGetUniform("CollisionBase").set(
+                    (float) (centerY - COLLISION_LAYERS_BELOW_CAMERA)
+            );
+            shader.safeGetUniform("StormLight").set(stormLight);
+
+            mesh.buffer.bind();
+            mesh.buffer.drawWithShader(
+                    RenderSystem.getModelViewMatrix(),
+                    RenderSystem.getProjectionMatrix(),
+                    shader
+            );
+            VertexBuffer.unbind();
+
+            restoreRenderState();
+        } catch (RuntimeException exception) {
+            gpuDisabled = true;
+            WhereWindsBlow.LOGGER.warn(
+                    "GPU desert storm rendering failed; desert storms are disabled until restart.",
+                    exception
+            );
+            VertexBuffer.unbind();
+            restoreRenderState();
+        }
+    }
+
+    private static boolean updateTerrainTexture(
+            ClientLevel level,
+            int centerX,
+            int centerY,
+            int centerZ
+    ) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (terrainTexture == null) {
+            terrainTexture = new DynamicTexture(TERRAIN_SIZE, TERRAIN_SIZE, false);
+            terrainTexture.setFilter(false, false);
+            minecraft.getTextureManager().register(TERRAIN_TEXTURE, terrainTexture);
+        }
+        if (collisionTexture == null) {
+            collisionTexture = new DynamicTexture(TERRAIN_SIZE, TERRAIN_SIZE, false);
+            collisionTexture.setFilter(false, false);
+            minecraft.getTextureManager().register(COLLISION_TEXTURE, collisionTexture);
+        }
+
+        long gameTime = level.getGameTime();
+        boolean cacheFresh = cachedLevel == level
+                && cachedCenterX == centerX
+                && cachedCenterY == centerY
+                && cachedCenterZ == centerZ
+                && gameTime >= lastTerrainRefreshTick
+                && gameTime - lastTerrainRefreshTick < TERRAIN_REFRESH_TICKS;
+        if (cacheFresh) {
+            return true;
+        }
+
+        NativeImage pixels = terrainTexture.getPixels();
+        NativeImage collisionPixels = collisionTexture.getPixels();
+        if (pixels == null || collisionPixels == null) {
+            return false;
+        }
+
+        int minimumHeight = level.getMinBuildHeight();
+        int collisionBase = centerY - COLLISION_LAYERS_BELOW_CAMERA;
+        BlockPos.MutableBlockPos biomePos = new BlockPos.MutableBlockPos();
+        BlockPos.MutableBlockPos surfacePos = new BlockPos.MutableBlockPos();
+        BlockPos.MutableBlockPos collisionPos = new BlockPos.MutableBlockPos();
+        for (int textureZ = 0; textureZ < TERRAIN_SIZE; textureZ++) {
+            int z = centerZ + textureZ - TERRAIN_RADIUS;
+            for (int textureX = 0; textureX < TERRAIN_SIZE; textureX++) {
+                int x = centerX + textureX - TERRAIN_RADIUS;
                 int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
-                pos.set(x, Math.max(level.getMinBuildHeight(), surfaceY - 1), z);
-                boolean redSand = level.getBlockState(pos).is(Blocks.RED_SAND)
+                biomePos.set(x, centerY, z);
+                Holder<Biome> biome = level.getBiome(biomePos);
+                boolean desert = biome.is(Tags.Biomes.IS_DESERT)
                         || biome.is(Tags.Biomes.IS_BADLANDS);
-                int tint = (redSand ? Blocks.RED_SAND : Blocks.SAND)
-                        .defaultBlockState()
-                        .getMapColor(level, pos)
-                        .col;
-                float tintRed = (tint >> 16 & 255) / 255.0F;
-                float tintGreen = (tint >> 8 & 255) / 255.0F;
-                float tintBlue = (tint & 255) / 255.0F;
-                int bottomY = Math.max(centerY - radius, surfaceY);
-                int topY = Math.max(centerY + radius, surfaceY);
-                if (bottomY == topY) {
-                    continue;
+                int material = 0;
+                if (desert) {
+                    surfacePos.set(x, Math.max(minimumHeight, surfaceY - 1), z);
+                    boolean redSand = biome.is(Tags.Biomes.IS_BADLANDS)
+                            || level.getBlockState(surfacePos).is(Blocks.RED_SAND);
+                    material = redSand ? 255 : 127;
                 }
 
-                long hash = precipitationHash(x, z);
-                WindSample wind = DynamicWindManager.sampleWind(level, pos);
-                float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
-                float density = Mth.clamp(
-                        0.78F + rainLevel * 0.12F + thunder * 0.14F
-                                + wind.gustStrength() * 0.22F + windStrength * 0.04F,
-                        0.72F,
-                        1.0F
+                int encodedHeight = Mth.clamp(surfaceY - minimumHeight, 0, 65535);
+                int low = encodedHeight & 255;
+                int high = encodedHeight >>> 8 & 255;
+                pixels.setPixelRGBA(
+                        textureX,
+                        textureZ,
+                        FastColor.ABGR32.color(255, material, high, low)
                 );
-                float primaryVisibility = streamVisibility(hash, density);
-                float secondaryVisibility = streamVisibility(
-                        hash ^ 0x9E3779B97F4A7C15L,
-                        Mth.clamp(
-                                0.32F + rainLevel * 0.18F + thunder * 0.36F
-                                        + wind.gustStrength() * 0.25F,
-                                0.18F,
-                                0.96F
+
+                int collisionByte0 = 0;
+                int collisionByte1 = 0;
+                int collisionByte2 = 0;
+                int collisionByte3 = 0;
+                for (int layer = 0; layer < COLLISION_LAYERS; layer++) {
+                    collisionPos.set(x, collisionBase + layer, z);
+                    var collisionState = level.getBlockState(collisionPos);
+                    boolean occupied = !collisionState
+                            .getCollisionShape(level, collisionPos)
+                            .isEmpty()
+                            || !collisionState.getFluidState().isEmpty();
+                    if (!occupied) {
+                        continue;
+                    }
+                    int bit = 1 << (layer & 7);
+                    switch (layer >> 3) {
+                        case 0 -> collisionByte0 |= bit;
+                        case 1 -> collisionByte1 |= bit;
+                        case 2 -> collisionByte2 |= bit;
+                        default -> collisionByte3 |= bit;
+                    }
+                }
+                collisionPixels.setPixelRGBA(
+                        textureX,
+                        textureZ,
+                        FastColor.ABGR32.color(
+                                collisionByte3,
+                                collisionByte2,
+                                collisionByte1,
+                                collisionByte0
                         )
                 );
-                float groundVisibility = streamVisibility(
-                        hash ^ 0xC2B2AE3D27D4EB4FL,
-                        Mth.clamp(
-                                0.22F + rainLevel * 0.14F + thunder * 0.30F
-                                        + windStrength * 0.08F + wind.turbulence() * 0.14F,
-                                0.12F,
-                                0.86F
-                        )
-                );
-                if (primaryVisibility <= 0.01F
-                        && secondaryVisibility <= 0.01F
-                        && groundVisibility <= 0.01F) {
-                    continue;
-                }
-
-                if (buffer == null) {
-                    buffer = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
-                }
-
-                int sizeIndex = (z - centerZ + 16) * 32 + x - centerX + 16;
-                double widthX = rainSizeX[sizeIndex] * 0.76D;
-                double widthZ = rainSizeZ[sizeIndex] * 0.76D;
-                float distance = horizontalDistance(x, z, camX, camZ) / radius;
-                float distanceFade = (1.0F - distance * distance) * 0.30F + 0.62F;
-                float alpha = distanceFade * rainLevel * Mth.lerp(thunder, 0.62F, 0.96F);
-                alpha *= Mth.lerp(unitFloat(hash ^ 0xD1B54A32D192ED03L), 0.88F, 1.14F);
-                alpha = Mth.clamp(alpha, 0.0F, 0.98F);
-
-                float fallDistance = topY - bottomY;
-                float slope = (0.18F + windStrength * 0.28F + thunder * 0.24F)
-                        * Mth.lerp(unitFloat(hash ^ 0x94D049BB133111EBL), 0.86F, 1.32F);
-                float drift = Math.min(fallDistance * slope, Mth.lerp(thunder, 9.5F, 14.0F));
-                // animationTime is an integrated weather clock, so changing wind/thunder adjusts
-                // its rate without re-evaluating an absolute-time phase and teleporting the dust.
-                float flutterPhase = (float) animationTime * 0.083F + (hash & 255L);
-                float flutter = Mth.sin(flutterPhase)
-                        * (0.18F + wind.turbulence() * 0.34F + thunder * 0.24F);
-                float driftX = -wind.directionX() * drift - wind.directionZ() * flutter;
-                float driftZ = -wind.directionZ() * drift + wind.directionX() * flutter;
-
-                float travelRange = 8.0F + windStrength * 2.0F + thunder * 4.0F;
-                float travelPhase = fractionalPart(
-                        unitFloat(hash ^ 0x165667B19E3779F9L) + (float) animationTime * 0.014F
-                );
-                float travel = Mth.sin(travelPhase * Mth.TWO_PI) * travelRange * 0.5F;
-                float crossTravel = Mth.sin(flutterPhase * 0.53F + unitFloat(hash) * Mth.TWO_PI)
-                        * (0.15F + wind.turbulence() * 0.5F + thunder * 0.12F);
-                float motionX = wind.directionX() * travel - wind.directionZ() * crossTravel;
-                float motionZ = wind.directionZ() * travel + wind.directionX() * crossTravel;
-
-                float horizontalScroll = -(float) animationTime * 0.018F;
-                float offsetU = unitFloat(hash ^ 0xDB4F0B9175AE2165L);
-                float offsetV = unitFloat(hash ^ 0xBBE0563303A4615FL)
-                        + Mth.sin(flutterPhase * 0.41F)
-                                * (0.025F + wind.turbulence() * 0.045F);
-
-                pos.set(x, Math.max(surfaceY, centerY), z);
-                int light = LevelRenderer.getLightColor(level, pos);
-                int blockLight = light >> 16 & 65535;
-                int skyLight = light & 65535;
-                int softenedSkyLight = (skyLight * 3 + 208) / 4;
-                int softenedBlockLight = (blockLight * 3 + 208) / 4;
-
-                if (primaryVisibility > 0.01F) {
-                    addSandQuad(buffer, x, z, bottomY, topY, camX, camY, camZ,
-                            widthX, widthZ, motionX, motionZ, driftX, driftZ,
-                            horizontalScroll, offsetU, offsetV,
-                            alpha * primaryVisibility, softenedSkyLight, softenedBlockLight,
-                            tintRed, tintGreen, tintBlue, 0.0F);
-                }
-                if (secondaryVisibility > 0.01F) {
-                    addSandQuad(buffer, x, z, bottomY, topY, camX, camY, camZ,
-                            widthX * 0.88D, widthZ * 0.88D,
-                            motionX + wind.directionX() * 1.7F,
-                            motionZ + wind.directionZ() * 1.7F,
-                            driftX * 1.16F, driftZ * 1.16F,
-                            horizontalScroll * 1.35F, offsetU + 0.41F, offsetV + 0.57F,
-                            alpha * 0.86F * secondaryVisibility, softenedSkyLight, softenedBlockLight,
-                            tintRed * 0.82F, tintGreen * 0.78F, tintBlue * 0.72F, 0.42F);
-                }
-                int groundTopY = Math.min(
-                        topY,
-                        bottomY + 3 + Mth.floor(thunder * 3.0F + windStrength * 0.75F)
-                );
-                if (groundVisibility > 0.01F && groundTopY > bottomY) {
-                    addSandQuad(buffer, x, z, bottomY, groundTopY, camX, camY, camZ,
-                            widthX * 1.14D, widthZ * 1.14D,
-                            motionX - wind.directionX() * 1.35F,
-                            motionZ - wind.directionZ() * 1.35F,
-                            driftX * 0.52F, driftZ * 0.52F,
-                            horizontalScroll * 1.75F, offsetU + 0.73F, offsetV + 0.19F,
-                            alpha * 0.72F * groundVisibility, softenedSkyLight, softenedBlockLight,
-                            tintRed * 0.68F, tintGreen * 0.62F, tintBlue * 0.56F, -0.38F);
-                }
             }
         }
+        terrainTexture.upload();
+        collisionTexture.upload();
+        cachedLevel = level;
+        cachedCenterX = centerX;
+        cachedCenterY = centerY;
+        cachedCenterZ = centerZ;
+        lastTerrainRefreshTick = gameTime;
+        return true;
+    }
 
-        if (buffer != null) {
-            BufferUploader.drawWithShader(buffer.buildOrThrow());
-        }
+    private static void restoreRenderState() {
+        RenderSystem.depthMask(true);
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
-        lightTexture.turnOffLightLayer();
     }
 
-    private static void addSandQuad(
-            BufferBuilder buffer, int x, int z, int bottomY, int topY,
-            double camX, double camY, double camZ, double widthX, double widthZ,
-            float motionX, float motionZ, float driftX, float driftZ,
-            float horizontalScroll, float offsetU, float offsetV,
-            float alpha, int skyLight, int blockLight,
-            float red, float green, float blue, float lateralOffset
+    private static double advanceDustAnimationTime(
+            double animationTime,
+            float speedMultiplier
     ) {
-        float offsetX = (float) widthX * lateralOffset;
-        float offsetZ = (float) widthZ * lateralOffset;
-        float leftX = (float) (x - camX - widthX + 0.5D) + offsetX + motionX;
-        float rightX = (float) (x - camX + widthX + 0.5D) + offsetX + motionX;
-        float leftZ = (float) (z - camZ - widthZ + 0.5D) + offsetZ + motionZ;
-        float rightZ = (float) (z - camZ + widthZ + 0.5D) + offsetZ + motionZ;
-        float top = (float) (topY - camY);
-        float bottom = (float) (bottomY - camY);
-        float flowingU = offsetU + horizontalScroll;
-        buffer.addVertex(leftX + driftX, top, leftZ + driftZ).setUv(flowingU, bottomY * 0.25F + offsetV).setColor(red, green, blue, alpha).setUv2(skyLight, blockLight);
-        buffer.addVertex(rightX + driftX, top, rightZ + driftZ).setUv(1.0F + flowingU, bottomY * 0.25F + offsetV).setColor(red, green, blue, alpha).setUv2(skyLight, blockLight);
-        buffer.addVertex(rightX, bottom, rightZ).setUv(1.0F + flowingU, topY * 0.25F + offsetV).setColor(red, green, blue, alpha).setUv2(skyLight, blockLight);
-        buffer.addVertex(leftX, bottom, leftZ).setUv(flowingU, topY * 0.25F + offsetV).setColor(red, green, blue, alpha).setUv2(skyLight, blockLight);
+        if (!Double.isFinite(lastDustAnimationTime)) {
+            dustAnimationTime = animationTime;
+            lastDustAnimationTime = animationTime;
+            return dustAnimationTime;
+        }
+
+        double delta = animationTime - lastDustAnimationTime;
+        lastDustAnimationTime = animationTime;
+        if (delta < 0.0D || delta > 5.0D) {
+            dustAnimationTime = animationTime;
+        } else {
+            dustAnimationTime += delta * Math.max(speedMultiplier, 0.1F);
+        }
+        return dustAnimationTime;
     }
 
-    private static float horizontalDistance(int x, int z, double camX, double camZ) {
-        double dx = x + 0.5D - camX;
-        double dz = z + 0.5D - camZ;
-        return (float) Math.sqrt(dx * dx + dz * dz);
+    private static DesertStormProfile configuredProfile(float stormActivity) {
+        float blend = Mth.clamp(stormActivity, 0.0F, 1.0F);
+        return new DesertStormProfile(
+                blendedConfig(
+                        ClientConfig.SAND_DUST_AMOUNT,
+                        ClientConfig.SANDSTORM_DUST_AMOUNT,
+                        blend
+                ),
+                blendedConfig(
+                        ClientConfig.SAND_DUST_SIZE,
+                        ClientConfig.SANDSTORM_DUST_SIZE,
+                        blend
+                ),
+                blendedConfig(
+                        ClientConfig.SAND_DUST_SPEED,
+                        ClientConfig.SANDSTORM_DUST_SPEED,
+                        blend
+                )
+        );
     }
 
-    private static long precipitationHash(int x, int z) {
-        return x * (long) x * 3121L + x * 45238971L ^ z * (long) z * 418711L + z * 13761L;
+    private static float blendedConfig(
+            net.neoforged.neoforge.common.ModConfigSpec.DoubleValue ordinary,
+            net.neoforged.neoforge.common.ModConfigSpec.DoubleValue sandstorm,
+            float blend
+    ) {
+        return Mth.lerp(
+                blend,
+                (float) ordinary.getAsDouble(),
+                (float) sandstorm.getAsDouble()
+        );
     }
 
-    private static float streamVisibility(long hash, float density) {
-        float transition = (density - unitFloat(hash)) / DENSITY_FADE_WIDTH + 0.5F;
-        transition = Mth.clamp(transition, 0.0F, 1.0F);
-        return transition * transition * (3.0F - 2.0F * transition);
+    private static float smoothFade(float value) {
+        value = Mth.clamp(value, 0.0F, 1.0F);
+        return value * value * (3.0F - 2.0F * value);
     }
 
-    private static float fractionalPart(float value) {
-        return value - Mth.floor(value);
+    private record DesertStormProfile(
+            float amountScale,
+            float sizeScale,
+            float speedScale
+    ) {
     }
 
-    private static float unitFloat(long hash) {
-        long mixed = hash ^ hash >>> 33;
-        mixed *= 0xff51afd7ed558ccdl;
-        mixed ^= mixed >>> 33;
-        return (mixed >>> 40) / (float) (1 << 24);
+    private static final class StormMesh {
+        private final int radius;
+        private final int clustersPerColumn;
+        private final float verticalSpan;
+        private final int overflow;
+        private VertexBuffer buffer;
+
+        private StormMesh(int radius, int clustersPerColumn, float verticalSpan, int overflow) {
+            this.radius = radius;
+            this.clustersPerColumn = clustersPerColumn;
+            this.verticalSpan = verticalSpan;
+            this.overflow = overflow;
+        }
+
+        private void ensureUploaded() {
+            if (buffer != null && !buffer.isInvalid()) {
+                return;
+            }
+
+            BufferBuilder builder = Tesselator.getInstance().begin(
+                    VertexFormat.Mode.QUADS,
+                    DefaultVertexFormat.POSITION
+            );
+            int gridRadius = radius + overflow;
+            for (int z = -gridRadius; z <= gridRadius; z++) {
+                for (int x = -gridRadius; x <= gridRadius; x++) {
+                    for (int lane = 0; lane < clustersPerColumn; lane++) {
+                        for (int corner = 0; corner < 4; corner++) {
+                            builder.addVertex(x, lane, z);
+                        }
+                    }
+                }
+            }
+
+            if (buffer != null) {
+                buffer.close();
+            }
+            buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
+            buffer.bind();
+            try (MeshData mesh = builder.buildOrThrow()) {
+                buffer.upload(mesh);
+            } finally {
+                VertexBuffer.unbind();
+            }
+        }
     }
 }

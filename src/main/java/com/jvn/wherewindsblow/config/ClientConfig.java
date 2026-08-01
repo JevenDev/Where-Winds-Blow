@@ -87,6 +87,16 @@ public final class ClientConfig {
     public static final double SNOWFLAKE_SIZE_MAX = 3.0D;
     public static final double SNOWFLAKE_SPEED_MIN = 0.25D;
     public static final double SNOWFLAKE_SPEED_MAX = 3.0D;
+    public static final double SAND_DUST_AMOUNT_MIN = 0.0D;
+    public static final double SAND_DUST_AMOUNT_MAX = 2.0D;
+    public static final double SAND_DUST_SIZE_MIN = 0.25D;
+    public static final double SAND_DUST_SIZE_MAX = 3.0D;
+    public static final double SAND_DUST_SPEED_MIN = 0.25D;
+    public static final double SAND_DUST_SPEED_MAX = 3.0D;
+    public static final double SANDSTORM_FOG_INTENSITY_MIN = 0.0D;
+    public static final double SANDSTORM_FOG_INTENSITY_MAX = 2.0D;
+    public static final double SANDSTORM_INTENSITY_MIN = 0.0D;
+    public static final double SANDSTORM_INTENSITY_MAX = 2.0D;
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
@@ -378,6 +388,67 @@ public final class ClientConfig {
             .comment("Replaces rainy weather in desert and badlands biomes with sand- or red-sand-tinted windstorms. Thunder makes them denser, more turbulent, and foggy.")
             .define("enableDesertStormEffects", true);
 
+    public static final ModConfigSpec.DoubleValue SAND_DUST_AMOUNT = BUILDER
+            .comment("Scales the amount of airborne dust during ordinary rainy desert weather.")
+            .defineInRange("sandDustAmount", 1.0D, SAND_DUST_AMOUNT_MIN, SAND_DUST_AMOUNT_MAX);
+
+    public static final ModConfigSpec.DoubleValue SAND_DUST_SIZE = BUILDER
+            .comment("Scales the size of blowing dust clusters during ordinary rainy desert weather.")
+            .defineInRange("sandDustSize", 1.0D, SAND_DUST_SIZE_MIN, SAND_DUST_SIZE_MAX);
+
+    public static final ModConfigSpec.DoubleValue SAND_DUST_SPEED = BUILDER
+            .comment("Scales how quickly blowing dust travels during ordinary rainy desert weather.")
+            .defineInRange("sandDustSpeed", 1.0D, SAND_DUST_SPEED_MIN, SAND_DUST_SPEED_MAX);
+
+    public static final ModConfigSpec.EnumValue<SandstormFogMode> SANDSTORM_FOG_MODE = BUILDER
+            .comment("Controls whether desert visibility fog is disabled, limited to severe sandstorms, or present during all rainy desert weather.")
+            .defineEnum("sandstormFogMode", SandstormFogMode.SANDSTORMS_ONLY);
+
+    public static final ModConfigSpec.DoubleValue SANDSTORM_FOG_INTENSITY = BUILDER
+            .comment("Scales desert-storm visibility fog without changing blowing dust.")
+            .defineInRange(
+                    "sandstormFogIntensity",
+                    1.0D,
+                    SANDSTORM_FOG_INTENSITY_MIN,
+                    SANDSTORM_FOG_INTENSITY_MAX
+            );
+
+    public static final ModConfigSpec.DoubleValue SANDSTORM_DUST_AMOUNT = BUILDER
+            .comment("Sets the airborne dust amount reached during a full sandstorm.")
+            .defineInRange(
+                    "sandstormDustAmount",
+                    1.0D,
+                    SAND_DUST_AMOUNT_MIN,
+                    SAND_DUST_AMOUNT_MAX
+            );
+
+    public static final ModConfigSpec.DoubleValue SANDSTORM_DUST_SIZE = BUILDER
+            .comment("Sets the blowing dust size reached during a full sandstorm.")
+            .defineInRange(
+                    "sandstormDustSize",
+                    1.0D,
+                    SAND_DUST_SIZE_MIN,
+                    SAND_DUST_SIZE_MAX
+            );
+
+    public static final ModConfigSpec.DoubleValue SANDSTORM_DUST_SPEED = BUILDER
+            .comment("Sets the blowing dust travel speed reached during a full sandstorm.")
+            .defineInRange(
+                    "sandstormDustSpeed",
+                    1.0D,
+                    SAND_DUST_SPEED_MIN,
+                    SAND_DUST_SPEED_MAX
+            );
+
+    public static final ModConfigSpec.DoubleValue SANDSTORM_INTENSITY = BUILDER
+            .comment("Scales the extra density and opacity of severe sandstorms without changing fog.")
+            .defineInRange(
+                    "sandstormIntensity",
+                    1.0D,
+                    SANDSTORM_INTENSITY_MIN,
+                    SANDSTORM_INTENSITY_MAX
+            );
+
     public static final ModConfigSpec.BooleanValue ENABLE_RAIN_EFFECTS = BUILDER
             .comment("Renders atmospheric rain while Where Winds Blow's precipitation renderer is enabled.")
             .define("enableRainEffects", true);
@@ -461,6 +532,12 @@ public final class ClientConfig {
         DISABLED,
         BLIZZARDS_ONLY,
         ALL_SNOWFALL
+    }
+
+    public enum SandstormFogMode {
+        DISABLED,
+        SANDSTORMS_ONLY,
+        ALL_DESERT_WEATHER
     }
 
     private ClientConfig() {

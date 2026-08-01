@@ -202,6 +202,36 @@ public final class BlizzardWeatherEffects {
         return Math.max(snowfallEnergy, blizzardEnergy);
     }
 
+    static float sandstormFogEnergy(
+            WindSample wind,
+            float rainLevel,
+            float thunder,
+            float configuredIntensity,
+            ClientConfig.SandstormFogMode mode
+    ) {
+        if (mode == ClientConfig.SandstormFogMode.DISABLED || configuredIntensity <= 0.0F) {
+            return 0.0F;
+        }
+
+        float severeEnergy = blizzardEnergy(
+                wind,
+                rainLevel,
+                thunder,
+                configuredIntensity
+        );
+        if (mode == ClientConfig.SandstormFogMode.SANDSTORMS_ONLY) {
+            return severeEnergy;
+        }
+
+        float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
+        float desertWeatherEnergy = Mth.clamp(
+                rainLevel * configuredIntensity * (0.42F + windStrength * 0.06F),
+                0.0F,
+                1.35F
+        );
+        return Math.max(desertWeatherEnergy, severeEnergy);
+    }
+
     static float blizzardActivity(float thunder) {
         return smoothFade((thunder - BLIZZARD_THUNDER_START)
                 / (BLIZZARD_THUNDER_FULL - BLIZZARD_THUNDER_START));
@@ -253,9 +283,20 @@ public final class BlizzardWeatherEffects {
         } else if (ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean()
                 && (biomeHolder.is(Tags.Biomes.IS_DESERT)
                         || biomeHolder.is(Tags.Biomes.IS_BADLANDS))) {
-            // Desert fog is a severe-weather effect, matching the default blizzard threshold.
-            // Ordinary rainy desert weather keeps its blowing sand without shortening visibility.
-            energy = blizzardEnergy(wind, rainLevel, thunder, 1.0F);
+            ClientConfig.SandstormFogMode fogMode = ClientConfig.SANDSTORM_FOG_MODE.get();
+            float configuredIntensity =
+                    (float) ClientConfig.SANDSTORM_FOG_INTENSITY.getAsDouble();
+            if (fogMode == ClientConfig.SandstormFogMode.DISABLED
+                    || configuredIntensity <= 0.0F) {
+                return StormFogSample.CLEAR;
+            }
+            energy = sandstormFogEnergy(
+                    wind,
+                    rainLevel,
+                    thunder,
+                    configuredIntensity,
+                    fogMode
+            );
             palette = usesRedSandTint(level, cameraPos, biomeHolder)
                     ? StormFogPalette.RED_SAND
                     : StormFogPalette.SAND;
