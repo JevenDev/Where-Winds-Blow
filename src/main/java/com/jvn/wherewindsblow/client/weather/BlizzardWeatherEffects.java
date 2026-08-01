@@ -15,14 +15,18 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.FogType;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
+import net.neoforged.neoforge.common.Tags;
 import org.joml.Matrix4fStack;
 
-/** Applies a snow-biome visibility response that remains present, but softer, inside shelter. */
+/** Applies snow and sandstorm visibility responses that remain present, but softer, inside shelter. */
 public final class BlizzardWeatherEffects {
     private static final float WHITEOUT_START_ENERGY = 0.24F;
     private static final float WHITEOUT_FULL_ENERGY = 1.05F;
@@ -44,7 +48,8 @@ public final class BlizzardWeatherEffects {
             return;
         }
 
-        float whiteout = whiteoutAtCamera(event.getCamera(), (float) event.getPartialTick());
+        StormFogSample storm = stormFogAtCamera(event.getCamera(), (float) event.getPartialTick());
+        float whiteout = storm.whiteout();
         if (whiteout <= 0.001F) {
             return;
         }
@@ -73,7 +78,8 @@ public final class BlizzardWeatherEffects {
             return;
         }
 
-        float whiteout = whiteoutAtCamera(event.getCamera(), (float) event.getPartialTick());
+        StormFogSample storm = stormFogAtCamera(event.getCamera(), (float) event.getPartialTick());
+        float whiteout = storm.whiteout();
         if (whiteout <= 0.001F) {
             return;
         }
@@ -82,7 +88,9 @@ public final class BlizzardWeatherEffects {
         if (level == null) {
             return;
         }
-        StormFogColor stormColor = stormFogColor(level, (float) event.getPartialTick());
+        StormFogColor stormColor = stormFogColor(
+                level, (float) event.getPartialTick(), storm
+        );
         float stormBlend = stormColorBlend(whiteout);
         event.setRed(Mth.lerp(stormBlend, event.getRed(), stormColor.red()));
         event.setGreen(Mth.lerp(stormBlend, event.getGreen(), stormColor.green()));
@@ -106,7 +114,8 @@ public final class BlizzardWeatherEffects {
         }
 
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        BlizzardFogProfile fog = fogProfile(event.getCamera(), partialTick);
+        StormFogSample storm = stormFogAtCamera(event.getCamera(), partialTick);
+        BlizzardFogProfile fog = fogProfile(storm);
         if (!fog.active()) {
             return;
         }
@@ -118,13 +127,17 @@ public final class BlizzardWeatherEffects {
         renderFogBoundary(
                 event,
                 fog.farDistance() * 0.995F,
-                stormFogColor(level, partialTick),
+                stormFogColor(level, partialTick, storm),
                 blend
         );
     }
 
     public static BlizzardFogProfile fogProfile(Camera camera, float partialTick) {
-        float whiteout = whiteoutAtCamera(camera, partialTick);
+        return fogProfile(stormFogAtCamera(camera, partialTick));
+    }
+
+    private static BlizzardFogProfile fogProfile(StormFogSample storm) {
+        float whiteout = storm.whiteout();
         if (whiteout <= 0.001F) {
             return BlizzardFogProfile.CLEAR;
         }
@@ -194,47 +207,66 @@ public final class BlizzardWeatherEffects {
                 / (BLIZZARD_THUNDER_FULL - BLIZZARD_THUNDER_START));
     }
 
-    private static float whiteoutAtCamera(Camera camera, float partialTick) {
+    private static StormFogSample stormFogAtCamera(Camera camera, float partialTick) {
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) {
             WhiteoutTransitionState.reset();
-            return 0.0F;
+            return StormFogSample.CLEAR;
         }
 
-        float target = targetWhiteoutAtCamera(level, camera, partialTick);
+        StormFogSample target = targetStormFogAtCamera(level, camera, partialTick);
         return WhiteoutTransitionState.sample(
                 level, level.getGameTime() + (double) partialTick, target
         );
     }
 
-    private static float targetWhiteoutAtCamera(ClientLevel level, Camera camera, float partialTick) {
-        ClientConfig.SnowFogMode fogMode = ClientConfig.SNOW_FOG_MODE.get();
-        float configuredIntensity = (float) ClientConfig.SNOW_FOG_INTENSITY.getAsDouble();
-        if (!ClientConfig.ENABLE_SNOW_EFFECTS.getAsBoolean()
-                || fogMode == ClientConfig.SnowFogMode.DISABLED
-                || configuredIntensity <= 0.0F) {
-            return 0.0F;
-        }
-
+    private static StormFogSample targetStormFogAtCamera(
+            ClientLevel level,
+            Camera camera,
+            float partialTick
+    ) {
         BlockPos cameraPos = camera.getBlockPosition();
-        Biome biome = level.getBiome(cameraPos).value();
-        if (!biome.hasPrecipitation()
-                || biome.getPrecipitationAt(cameraPos) != Biome.Precipitation.SNOW) {
-            return 0.0F;
-        }
-
+        Holder<Biome> biomeHolder = level.getBiome(cameraPos);
         float rainLevel = level.getRainLevel(partialTick);
         if (rainLevel <= 0.0F) {
-            return 0.0F;
+            return StormFogSample.CLEAR;
         }
+
         WindSample wind = DynamicWindManager.sampleWind(level, cameraPos);
-        float energy = snowFogEnergy(
-                wind, rainLevel, level.getThunderLevel(partialTick), configuredIntensity, fogMode
-        );
+        float thunder = level.getThunderLevel(partialTick);
+        float energy;
+        StormFogPalette palette;
+        Biome biome = biomeHolder.value();
+        if (biome.hasPrecipitation()
+                && biome.getPrecipitationAt(cameraPos) == Biome.Precipitation.SNOW) {
+            ClientConfig.SnowFogMode fogMode = ClientConfig.SNOW_FOG_MODE.get();
+            float configuredIntensity = (float) ClientConfig.SNOW_FOG_INTENSITY.getAsDouble();
+            if (!ClientConfig.ENABLE_SNOW_EFFECTS.getAsBoolean()
+                    || fogMode == ClientConfig.SnowFogMode.DISABLED
+                    || configuredIntensity <= 0.0F) {
+                return StormFogSample.CLEAR;
+            }
+            energy = snowFogEnergy(
+                    wind, rainLevel, thunder, configuredIntensity, fogMode
+            );
+            palette = StormFogPalette.SNOW;
+        } else if (ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean()
+                && (biomeHolder.is(Tags.Biomes.IS_DESERT)
+                        || biomeHolder.is(Tags.Biomes.IS_BADLANDS))) {
+            // Desert fog is a severe-weather effect, matching the default blizzard threshold.
+            // Ordinary rainy desert weather keeps its blowing sand without shortening visibility.
+            energy = blizzardEnergy(wind, rainLevel, thunder, 1.0F);
+            palette = usesRedSandTint(level, cameraPos, biomeHolder)
+                    ? StormFogPalette.RED_SAND
+                    : StormFogPalette.SAND;
+        } else {
+            return StormFogSample.CLEAR;
+        }
+
         float whiteout = smoothFade((energy - WHITEOUT_START_ENERGY)
                 / (WHITEOUT_FULL_ENERGY - WHITEOUT_START_ENERGY));
         if (level.canSeeSky(cameraPos)) {
-            return whiteout;
+            return StormFogSample.forPalette(whiteout, palette);
         }
 
         float shelterScale = Mth.lerp(
@@ -242,7 +274,28 @@ public final class BlizzardWeatherEffects {
                 ENCLOSED_WHITEOUT_SCALE,
                 PARTIAL_SHELTER_WHITEOUT_SCALE
         );
-        return whiteout * shelterScale;
+        return StormFogSample.forPalette(whiteout * shelterScale, palette);
+    }
+
+    private static boolean usesRedSandTint(
+            ClientLevel level,
+            BlockPos cameraPos,
+            Holder<Biome> biome
+    ) {
+        if (biome.is(Tags.Biomes.IS_BADLANDS)) {
+            return true;
+        }
+        int surfaceY = level.getHeight(
+                Heightmap.Types.MOTION_BLOCKING,
+                cameraPos.getX(),
+                cameraPos.getZ()
+        );
+        BlockPos surfacePos = new BlockPos(
+                cameraPos.getX(),
+                Math.max(level.getMinBuildHeight(), surfaceY - 1),
+                cameraPos.getZ()
+        );
+        return level.getBlockState(surfacePos).is(Blocks.RED_SAND);
     }
 
     private static float fogFarDistance(float originalFarDistance, float whiteout) {
@@ -255,8 +308,13 @@ public final class BlizzardWeatherEffects {
         ));
     }
 
-    private static StormFogColor stormFogColor(ClientLevel level, float partialTick) {
-        // Keep hue independent from biome, sunset, and weather. Only the sun cycle darkens it.
+    private static StormFogColor stormFogColor(
+            ClientLevel level,
+            float partialTick,
+            StormFogSample storm
+    ) {
+        // Keep each storm hue independent from sunset and vanilla weather. Only the sun cycle
+        // darkens it, preventing the fog wall from changing color independently of its particles.
         float daylight = Mth.clamp(
                 Mth.cos(level.getTimeOfDay(partialTick) * ((float) Math.PI * 2.0F)) * 2.0F + 0.2F,
                 0.0F,
@@ -265,10 +323,37 @@ public final class BlizzardWeatherEffects {
         daylight = smoothFade(daylight);
         // Hold onto the darker dawn/dusk range longer, then settle below pure white at midday.
         daylight *= Mth.lerp(daylight, 0.78F, 1.0F);
-        return new StormFogColor(
+        StormFogColor snow = new StormFogColor(
                 Mth.lerp(daylight, 0.30F, 0.90F),
                 Mth.lerp(daylight, 0.36F, 0.93F),
                 Mth.lerp(daylight, 0.46F, 0.98F)
+        );
+        StormFogColor sand = new StormFogColor(
+                Mth.lerp(daylight, 0.24F, 0.82F),
+                Mth.lerp(daylight, 0.19F, 0.69F),
+                Mth.lerp(daylight, 0.12F, 0.46F)
+        );
+        StormFogColor redSand = new StormFogColor(
+                Mth.lerp(daylight, 0.24F, 0.73F),
+                Mth.lerp(daylight, 0.10F, 0.35F),
+                Mth.lerp(daylight, 0.055F, 0.17F)
+        );
+
+        float totalWeight = storm.snowWeight() + storm.sandWeight() + storm.redSandWeight();
+        if (totalWeight <= 0.0001F) {
+            return snow;
+        }
+        float inverseWeight = 1.0F / totalWeight;
+        return new StormFogColor(
+                (snow.red() * storm.snowWeight()
+                        + sand.red() * storm.sandWeight()
+                        + redSand.red() * storm.redSandWeight()) * inverseWeight,
+                (snow.green() * storm.snowWeight()
+                        + sand.green() * storm.sandWeight()
+                        + redSand.green() * storm.redSandWeight()) * inverseWeight,
+                (snow.blue() * storm.snowWeight()
+                        + sand.blue() * storm.sandWeight()
+                        + redSand.blue() * storm.redSandWeight()) * inverseWeight
         );
     }
 
@@ -364,44 +449,70 @@ public final class BlizzardWeatherEffects {
     }
 
     /**
-     * Keeps roof, doorway, biome, and command-driven weather changes from moving the fog wall in
-     * one frame. RenderFog and ComputeFogColor can both sample this during a frame, so the level
-     * render clock is used to ensure the transition only advances once.
+     * Keeps roof, doorway, biome, and command-driven weather changes from moving the fog wall or
+     * switching its palette in one frame. RenderFog and ComputeFogColor can both sample this
+     * during a frame, so the level render clock ensures the transition only advances once.
      */
     private static final class WhiteoutTransitionState {
         private static ClientLevel activeLevel;
         private static float whiteout;
+        private static float snowWeight;
+        private static float sandWeight;
+        private static float redSandWeight;
         private static double lastRenderTime = Double.NaN;
 
         private WhiteoutTransitionState() {
         }
 
-        private static float sample(ClientLevel level, double renderTime, float target) {
+        private static StormFogSample sample(
+                ClientLevel level,
+                double renderTime,
+                StormFogSample target
+        ) {
             if (activeLevel != level || !Double.isFinite(lastRenderTime)) {
                 activeLevel = level;
-                whiteout = target;
+                setTarget(target);
                 lastRenderTime = renderTime;
-                return whiteout;
+                return currentSample();
             }
 
             double delta = renderTime - lastRenderTime;
             lastRenderTime = renderTime;
             if (delta < 0.0D || delta > 20.0D) {
-                whiteout = target;
-                return whiteout;
+                setTarget(target);
+                return currentSample();
             }
 
             float blend = 1.0F - (float) Math.exp(-delta * WHITEOUT_TRANSITION_RATE);
-            whiteout = Mth.lerp(blend, whiteout, target);
-            if (Math.abs(whiteout - target) < 0.0001F) {
-                whiteout = target;
-            }
-            return whiteout;
+            whiteout = approach(whiteout, target.whiteout(), blend);
+            snowWeight = approach(snowWeight, target.snowWeight(), blend);
+            sandWeight = approach(sandWeight, target.sandWeight(), blend);
+            redSandWeight = approach(redSandWeight, target.redSandWeight(), blend);
+            return currentSample();
+        }
+
+        private static void setTarget(StormFogSample target) {
+            whiteout = target.whiteout();
+            snowWeight = target.snowWeight();
+            sandWeight = target.sandWeight();
+            redSandWeight = target.redSandWeight();
+        }
+
+        private static StormFogSample currentSample() {
+            return new StormFogSample(whiteout, snowWeight, sandWeight, redSandWeight);
+        }
+
+        private static float approach(float current, float target, float blend) {
+            float result = Mth.lerp(blend, current, target);
+            return Math.abs(result - target) < 0.0001F ? target : result;
         }
 
         private static void reset() {
             activeLevel = null;
             whiteout = 0.0F;
+            snowWeight = 0.0F;
+            sandWeight = 0.0F;
+            redSandWeight = 0.0F;
             lastRenderTime = Double.NaN;
         }
     }
@@ -409,6 +520,31 @@ public final class BlizzardWeatherEffects {
     private record StormFogColor(float red, float green, float blue) {
     }
 
+    private record StormFogSample(
+            float whiteout,
+            float snowWeight,
+            float sandWeight,
+            float redSandWeight
+    ) {
+        private static final StormFogSample CLEAR =
+                new StormFogSample(0.0F, 0.0F, 0.0F, 0.0F);
+
+        private static StormFogSample forPalette(float whiteout, StormFogPalette palette) {
+            return switch (palette) {
+                case SNOW -> new StormFogSample(whiteout, 1.0F, 0.0F, 0.0F);
+                case SAND -> new StormFogSample(whiteout, 0.0F, 1.0F, 0.0F);
+                case RED_SAND -> new StormFogSample(whiteout, 0.0F, 0.0F, 1.0F);
+                case NONE -> CLEAR;
+            };
+        }
+    }
+
+    private enum StormFogPalette {
+        NONE,
+        SNOW,
+        SAND,
+        RED_SAND
+    }
 
     public record BlizzardFogProfile(
             float whiteout,

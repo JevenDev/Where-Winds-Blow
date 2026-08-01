@@ -375,7 +375,7 @@ public final class ClientConfig {
             .define("enableWindReactivePrecipitation", true);
 
     public static final ModConfigSpec.BooleanValue ENABLE_DESERT_STORM_EFFECTS = BUILDER
-            .comment("Replaces rainy weather in desert and badlands biomes with sand- or red-sand-tinted windstorms. Thunder makes them denser and more turbulent.")
+            .comment("Replaces rainy weather in desert and badlands biomes with sand- or red-sand-tinted windstorms. Thunder makes them denser, more turbulent, and foggy.")
             .define("enableDesertStormEffects", true);
 
     public static final ModConfigSpec.BooleanValue ENABLE_RAIN_EFFECTS = BUILDER
