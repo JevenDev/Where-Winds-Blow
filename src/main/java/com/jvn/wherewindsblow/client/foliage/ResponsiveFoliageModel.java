@@ -2,9 +2,10 @@ package com.jvn.wherewindsblow.client.foliage;
 
 import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.resources.model.BakedModel;
@@ -33,9 +34,11 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final int LEAF_WIND_ALPHA_MAX = 72;
     private static final float LEAF_BEND_MIN = 0.10F;
     private static final float LEAF_BEND_MAX = 0.36F;
+    private static final int MAX_LEAF_QUAD_CACHE_ENTRIES = 128;
+    private static final int MAX_PLANT_QUAD_CACHE_ENTRIES = 1024;
     private final ResponsiveFoliageType foliageType;
-    private final Map<LeafQuadKey, BakedQuad> leafQuadCache = new ConcurrentHashMap<>();
-    private final Map<PlantQuadKey, BakedQuad> plantQuadCache = new ConcurrentHashMap<>();
+    private final Map<LeafQuadKey, BakedQuad> leafQuadCache = boundedCache(MAX_LEAF_QUAD_CACHE_ENTRIES);
+    private final Map<PlantQuadKey, BakedQuad> plantQuadCache = boundedCache(MAX_PLANT_QUAD_CACHE_ENTRIES);
 
     ResponsiveFoliageModel(BakedModel originalModel, ResponsiveFoliageType foliageType) {
         super(originalModel);
@@ -306,6 +309,15 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
 
     private static float quantizeExposure(float exposure) {
         return Math.round(Mth.clamp(exposure, 0.0F, 1.0F) * 7.0F) / 7.0F;
+    }
+
+    private static <K, V> Map<K, V> boundedCache(int maximumEntries) {
+        return Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75F, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
+                return size() > maximumEntries;
+            }
+        });
     }
 
     @Nullable
