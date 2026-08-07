@@ -22,6 +22,8 @@
     { "name": "VerticalSpan", "type": "float", "count": 1, "values": [ 22.0 ] },
     { "name": "HeightBase", "type": "float", "count": 1, "values": [ -64.0 ] },
     { "name": "HeightRadius", "type": "int", "count": 1, "values": [ 20 ] },
+    { "name": "SnowBandBase", "type": "float", "count": 1, "values": [ 52.0 ] },
+    { "name": "SnowBandHeight", "type": "float", "count": 1, "values": [ 3.0 ] },
     { "name": "SnowLight", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "FogStart", "type": "float", "count": 1, "values": [ 0.0 ] },
     { "name": "FogEnd", "type": "float", "count": 1, "values": [ 1.0 ] },

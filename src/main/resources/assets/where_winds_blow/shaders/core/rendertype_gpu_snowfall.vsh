@@ -20,6 +20,8 @@ uniform float Radius;
 uniform float VerticalSpan;
 uniform float HeightBase;
 uniform int HeightRadius;
+uniform float SnowBandBase;
+uniform float SnowBandHeight;
 uniform float SnowLight;
 uniform int FogShape;
 
@@ -111,7 +113,9 @@ void main() {
     vec4 heightSample = texelFetch(Sampler1, heightCoordinate, 0);
     ivec4 heightBytes = ivec4(round(heightSample * 255.0));
     float surfaceY = HeightBase + float(heightBytes.r + heightBytes.g * 256);
-    if (heightBytes.b < 128 || flakeY <= surfaceY + 0.02) {
+    int snowBand = clamp(int(floor((flakeY - SnowBandBase) / SnowBandHeight)), 0, 7);
+    bool snowyAtFlake = (heightBytes.b & (1 << snowBand)) != 0;
+    if (!snowyAtFlake || flakeY <= surfaceY + 0.02) {
         hideVertex();
         return;
     }

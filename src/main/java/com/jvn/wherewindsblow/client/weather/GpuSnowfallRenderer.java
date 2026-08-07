@@ -40,6 +40,9 @@ public final class GpuSnowfallRenderer {
     private static final int HEIGHT_MAP_RADIUS = 20;
     private static final int HEIGHT_MAP_SIZE = HEIGHT_MAP_RADIUS * 2 + 1;
     private static final int HEIGHT_REFRESH_TICKS = 5;
+    private static final int SNOW_BAND_COUNT = 8;
+    private static final int SNOW_BAND_HEIGHT = 3;
+    private static final int SNOW_BAND_BELOW_CAMERA = 12;
     private static final int WORLD_HASH_PERIOD = 8192;
     private static final SnowMesh FANCY_MESH = new SnowMesh(12, 12, 22.0F);
     private static final SnowMesh FAST_MESH = new SnowMesh(7, 6, 14.0F);
@@ -158,6 +161,8 @@ public final class GpuSnowfallRenderer {
             shader.safeGetUniform("VerticalSpan").set(mesh.verticalSpan);
             shader.safeGetUniform("HeightBase").set((float) level.getMinBuildHeight());
             shader.safeGetUniform("HeightRadius").set(HEIGHT_MAP_RADIUS);
+            shader.safeGetUniform("SnowBandBase").set((float) (centerY - SNOW_BAND_BELOW_CAMERA));
+            shader.safeGetUniform("SnowBandHeight").set((float) SNOW_BAND_HEIGHT);
             shader.safeGetUniform("SnowLight").set(snowLight);
 
             mesh.buffer.bind();
@@ -222,17 +227,24 @@ public final class GpuSnowfallRenderer {
             for (int textureX = 0; textureX < HEIGHT_MAP_SIZE; textureX++) {
                 int x = centerX + textureX - HEIGHT_MAP_RADIUS;
                 int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
-                biomePos.set(x, centerY, z);
-                Biome biome = level.getBiome(biomePos).value();
-                boolean snowy = biome.hasPrecipitation()
-                        && biome.getPrecipitationAt(biomePos) == Biome.Precipitation.SNOW;
+                int snowMask = 0;
+                int snowBandBase = centerY - SNOW_BAND_BELOW_CAMERA;
+                for (int band = 0; band < SNOW_BAND_COUNT; band++) {
+                    int sampleY = snowBandBase + band * SNOW_BAND_HEIGHT + SNOW_BAND_HEIGHT / 2;
+                    biomePos.set(x, sampleY, z);
+                    Biome biome = level.getBiome(biomePos).value();
+                    if (biome.hasPrecipitation()
+                            && biome.getPrecipitationAt(biomePos) == Biome.Precipitation.SNOW) {
+                        snowMask |= 1 << band;
+                    }
+                }
                 int encodedHeight = Mth.clamp(surfaceY - minimumHeight, 0, 65535);
                 int low = encodedHeight & 255;
                 int high = encodedHeight >>> 8 & 255;
                 pixels.setPixelRGBA(
                         textureX,
                         textureZ,
-                        FastColor.ABGR32.color(255, snowy ? 255 : 0, high, low)
+                        FastColor.ABGR32.color(255, snowMask, high, low)
                 );
             }
         }
