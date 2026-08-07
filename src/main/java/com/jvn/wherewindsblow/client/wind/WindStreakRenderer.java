@@ -17,7 +17,6 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.BiomeColors;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
@@ -27,7 +26,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.GrassColor;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
@@ -50,9 +48,12 @@ public final class WindStreakRenderer {
     private static final int MAX_STREAKS = 20;
     private static final int MAX_LEAVES = 18;
     private static final int MAX_FLOWER_PETALS = 18;
-    private static final int GENERIC_LEAF_TEXTURE_COUNT = 12;
-    private static final int ACACIA_LEAF_TEXTURE_COUNT = 7;
-    private static final int LEAF_TEXTURE_COUNT = GENERIC_LEAF_TEXTURE_COUNT + ACACIA_LEAF_TEXTURE_COUNT;
+    private static final int LEAF_TEXTURES_PER_TYPE = 12;
+    private static final String[] LEAF_TEXTURE_TYPES = {
+            "oak", "spruce", "birch", "jungle", "acacia",
+            "dark_oak", "mangrove", "cherry", "azalea", "flowering_azalea"
+    };
+    private static final int LEAF_TEXTURE_COUNT = LEAF_TEXTURES_PER_TYPE * LEAF_TEXTURE_TYPES.length;
     private static final int ROSE_PETAL_TEXTURE_COUNT = 11;
     private static final int DANDELION_PETAL_TEXTURE_COUNT = 3;
     private static final int AZURE_BLUET_PETAL_TEXTURE_COUNT = 6;
@@ -413,9 +414,9 @@ public final class WindStreakRenderer {
     }
 
     private static ResourceLocation leafTexture(int index) {
-        String path = index < GENERIC_LEAF_TEXTURE_COUNT
-                ? "textures/particle/leaf_" + index + ".png"
-                : "textures/particle/acacia_leaf_" + (index - GENERIC_LEAF_TEXTURE_COUNT) + ".png";
+        int typeIndex = index / LEAF_TEXTURES_PER_TYPE;
+        int variant = index % LEAF_TEXTURES_PER_TYPE;
+        String path = "textures/particle/leaves/" + LEAF_TEXTURE_TYPES[typeIndex] + "_" + variant + ".png";
         return ResourceLocation.fromNamespaceAndPath(WhereWindsBlow.MOD_ID, path);
     }
 
@@ -785,12 +786,13 @@ public final class WindStreakRenderer {
         BlockPos leafColorPos = leafBlockSpawn != null
                 ? leafBlockSpawn.source()
                 : BlockPos.containing(leaf.x, player.getY(), leaf.z);
-        boolean acaciaLeaf = leafBlockSpawn != null
-                ? level.getBlockState(leafBlockSpawn.source()).is(Blocks.ACACIA_LEAVES)
-                : level.getBiome(leafColorPos).is(Tags.Biomes.IS_SAVANNA);
-        leaf.textureIndex = acaciaLeaf
-                ? GENERIC_LEAF_TEXTURE_COUNT + RANDOM.nextInt(ACACIA_LEAF_TEXTURE_COUNT)
-                : RANDOM.nextInt(GENERIC_LEAF_TEXTURE_COUNT);
+        BlockState sourceLeafState = leafBlockSpawn != null
+                ? level.getBlockState(leafBlockSpawn.source())
+                : level.getBiome(leafColorPos).is(Tags.Biomes.IS_SAVANNA)
+                        ? Blocks.ACACIA_LEAVES.defaultBlockState()
+                        : Blocks.OAK_LEAVES.defaultBlockState();
+        int leafType = leafTextureType(sourceLeafState);
+        leaf.textureIndex = leafType * LEAF_TEXTURES_PER_TYPE + RANDOM.nextInt(LEAF_TEXTURES_PER_TYPE);
         boolean fromLeafBlock = leafBlockSpawn != null;
         leaf.size = randomBetween(fromLeafBlock ? 0.08D : 0.09D, fromLeafBlock ? 0.19D : 0.23D) * (1.0D + windBoost * 0.12D);
         leaf.speed = randomBetween(fromLeafBlock ? 0.095D : 0.16D, fromLeafBlock ? 0.235D : 0.31D);
@@ -819,9 +821,7 @@ public final class WindStreakRenderer {
         leaf.age = scatterAge ? RANDOM.nextInt(Math.max(1, leaf.lifetime / 2)) : 0;
         leaf.fadingOut = false;
         leaf.fadeOutAge = 0;
-        int color = acaciaLeaf
-                ? sampleAcaciaLeafColor(level, leafColorPos)
-                : sampleGrassColor(level, leafColorPos.getX(), leafColorPos.getY(), leafColorPos.getZ());
+        int color = sampleLeafColor(level, sourceLeafState, leafColorPos);
         leaf.red = color >> 16 & 255;
         leaf.green = color >> 8 & 255;
         leaf.blue = color & 255;
@@ -1548,22 +1548,45 @@ public final class WindStreakRenderer {
                 .setLight(light);
     }
 
-    private static int sampleGrassColor(ClientLevel level, double x, double y, double z) {
-        if (level == null) {
-            return GrassColor.get(0.5D, 1.0D);
+    private static int leafTextureType(BlockState state) {
+        if (state.is(Blocks.SPRUCE_LEAVES)) {
+            return 1;
         }
-
-        return BiomeColors.getAverageGrassColor(level, BlockPos.containing(x, y, z));
+        if (state.is(Blocks.BIRCH_LEAVES)) {
+            return 2;
+        }
+        if (state.is(Blocks.JUNGLE_LEAVES)) {
+            return 3;
+        }
+        if (state.is(Blocks.ACACIA_LEAVES)) {
+            return 4;
+        }
+        if (state.is(Blocks.DARK_OAK_LEAVES)) {
+            return 5;
+        }
+        if (state.is(Blocks.MANGROVE_LEAVES)) {
+            return 6;
+        }
+        if (state.is(Blocks.CHERRY_LEAVES)) {
+            return 7;
+        }
+        if (state.is(Blocks.AZALEA_LEAVES)) {
+            return 8;
+        }
+        if (state.is(Blocks.FLOWERING_AZALEA_LEAVES)) {
+            return 9;
+        }
+        return 0;
     }
 
-    private static int sampleAcaciaLeafColor(ClientLevel level, BlockPos pos) {
+    private static int sampleLeafColor(ClientLevel level, BlockState state, BlockPos pos) {
         int color = Minecraft.getInstance().getBlockColors().getColor(
-                Blocks.ACACIA_LEAVES.defaultBlockState(),
+                state,
                 level,
                 pos,
                 0
         );
-        return color == -1 ? BiomeColors.getAverageFoliageColor(level, pos) : color;
+        return color == -1 ? 0xFFFFFF : color;
     }
 
     private static TerrainFlow terrainFlow(
