@@ -31,6 +31,8 @@ import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.model.data.ModelData;
 
 public final class ResponsiveFoliage {
+    private static final int MAX_MODELED_COLUMN_HEIGHT = 32;
+
     private static final float PLANE_EPSILON = 0.01F;
 
     private ResponsiveFoliage() {
@@ -72,12 +74,16 @@ public final class ResponsiveFoliage {
         if (state.is(ModBlocks.OVERGROWN_GRASS.get()) || state.is(Blocks.SUGAR_CANE)) {
             Block columnBlock = state.getBlock();
             BlockPos root = pos;
-            while (level.getBlockState(root.below()).is(columnBlock)) {
+            int distanceToRoot = 0;
+            while (distanceToRoot < MAX_MODELED_COLUMN_HEIGHT - 1
+                    && level.getBlockState(root.below()).is(columnBlock)) {
                 root = root.below();
+                distanceToRoot++;
             }
 
             int height = 0;
-            while (level.getBlockState(root.above(height)).is(columnBlock)) {
+            while (height < MAX_MODELED_COLUMN_HEIGHT
+                    && level.getBlockState(root.above(height)).is(columnBlock)) {
                 height++;
             }
 
@@ -107,12 +113,22 @@ public final class ResponsiveFoliage {
             boolean hangsFromTop
     ) {
         BlockPos root = pos;
-        while (sameNetherVine(level.getBlockState(hangsFromTop ? root.above() : root.below()), hangsFromTop)) {
+        int distanceToRoot = 0;
+        while (distanceToRoot < MAX_MODELED_COLUMN_HEIGHT - 1
+                && sameNetherVine(
+                        level.getBlockState(hangsFromTop ? root.above() : root.below()),
+                        hangsFromTop
+                )) {
             root = hangsFromTop ? root.above() : root.below();
+            distanceToRoot++;
         }
 
         int height = 0;
-        while (sameNetherVine(level.getBlockState(hangsFromTop ? root.below(height) : root.above(height)), hangsFromTop)) {
+        while (height < MAX_MODELED_COLUMN_HEIGHT
+                && sameNetherVine(
+                        level.getBlockState(hangsFromTop ? root.below(height) : root.above(height)),
+                        hangsFromTop
+                )) {
             height++;
         }
 
