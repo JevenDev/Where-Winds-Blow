@@ -37,25 +37,26 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final float LEAF_BEND_MAX = 0.36F;
     private static final int MAX_LEAF_QUAD_CACHE_ENTRIES = 128;
     private static final int MAX_PLANT_QUAD_CACHE_ENTRIES = 1024;
-    private final ResponsiveFoliageType foliageType;
-    private final Map<LeafQuadKey, BakedQuad> leafQuadCache = boundedCache(MAX_LEAF_QUAD_CACHE_ENTRIES);
-    private final Map<PlantQuadKey, BakedQuad> plantQuadCache = boundedCache(MAX_PLANT_QUAD_CACHE_ENTRIES);
+    @Nullable
+    private volatile Map<LeafQuadKey, BakedQuad> leafQuadCache;
+    @Nullable
+    private volatile Map<PlantQuadKey, BakedQuad> plantQuadCache;
 
-    ResponsiveFoliageModel(BakedModel originalModel, ResponsiveFoliageType foliageType) {
+    ResponsiveFoliageModel(BakedModel originalModel) {
         super(originalModel);
-        this.foliageType = foliageType;
     }
 
     @Override
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
         ModelData originalData = originalModel.getModelData(level, pos, state, modelData);
-        if (!isResponsiveState(state)) {
+        FoliageSwayProfile profile = FoliageSwayProfiles.resolve(state);
+        if (profile == null) {
             return originalData;
         }
 
         boolean encodeVertexMarkers = ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers();
-        boolean plantFoliage = isPlantFoliage();
-        FoliageModelData.InteractionImpulse interactionImpulse = plantFoliage && !encodeVertexMarkers
+        boolean plantFoliage = profile.type().isPlant();
+        FoliageModelData.InteractionImpulse interactionImpulse = plantFoliage && profile.interactive() && !encodeVertexMarkers
                 ? ResponsiveFoliagePhysics.interactionAt(pos)
                 : null;
         if (!encodeVertexMarkers && interactionImpulse == null) {
@@ -67,7 +68,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             builder.with(FoliageModelData.WIND_EXPOSURE, quantizeExposure(ResponsiveFoliage.windExposure(level, pos)));
         }
         if (plantFoliage) {
-            builder.with(FoliageModelData.COLUMN_SEGMENT, ResponsiveFoliage.columnSegment(level, pos, state));
+            builder.with(FoliageModelData.COLUMN_SEGMENT, ResponsiveFoliage.columnSegment(level, pos, state, profile));
             if (interactionImpulse != null) {
                 builder.with(FoliageModelData.INTERACTION_IMPULSE, interactionImpulse);
             }
@@ -79,8 +80,11 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     @Override
     public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, RandomSource rand, ModelData extraData, @Nullable RenderType renderType) {
         List<BakedQuad> quads = originalModel.getQuads(state, side, rand, extraData, renderType);
-        if (state == null
-                || !isResponsiveState(state)) {
+        if (state == null) {
+            return quads;
+        }
+        FoliageSwayProfile profile = FoliageSwayProfiles.resolve(state);
+        if (profile == null) {
             return quads;
         }
 
@@ -91,15 +95,16 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         }
 
         float windExposure = encodeVertexMarkers ? windExposure(extraData) : 0.0F;
-        if (foliageType == ResponsiveFoliageType.LEAF) {
+        if (profile.type().isLeaves()) {
             if (!encodeVertexMarkers || windExposure <= 0.0F) {
                 return quads;
             }
 
             List<BakedQuad> transformed = new ArrayList<>(quads.size());
+            float leafWindExposure = windExposure * profile.swayStrengthMultiplier();
             for (BakedQuad quad : quads) {
-                transformed.add(leafQuadCache.computeIfAbsent(
-                        new LeafQuadKey(quad, Float.floatToIntBits(windExposure)),
+                transformed.add(leafQuadCache().computeIfAbsent(
+                        new LeafQuadKey(quad, Float.floatToIntBits(leafWindExposure)),
                         ResponsiveFoliageModel::transformLeafQuad
                 ));
             }
@@ -110,13 +115,19 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         if (!extraData.has(FoliageModelData.COLUMN_SEGMENT)) {
             return quads;
         }
-        boolean encodeInteractionMarker = encodeVertexMarkers && ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY.getAsBoolean();
+        boolean encodeInteractionMarker = encodeVertexMarkers
+                && profile.interactive()
+                && ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY.getAsBoolean();
         if (windExposure <= 0.0F && !encodeInteractionMarker && interactionImpulse == null) {
             return quads;
         }
 
         FoliageModelData.ColumnSegment segment = extraData.get(FoliageModelData.COLUMN_SEGMENT);
-        int swayStartHeightBits = Float.floatToIntBits(plantSwayStartHeight());
+        int swayStartHeightBits = Float.floatToIntBits(
+                plantSwayStartHeight() * profile.swayStartHeightMultiplier()
+        );
+        int swayStrengthBits = Float.floatToIntBits(profile.swayStrengthMultiplier());
+        int interactionStrengthBits = Float.floatToIntBits(profile.interactionStrengthMultiplier());
         List<BakedQuad> transformed = new ArrayList<>(quads.size());
         for (BakedQuad quad : quads) {
             if (interactionImpulse != null) {
@@ -127,7 +138,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                         segment.hangsFromTop(),
                         segment.localHeightScale(),
                         Float.intBitsToFloat(swayStartHeightBits),
-                        windExposure,
+                        windExposure * Float.intBitsToFloat(swayStrengthBits),
+                        Float.intBitsToFloat(interactionStrengthBits),
                         false,
                         interactionImpulse
                 ));
@@ -140,9 +152,11 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                         Float.floatToIntBits(segment.localHeightScale()),
                         swayStartHeightBits,
                         Float.floatToIntBits(windExposure),
+                        swayStrengthBits,
+                        interactionStrengthBits,
                         encodeInteractionMarker
                 );
-                transformed.add(plantQuadCache.computeIfAbsent(key, ResponsiveFoliageModel::transformPlantQuad));
+                transformed.add(plantQuadCache().computeIfAbsent(key, ResponsiveFoliageModel::transformPlantQuad));
             }
         }
 
@@ -157,7 +171,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 key.hangsFromTop(),
                 Float.intBitsToFloat(key.localHeightScaleBits()),
                 Float.intBitsToFloat(key.swayStartHeightBits()),
-                Float.intBitsToFloat(key.windExposureBits()),
+                Float.intBitsToFloat(key.windExposureBits()) * Float.intBitsToFloat(key.swayStrengthBits()),
+                Float.intBitsToFloat(key.interactionStrengthBits()),
                 key.encodeInteractionMarker(),
                 null
         );
@@ -171,6 +186,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             float localHeightScale,
             float swayStartHeight,
             float windExposure,
+            float interactionStrength,
             boolean encodeInteractionMarker,
             @Nullable FoliageModelData.InteractionImpulse interactionImpulse
     ) {
@@ -185,7 +201,11 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             float distanceFromAnchor = hangsFromTop ? 1.0F - y : y;
             float columnY = segmentOffset + distanceFromAnchor * localHeightScale;
             float windWeight = plantBendWeight(columnY, segmentHeight, swayStartHeight) * windExposure;
-            float interactionWeight = plantInteractionWeight(columnY, segmentHeight);
+            float interactionWeight = Mth.clamp(
+                    plantInteractionWeight(columnY, segmentHeight) * interactionStrength,
+                    0.0F,
+                    1.0F
+            );
             float bakedInteractionWeight = hasInteraction ? ToucanEasing.smoothstep(interactionWeight) : 0.0F;
             float markerInteractionWeight = encodeInteractionMarker ? interactionWeight : 0.0F;
             if (windWeight <= 0.0F && bakedInteractionWeight <= 0.0F && markerInteractionWeight <= 0.0F) {
@@ -288,15 +308,6 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return Mth.clamp((float) ClientConfig.WIND_PLANT_SWAY_START_HEIGHT.getAsDouble(), 0.0F, 1.0F);
     }
 
-    private boolean isPlantFoliage() {
-        return foliageType == ResponsiveFoliageType.PLANT
-                || (foliageType == ResponsiveFoliageType.AUTO_PLANT && ClientConfig.ENABLE_AUTODETECTED_FOLIAGE_MODELS.getAsBoolean());
-    }
-
-    private boolean isResponsiveState(@Nullable BlockState state) {
-        return state != null && (isPlantFoliage() || ResponsiveFoliage.isLeaf(state));
-    }
-
     private static float windExposure(ModelData extraData) {
         return extraData.has(FoliageModelData.WIND_EXPOSURE)
                 ? Mth.clamp(extraData.get(FoliageModelData.WIND_EXPOSURE), 0.0F, 1.0F)
@@ -309,6 +320,34 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
 
     private static <K, V> Map<K, V> boundedCache(int maximumEntries) {
         return Collections.synchronizedMap(new ToucanBoundedCache<>(64, maximumEntries));
+    }
+
+    private Map<LeafQuadKey, BakedQuad> leafQuadCache() {
+        Map<LeafQuadKey, BakedQuad> cache = leafQuadCache;
+        if (cache == null) {
+            synchronized (this) {
+                cache = leafQuadCache;
+                if (cache == null) {
+                    cache = boundedCache(MAX_LEAF_QUAD_CACHE_ENTRIES);
+                    leafQuadCache = cache;
+                }
+            }
+        }
+        return cache;
+    }
+
+    private Map<PlantQuadKey, BakedQuad> plantQuadCache() {
+        Map<PlantQuadKey, BakedQuad> cache = plantQuadCache;
+        if (cache == null) {
+            synchronized (this) {
+                cache = plantQuadCache;
+                if (cache == null) {
+                    cache = boundedCache(MAX_PLANT_QUAD_CACHE_ENTRIES);
+                    plantQuadCache = cache;
+                }
+            }
+        }
+        return cache;
     }
 
     @Nullable
@@ -329,6 +368,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             int localHeightScaleBits,
             int swayStartHeightBits,
             int windExposureBits,
+            int swayStrengthBits,
+            int interactionStrengthBits,
             boolean encodeInteractionMarker
     ) {
     }

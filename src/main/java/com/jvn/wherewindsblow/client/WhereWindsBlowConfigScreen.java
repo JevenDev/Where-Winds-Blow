@@ -444,7 +444,6 @@ public final class WhereWindsBlowConfigScreen {
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.foliage"))
                         .description(description("group.foliage.description"))
-                        .option(booleanOption(ClientConfig.ENABLE_AUTODETECTED_FOLIAGE_MODELS, WhereWindsBlowConfigScreen::rebuildFoliage))
                         .option(booleanOption(ClientConfig.ENABLE_CUSTOM_FOLIAGE_SHADER, WhereWindsBlowConfigScreen::rebuildFoliage))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_SHEEN))
                         .option(doubleOption(

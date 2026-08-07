@@ -108,10 +108,6 @@ public final class ClientConfig {
             .comment("Scales how strongly foliage reacts to nearby entities.")
             .defineInRange("foliageInteractivityStrength", 1.0D, FOLIAGE_INTERACTIVITY_STRENGTH_MIN, FOLIAGE_INTERACTIVITY_STRENGTH_MAX);
 
-    public static final ModConfigSpec.BooleanValue ENABLE_AUTODETECTED_FOLIAGE_MODELS = BUILDER
-            .comment("Allows Where Winds Blow to animate compatible plant-like models from Minecraft and other mods.")
-            .define("enableAutodetectedFoliageModels", true);
-
     public static final ModConfigSpec.BooleanValue ENABLE_CUSTOM_FOLIAGE_SHADER = BUILDER
             .comment("Enables Where Winds Blow's custom foliage shader for vanilla cutout foliage render types.")
             .define("enableCustomFoliageShader", true);

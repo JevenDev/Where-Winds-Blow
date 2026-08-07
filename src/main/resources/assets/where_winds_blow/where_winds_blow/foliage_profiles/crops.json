@@ -1,0 +1,23 @@
+{
+  "type": "crop",
+  "priority": 70,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.8,
+  "sway_strength_multiplier": 0.7,
+  "interaction_strength_multiplier": 0.65,
+  "blocks": [
+    "#minecraft:crops",
+    "minecraft:wheat",
+    "minecraft:carrots",
+    "minecraft:potatoes",
+    "minecraft:beetroots",
+    "minecraft:nether_wart",
+    "minecraft:melon_stem",
+    "minecraft:attached_melon_stem",
+    "minecraft:pumpkin_stem",
+    "minecraft:attached_pumpkin_stem",
+    "minecraft:torchflower_crop",
+    "minecraft:pitcher_crop",
+    "where_winds_blow:wild_wheat"
+  ]
+}

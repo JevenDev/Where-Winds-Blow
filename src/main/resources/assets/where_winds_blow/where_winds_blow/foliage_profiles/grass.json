@@ -1,0 +1,15 @@
+{
+  "type": "grass",
+  "priority": 60,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.25,
+  "sway_strength_multiplier": 1.15,
+  "interaction_strength_multiplier": 1.15,
+  "blocks": [
+    "minecraft:short_grass",
+    "minecraft:fern",
+    "minecraft:dead_bush",
+    "where_winds_blow:short_dead_grass",
+    "where_winds_blow:short_dry_grass"
+  ]
+}

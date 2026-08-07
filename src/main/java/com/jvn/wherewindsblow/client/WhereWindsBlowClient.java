@@ -7,6 +7,8 @@ import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.client.banner.BannerWindStateCache;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
+import com.jvn.wherewindsblow.client.foliage.FoliageSwayProfileReloadListener;
+import com.jvn.wherewindsblow.client.foliage.FoliageSwayProfiles;
 import com.jvn.wherewindsblow.client.lantern.LanternSway;
 import com.jvn.wherewindsblow.client.lantern.SwingingLanternAssemblyRenderer;
 import com.jvn.wherewindsblow.client.weather.BlizzardWeatherEffects;
@@ -35,6 +37,7 @@ import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
+import net.neoforged.neoforge.event.TagsUpdatedEvent;
 
 public final class WhereWindsBlowClient {
     private WhereWindsBlowClient() {
@@ -57,6 +60,7 @@ public final class WhereWindsBlowClient {
                 .listener(BannerWindStateCache::onClientTick)
                 .listener(WhereWindsBlowClient::onClientPauseChange)
                 .listener(WhereWindsBlowClient::onClientLogin)
+                .listener(WhereWindsBlowClient::onTagsUpdated)
                 .listener(SwingingLanternAssemblyRenderer::onRenderLevelStage)
                 .listener(WindStreakRenderer::onRenderLevelStage)
                 .listener(WindStreakRenderer::onClientTick)
@@ -103,8 +107,13 @@ public final class WhereWindsBlowClient {
     }
 
     private static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener(new FoliageSwayProfileReloadListener());
         event.registerReloadListener(new BiomeWindProfileReloadListener(BiomeWindProfiles.Source.CLIENT, null));
         event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> DynamicWindManager.reset());
+    }
+
+    private static void onTagsUpdated(TagsUpdatedEvent event) {
+        FoliageSwayProfiles.clearCache();
     }
 
     private static void onClientConfigReload(ModConfigEvent.Reloading event) {

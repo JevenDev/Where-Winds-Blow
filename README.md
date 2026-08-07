@@ -56,7 +56,7 @@ Where Winds Blow adds a visible, weather-driven wind system and denser Vanilla+ 
 
 Where Winds Blow is incompatible with **Chunks Fade In** because both mods alter terrain shader rendering.
 
-See the [datapack guide](https://github.com/JevenDev/Where-Winds-Blow/blob/1.21.1/DATAPACKS.md) for more information.
+See the [datapack guide](https://github.com/JevenDev/Where-Winds-Blow/blob/1.21.1/DATAPACKS.md) for world generation and biome wind, or the [foliage profile guide](FOLIAGE_PROFILES.md) to add, tune, or exclude swaying blocks.
 
 ![credits & license](https://cdn.modrinth.com/data/cached_images/5fd3ad80e342e6985dd6ebda1f7afd9c48749fce.png)
 

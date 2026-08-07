@@ -1,0 +1,18 @@
+{
+  "type": "tall_foliage",
+  "priority": 80,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.65,
+  "sway_strength_multiplier": 0.95,
+  "interaction_strength_multiplier": 0.75,
+  "blocks": [
+    "#minecraft:tall_flowers",
+    "minecraft:tall_grass",
+    "minecraft:large_fern",
+    "minecraft:sugar_cane",
+    "minecraft:twisting_vines",
+    "minecraft:twisting_vines_plant",
+    "where_winds_blow:tall_dry_grass",
+    "where_winds_blow:overgrown_grass"
+  ]
+}
