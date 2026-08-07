@@ -52,7 +52,7 @@ public final class DesertStormRenderer {
     );
     private static final int TERRAIN_RADIUS = 25;
     private static final int TERRAIN_SIZE = TERRAIN_RADIUS * 2 + 1;
-    private static final int TERRAIN_REFRESH_TICKS = 5;
+    private static final int TERRAIN_FULL_REFRESH_TICKS = 100;
     private static final int COLLISION_LAYERS = 32;
     private static final int COLLISION_LAYERS_BELOW_CAMERA = 16;
     private static final int WORLD_HASH_PERIOD = 8192;
@@ -65,7 +65,9 @@ public final class DesertStormRenderer {
     private static int cachedCenterX = Integer.MIN_VALUE;
     private static int cachedCenterY = Integer.MIN_VALUE;
     private static int cachedCenterZ = Integer.MIN_VALUE;
-    private static long lastTerrainRefreshTick = Long.MIN_VALUE;
+    private static long lastFullTerrainRefreshTick = Long.MIN_VALUE;
+    private static final int[] TERRAIN_SHIFT_BUFFER = new int[TERRAIN_SIZE * TERRAIN_SIZE];
+    private static final int[] COLLISION_SHIFT_BUFFER = new int[TERRAIN_SIZE * TERRAIN_SIZE];
     private static double dustAnimationTime;
     private static double lastDustAnimationTime = Double.NaN;
     private static boolean gpuDisabled;
@@ -228,13 +230,14 @@ public final class DesertStormRenderer {
         }
 
         long gameTime = level.getGameTime();
-        boolean cacheFresh = cachedLevel == level
-                && cachedCenterX == centerX
-                && cachedCenterY == centerY
-                && cachedCenterZ == centerZ
-                && gameTime >= lastTerrainRefreshTick
-                && gameTime - lastTerrainRefreshTick < TERRAIN_REFRESH_TICKS;
-        if (cacheFresh) {
+        boolean sameLevel = cachedLevel == level;
+        boolean fullRefreshDue = !sameLevel
+                || cachedCenterY != centerY
+                || gameTime < lastFullTerrainRefreshTick
+                || gameTime - lastFullTerrainRefreshTick >= TERRAIN_FULL_REFRESH_TICKS;
+        int deltaX = sameLevel ? centerX - cachedCenterX : Integer.MAX_VALUE;
+        int deltaZ = sameLevel ? centerZ - cachedCenterZ : Integer.MAX_VALUE;
+        if (!fullRefreshDue && deltaX == 0 && deltaZ == 0) {
             return true;
         }
 
@@ -242,6 +245,14 @@ public final class DesertStormRenderer {
         NativeImage collisionPixels = collisionTexture.getPixels();
         if (pixels == null || collisionPixels == null) {
             return false;
+        }
+
+        boolean canShift = !fullRefreshDue
+                && Math.abs(deltaX) < TERRAIN_SIZE
+                && Math.abs(deltaZ) < TERRAIN_SIZE;
+        if (canShift) {
+            snapshotTexture(pixels, TERRAIN_SHIFT_BUFFER);
+            snapshotTexture(collisionPixels, COLLISION_SHIFT_BUFFER);
         }
 
         int minimumHeight = level.getMinBuildHeight();
@@ -252,60 +263,21 @@ public final class DesertStormRenderer {
         for (int textureZ = 0; textureZ < TERRAIN_SIZE; textureZ++) {
             int z = centerZ + textureZ - TERRAIN_RADIUS;
             for (int textureX = 0; textureX < TERRAIN_SIZE; textureX++) {
+                int previousX = textureX + deltaX;
+                int previousZ = textureZ + deltaZ;
+                if (canShift
+                        && previousX >= 0 && previousX < TERRAIN_SIZE
+                        && previousZ >= 0 && previousZ < TERRAIN_SIZE) {
+                    int previousIndex = previousZ * TERRAIN_SIZE + previousX;
+                    pixels.setPixelRGBA(textureX, textureZ, TERRAIN_SHIFT_BUFFER[previousIndex]);
+                    collisionPixels.setPixelRGBA(textureX, textureZ, COLLISION_SHIFT_BUFFER[previousIndex]);
+                    continue;
+                }
+
                 int x = centerX + textureX - TERRAIN_RADIUS;
-                int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
-                biomePos.set(x, centerY, z);
-                Holder<Biome> biome = level.getBiome(biomePos);
-                boolean desert = biome.is(Tags.Biomes.IS_DESERT)
-                        || biome.is(Tags.Biomes.IS_BADLANDS);
-                int material = 0;
-                if (desert) {
-                    surfacePos.set(x, Math.max(minimumHeight, surfaceY - 1), z);
-                    boolean redSand = biome.is(Tags.Biomes.IS_BADLANDS)
-                            || level.getBlockState(surfacePos).is(Blocks.RED_SAND);
-                    material = redSand ? 255 : 127;
-                }
-
-                int encodedHeight = Mth.clamp(surfaceY - minimumHeight, 0, 65535);
-                int low = encodedHeight & 255;
-                int high = encodedHeight >>> 8 & 255;
-                pixels.setPixelRGBA(
-                        textureX,
-                        textureZ,
-                        FastColor.ABGR32.color(255, material, high, low)
-                );
-
-                int collisionByte0 = 0;
-                int collisionByte1 = 0;
-                int collisionByte2 = 0;
-                int collisionByte3 = 0;
-                for (int layer = 0; layer < COLLISION_LAYERS; layer++) {
-                    collisionPos.set(x, collisionBase + layer, z);
-                    var collisionState = level.getBlockState(collisionPos);
-                    boolean occupied = !collisionState
-                            .getCollisionShape(level, collisionPos)
-                            .isEmpty()
-                            || !collisionState.getFluidState().isEmpty();
-                    if (!occupied) {
-                        continue;
-                    }
-                    int bit = 1 << (layer & 7);
-                    switch (layer >> 3) {
-                        case 0 -> collisionByte0 |= bit;
-                        case 1 -> collisionByte1 |= bit;
-                        case 2 -> collisionByte2 |= bit;
-                        default -> collisionByte3 |= bit;
-                    }
-                }
-                collisionPixels.setPixelRGBA(
-                        textureX,
-                        textureZ,
-                        FastColor.ABGR32.color(
-                                collisionByte3,
-                                collisionByte2,
-                                collisionByte1,
-                                collisionByte0
-                        )
+                sampleTerrainCell(
+                        level, pixels, collisionPixels, textureX, textureZ, x, z,
+                        centerY, minimumHeight, collisionBase, biomePos, surfacePos, collisionPos
                 );
             }
         }
@@ -315,8 +287,80 @@ public final class DesertStormRenderer {
         cachedCenterX = centerX;
         cachedCenterY = centerY;
         cachedCenterZ = centerZ;
-        lastTerrainRefreshTick = gameTime;
+        if (!canShift) {
+            lastFullTerrainRefreshTick = gameTime;
+        }
         return true;
+    }
+
+    private static void snapshotTexture(NativeImage image, int[] destination) {
+        for (int z = 0; z < TERRAIN_SIZE; z++) {
+            for (int x = 0; x < TERRAIN_SIZE; x++) {
+                destination[z * TERRAIN_SIZE + x] = image.getPixelRGBA(x, z);
+            }
+        }
+    }
+
+    private static void sampleTerrainCell(
+            ClientLevel level,
+            NativeImage terrainPixels,
+            NativeImage collisionPixels,
+            int textureX,
+            int textureZ,
+            int x,
+            int z,
+            int centerY,
+            int minimumHeight,
+            int collisionBase,
+            BlockPos.MutableBlockPos biomePos,
+            BlockPos.MutableBlockPos surfacePos,
+            BlockPos.MutableBlockPos collisionPos
+    ) {
+        int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+        biomePos.set(x, centerY, z);
+        Holder<Biome> biome = level.getBiome(biomePos);
+        boolean desert = biome.is(Tags.Biomes.IS_DESERT) || biome.is(Tags.Biomes.IS_BADLANDS);
+        int material = 0;
+        if (desert) {
+            surfacePos.set(x, Math.max(minimumHeight, surfaceY - 1), z);
+            boolean redSand = biome.is(Tags.Biomes.IS_BADLANDS)
+                    || level.getBlockState(surfacePos).is(Blocks.RED_SAND);
+            material = redSand ? 255 : 127;
+        }
+
+        int encodedHeight = Mth.clamp(surfaceY - minimumHeight, 0, 65535);
+        terrainPixels.setPixelRGBA(
+                textureX,
+                textureZ,
+                FastColor.ABGR32.color(255, material, encodedHeight >>> 8 & 255, encodedHeight & 255)
+        );
+
+        int collisionByte0 = 0;
+        int collisionByte1 = 0;
+        int collisionByte2 = 0;
+        int collisionByte3 = 0;
+        for (int layer = 0; layer < COLLISION_LAYERS; layer++) {
+            collisionPos.set(x, collisionBase + layer, z);
+            var collisionState = level.getBlockState(collisionPos);
+            boolean occupied = !collisionState.getCollisionShape(level, collisionPos).isEmpty()
+                    || !collisionState.getFluidState().isEmpty();
+            if (occupied) {
+                int bit = 1 << (layer & 7);
+                switch (layer >> 3) {
+                    case 0 -> collisionByte0 |= bit;
+                    case 1 -> collisionByte1 |= bit;
+                    case 2 -> collisionByte2 |= bit;
+                    default -> collisionByte3 |= bit;
+                }
+            }
+        }
+        collisionPixels.setPixelRGBA(
+                textureX,
+                textureZ,
+                FastColor.ABGR32.color(
+                        collisionByte3, collisionByte2, collisionByte1, collisionByte0
+                )
+        );
     }
 
     private static void restoreRenderState() {
