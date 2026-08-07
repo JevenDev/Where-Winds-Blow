@@ -502,6 +502,7 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_LINE_DENSITY_MAX,
                                 SMALL_STEP
                         ))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_LEAVES))
                         .option(doubleOption(
                                 ClientConfig.WIND_LEAF_DENSITY,
                                 ClientConfig.WIND_LEAF_DENSITY_MIN,

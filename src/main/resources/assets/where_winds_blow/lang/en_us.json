@@ -107,6 +107,8 @@
   "where_winds_blow.config.windStreakVisibility.tooltip": "Scales the overall amount of visible wind, including lines, drifting leaves, and flower petals.",
   "where_winds_blow.config.windLineDensity": "Line Density",
   "where_winds_blow.config.windLineDensity.tooltip": "Scales how many wind lines spawn.",
+  "where_winds_blow.config.enableWindLeaves": "Wind-Blown Leaves",
+  "where_winds_blow.config.enableWindLeaves.tooltip": "Adds drifting leaf particles that match nearby tree leaves and the surrounding biome.",
   "where_winds_blow.config.windLeafDensity": "Leaf Density",
   "where_winds_blow.config.windLeafDensity.tooltip": "Scales how many drifting leaf particles spawn.",
   "where_winds_blow.config.enableWindFlowerPetals": "Wind-Blown Flower Petals",

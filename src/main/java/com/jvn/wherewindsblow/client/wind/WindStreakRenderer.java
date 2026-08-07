@@ -356,6 +356,10 @@ public final class WindStreakRenderer {
     }
 
     private static int desiredLeafCount(WindSample wind) {
+        if (!ClientConfig.ENABLE_WIND_LEAVES.getAsBoolean()) {
+            return 0;
+        }
+
         float visibility = (float) ClientConfig.WIND_STREAK_VISIBILITY.getAsDouble();
         if (visibility <= 0.0F || wind.strength() <= 0.02F) {
             return 0;

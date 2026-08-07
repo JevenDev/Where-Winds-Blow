@@ -136,6 +136,10 @@ public final class ClientConfig {
             .comment("Scales how many wind lines spawn.")
             .defineInRange("windLineDensity", 1.0D, WIND_LINE_DENSITY_MIN, WIND_LINE_DENSITY_MAX);
 
+    public static final ModConfigSpec.BooleanValue ENABLE_WIND_LEAVES = BUILDER
+            .comment("Lets leaf particles matching nearby trees and biomes drift through the air.")
+            .define("enableWindLeaves", true);
+
     public static final ModConfigSpec.DoubleValue WIND_LEAF_DENSITY = BUILDER
             .comment("Scales how many drifting leaf particles spawn.")
             .defineInRange("windLeafDensity", 1.0D, WIND_LEAF_DENSITY_MIN, WIND_LEAF_DENSITY_MAX);
