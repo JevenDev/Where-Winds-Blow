@@ -106,12 +106,22 @@ public final class DynamicWindManager {
     ) {
         GlobalWindState current = currentState();
         BiomeWindProfile profile = level != null && pos != null ? profileAt(pos) : activeProfile;
+        boolean useEffectiveProfile = profile.id().equals(activeProfile.id());
+        float baseStrengthMultiplier = useEffectiveProfile
+                ? effectiveBaseStrengthMultiplier
+                : profile.baseStrengthMultiplier();
+        float gustStrengthMultiplier = useEffectiveProfile
+                ? effectiveGustStrengthMultiplier
+                : profile.gustStrengthMultiplier();
+        float turbulenceMultiplier = useEffectiveProfile
+                ? effectiveTurbulenceMultiplier
+                : profile.turbulenceMultiplier();
         MutableGustContribution gust = GUST_SCRATCH.get();
         sampleGustContribution(x, z, simulationTime(), gust);
         float localAmbient = level != null
-                ? ambientStrength * profile.baseStrengthMultiplier()
+                ? ambientStrength * baseStrengthMultiplier
                 : current.ambientStrength();
-        float localGustStrength = gust.strength() * profile.gustStrengthMultiplier();
+        float localGustStrength = gust.strength() * gustStrengthMultiplier;
         float gustScale = gust.strength() > 0.0001F ? localGustStrength / gust.strength() : 0.0F;
         float directionX = current.directionX() * localAmbient + gust.directionX() * gustScale;
         float directionZ = current.directionZ() * localAmbient + gust.directionZ() * gustScale;
@@ -144,7 +154,7 @@ public final class DynamicWindManager {
                 visualStrength,
                 scaledAmbient * visualScale,
                 scaledGust * visualScale,
-                (ambientTurbulence + gust.turbulence()) * profile.turbulenceMultiplier() * exposure,
+                (ambientTurbulence + gust.turbulence()) * turbulenceMultiplier * exposure,
                 exposure,
                 current.weatherPower(),
                 profile.id()
