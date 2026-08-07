@@ -1,6 +1,8 @@
 package com.jvn.wherewindsblow.client.foliage;
 
 import com.jvn.wherewindsblow.config.ClientConfig;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -14,6 +16,7 @@ import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LightningBolt;
@@ -173,7 +176,7 @@ public final class ResponsiveFoliagePhysics {
         collectTransientForceImpulses(level, nowMillis, touchedImpulses);
 
         trimImpulses(player, touchedImpulses);
-        updateActiveImpulses(level, touchedImpulses, nowMillis);
+        updateActiveImpulses(touchedImpulses, nowMillis);
     }
 
     private static List<Entity> interactiveEntities(ClientLevel level, Entity player) {
@@ -208,7 +211,7 @@ public final class ResponsiveFoliagePhysics {
         }
 
         if (level != null) {
-            markChanged(level, new HashSet<>(ACTIVE_IMPULSES.keySet()));
+            markChanged(new HashSet<>(ACTIVE_IMPULSES.keySet()));
         }
         ACTIVE_IMPULSES.clear();
     }
@@ -443,7 +446,7 @@ public final class ResponsiveFoliagePhysics {
         return dx * dx + dy * dy + dz * dz - impulse.magnitudeSqr() * 24.0D;
     }
 
-    private static void updateActiveImpulses(ClientLevel level, Map<BlockPos, FoliageImpulse> touchedImpulses, long nowMillis) {
+    private static void updateActiveImpulses(Map<BlockPos, FoliageImpulse> touchedImpulses, long nowMillis) {
         Set<BlockPos> changedPositions = new HashSet<>();
         for (Map.Entry<BlockPos, FoliageImpulse> entry : touchedImpulses.entrySet()) {
             BlockPos pos = entry.getKey();
@@ -481,7 +484,7 @@ public final class ResponsiveFoliagePhysics {
             trimActiveImpulses(changedPositions);
         }
 
-        markChanged(level, changedPositions);
+        markChanged(changedPositions);
     }
 
     private static void trimActiveImpulses(Set<BlockPos> changedPositions) {
@@ -500,15 +503,22 @@ public final class ResponsiveFoliagePhysics {
         }
     }
 
-    private static void markChanged(ClientLevel level, Set<BlockPos> positions) {
+    private static void markChanged(Set<BlockPos> positions) {
         if (positions.isEmpty()) {
             return;
         }
 
         Minecraft minecraft = Minecraft.getInstance();
+        LongSet dirtySections = new LongOpenHashSet();
         for (BlockPos pos : positions) {
-            BlockState state = level.getBlockState(pos);
-            minecraft.levelRenderer.blockChanged(level, pos, state, state, 0);
+            SectionPos.aroundAndAtBlockPos(pos, section -> dirtySections.add(section));
+        }
+        for (long section : dirtySections) {
+            minecraft.levelRenderer.setSectionDirty(
+                    SectionPos.x(section),
+                    SectionPos.y(section),
+                    SectionPos.z(section)
+            );
         }
     }
 
