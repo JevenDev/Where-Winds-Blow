@@ -1,9 +1,10 @@
 package com.jvn.wherewindsblow.client.foliage;
 
+import com.jvn.toucanlib.client.ToucanEasing;
+import com.jvn.toucanlib.util.ToucanBoundedCache;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.client.renderer.RenderType;
@@ -185,7 +186,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             float columnY = segmentOffset + distanceFromAnchor * localHeightScale;
             float windWeight = plantBendWeight(columnY, segmentHeight, swayStartHeight) * windExposure;
             float interactionWeight = plantInteractionWeight(columnY, segmentHeight);
-            float bakedInteractionWeight = hasInteraction ? smoothCurve(interactionWeight) : 0.0F;
+            float bakedInteractionWeight = hasInteraction ? ToucanEasing.smoothstep(interactionWeight) : 0.0F;
             float markerInteractionWeight = encodeInteractionMarker ? interactionWeight : 0.0F;
             if (windWeight <= 0.0F && bakedInteractionWeight <= 0.0F && markerInteractionWeight <= 0.0F) {
                 continue;
@@ -254,18 +255,13 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         }
 
         float tallRange = Math.max(columnHeight - TALL_INTERACTION_DAMP_START_HEIGHT, MIN_PLANT_SWAY_HEIGHT_RANGE);
-        float tallProgress = smoothCurve((columnY - TALL_INTERACTION_DAMP_START_HEIGHT) / tallRange);
+        float tallProgress = ToucanEasing.smoothstep((columnY - TALL_INTERACTION_DAMP_START_HEIGHT) / tallRange);
         float topDamping = Mth.clamp(
                 TALL_INTERACTION_DAMPING_SCALE / columnHeight,
                 TALL_INTERACTION_MIN_DAMPING,
                 TALL_INTERACTION_MAX_DAMPING
         );
         return weight * Mth.lerp(tallProgress, 1.0F, topDamping);
-    }
-
-    private static float smoothCurve(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
     }
 
     private static int packPlantAlpha(int color, float windWeight, float interactionWeight) {
@@ -312,12 +308,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     }
 
     private static <K, V> Map<K, V> boundedCache(int maximumEntries) {
-        return Collections.synchronizedMap(new LinkedHashMap<>(64, 0.75F, true) {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<K, V> eldest) {
-                return size() > maximumEntries;
-            }
-        });
+        return Collections.synchronizedMap(new ToucanBoundedCache<>(64, maximumEntries));
     }
 
     @Nullable

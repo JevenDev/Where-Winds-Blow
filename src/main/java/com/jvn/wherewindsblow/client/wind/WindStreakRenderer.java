@@ -417,7 +417,7 @@ public final class WindStreakRenderer {
         int typeIndex = index / LEAF_TEXTURES_PER_TYPE;
         int variant = index % LEAF_TEXTURES_PER_TYPE;
         String path = "textures/particle/leaves/" + LEAF_TEXTURE_TYPES[typeIndex] + "_" + variant + ".png";
-        return ResourceLocation.fromNamespaceAndPath(WhereWindsBlow.MOD_ID, path);
+        return WhereWindsBlow.IDS.id(path);
     }
 
     private static ResourceLocation flowerPetalTexture(int index) {
@@ -431,7 +431,7 @@ public final class WindStreakRenderer {
                     : "textures/particle/azure_bluet_"
                             + (flowerIndex - DANDELION_PETAL_TEXTURE_COUNT) + ".png";
         }
-        return ResourceLocation.fromNamespaceAndPath(WhereWindsBlow.MOD_ID, path);
+        return WhereWindsBlow.IDS.id(path);
     }
 
     private static RenderType windLeafTexture(ResourceLocation texture) {

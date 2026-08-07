@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.lantern;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
@@ -484,12 +485,7 @@ public final class SwingingLanternAssemblyRenderer {
     private static float chainBend(float progress, int chainHeight) {
         float longStack = Mth.clamp((chainHeight - 3.0F) / 8.0F, 0.0F, 1.0F);
         float exponent = Mth.lerp(longStack, 1.45F, 1.05F);
-        return (float) Math.pow(smoothStep(progress), exponent);
-    }
-
-    private static float smoothStep(float value) {
-        float x = Mth.clamp(value, 0.0F, 1.0F);
-        return x * x * (3.0F - 2.0F * x);
+        return (float) Math.pow(ToucanEasing.smoothstep(progress), exponent);
     }
 
     private static float randomPhase(BlockPos pos) {

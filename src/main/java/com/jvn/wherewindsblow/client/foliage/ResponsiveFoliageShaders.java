@@ -1,12 +1,12 @@
 package com.jvn.wherewindsblow.client.foliage;
 
+import com.jvn.toucanlib.neoforge.client.ToucanShaders;
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.GlobalWindState;
 import com.jvn.wherewindsblow.client.wind.GustFrontState;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import net.minecraft.Util;
@@ -27,10 +27,7 @@ public final class ResponsiveFoliageShaders {
     private static final long SHADER_PACK_STATE_CACHE_MILLIS = 250L;
     private static final float LEAF_WIND_SWAY_SCALE = 0.35F;
     public static final int MAX_FOLIAGE_INTERACTORS = 16;
-    private static final ResourceLocation WIND_SHADER = ResourceLocation.fromNamespaceAndPath(
-            WhereWindsBlow.MOD_ID,
-            "rendertype_responsive_foliage_cutout"
-    );
+    private static final ResourceLocation WIND_SHADER = WhereWindsBlow.IDS.id("rendertype_responsive_foliage_cutout");
     private static boolean irisApiLookupAttempted;
     @Nullable
     private static Method irisGetInstanceMethod;
@@ -51,11 +48,13 @@ public final class ResponsiveFoliageShaders {
     }
 
     public static void register(RegisterShadersEvent event) {
-        try {
-            event.registerShader(new ShaderInstance(event.getResourceProvider(), WIND_SHADER, DefaultVertexFormat.BLOCK), loadedShader -> shader = loadedShader);
-        } catch (IOException | RuntimeException exception) {
-            disableCustomFoliageShader("Failed to load responsive foliage wind shader.", exception);
-        }
+        ToucanShaders.registerOptional(
+                event,
+                WIND_SHADER,
+                DefaultVertexFormat.BLOCK,
+                loadedShader -> shader = loadedShader,
+                exception -> disableCustomFoliageShader("Failed to load responsive foliage wind shader.", exception)
+        );
     }
 
     @Nullable

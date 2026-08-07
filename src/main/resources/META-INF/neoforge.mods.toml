@@ -27,6 +27,13 @@ ordering="NONE"
 side="BOTH"
 
 [[dependencies."${mod_id}"]]
+modId="toucanlib"
+type="required"
+versionRange="[${toucanlib_version},)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies."${mod_id}"]]
 modId="yet_another_config_lib_v3"
 type="required"
 versionRange="[${yacl_version},)"

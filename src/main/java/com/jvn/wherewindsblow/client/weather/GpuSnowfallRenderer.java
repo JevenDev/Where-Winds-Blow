@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.weather;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
@@ -33,10 +34,7 @@ import org.joml.Vector3f;
 public final class GpuSnowfallRenderer {
     private static final ResourceLocation SNOW_TEXTURE =
             ResourceLocation.withDefaultNamespace("textures/environment/snow.png");
-    private static final ResourceLocation HEIGHT_TEXTURE = ResourceLocation.fromNamespaceAndPath(
-            WhereWindsBlow.MOD_ID,
-            "dynamic/gpu_snowfall_height"
-    );
+    private static final ResourceLocation HEIGHT_TEXTURE = WhereWindsBlow.IDS.id("dynamic/gpu_snowfall_height");
     private static final int HEIGHT_MAP_RADIUS = 20;
     private static final int HEIGHT_MAP_SIZE = HEIGHT_MAP_RADIUS * 2 + 1;
     private static final int HEIGHT_REFRESH_TICKS = 5;
@@ -97,11 +95,11 @@ public final class GpuSnowfallRenderer {
             boolean dynamicSqualls = ClientConfig.ENABLE_DYNAMIC_RAIN_SQUALLS.getAsBoolean();
             float squallStrength = (float) ClientConfig.RAIN_SQUALL_STRENGTH.getAsDouble();
             float squall = dynamicSqualls
-                    ? smoothFade(Mth.clamp(wind.gustStrength() * 2.4F, 0.0F, 1.0F))
+                    ? ToucanEasing.smoothstep(Mth.clamp(wind.gustStrength() * 2.4F, 0.0F, 1.0F))
                             * squallStrength * stormActivity
                     : 0.0F;
             float lull = dynamicSqualls
-                    ? smoothFade(DynamicWindManager.currentState().lullAmount())
+                    ? ToucanEasing.smoothstep(DynamicWindManager.currentState().lullAmount())
                             * squallStrength * stormActivity
                     : 0.0F;
             float baseDensity = Mth.clamp(
@@ -275,11 +273,6 @@ public final class GpuSnowfallRenderer {
             snowfallAnimationTime += delta * Math.max(speedMultiplier, 0.2F);
         }
         return snowfallAnimationTime;
-    }
-
-    private static float smoothFade(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
     }
 
     private static final class SnowMesh {

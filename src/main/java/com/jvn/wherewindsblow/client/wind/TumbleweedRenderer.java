@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.wind;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.client.weather.BlizzardWeatherEffects;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -322,11 +323,11 @@ public final class TumbleweedRenderer {
         double dy = y - cameraPos.y();
         double dz = z - cameraPos.z();
         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        float distanceFade = smoothFade(Mth.clamp((float) ((MAX_DISTANCE - distance) / 14.0D), 0.0F, 1.0F));
-        float fadeIn = smoothFade(Mth.clamp((tumbleweed.age + partialTick) / 14.0F, 0.0F, 1.0F));
+        float distanceFade = ToucanEasing.smoothstep(Mth.clamp((float) ((MAX_DISTANCE - distance) / 14.0D), 0.0F, 1.0F));
+        float fadeIn = ToucanEasing.smoothstep(Mth.clamp((tumbleweed.age + partialTick) / 14.0F, 0.0F, 1.0F));
         float fadeOut = tumbleweed.fadingOut
                 ? 1.0F - Mth.clamp((tumbleweed.fadeAge + partialTick) / FADE_TICKS, 0.0F, 1.0F)
-                : smoothFade(Mth.clamp((tumbleweed.lifetime - tumbleweed.age) / 28.0F, 0.0F, 1.0F));
+                : ToucanEasing.smoothstep(Mth.clamp((tumbleweed.lifetime - tumbleweed.age) / 28.0F, 0.0F, 1.0F));
         float visibleScale = distanceFade * fadeIn * fadeOut * stormFog.visibility(distance);
         if (visibleScale <= 0.01F) {
             return;
@@ -423,11 +424,6 @@ public final class TumbleweedRenderer {
             tumbleweed.fadingOut = false;
         }
         spawnCooldown = 40;
-    }
-
-    private static float smoothFade(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
     }
 
     private static double randomBetween(double minimum, double maximum) {

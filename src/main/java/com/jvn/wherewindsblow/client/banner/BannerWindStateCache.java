@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.banner;
 
+import com.jvn.toucanlib.client.ToucanMotion;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -147,16 +148,16 @@ public final class BannerWindStateCache {
                 this.lastSampleTime = simulationTime;
             }
 
-            this.extension = approach(this.extension, this.targetExtension, deltaSeconds,
-                    this.targetExtension > this.extension ? 7.5F : 3.2F);
-            this.trailingExtension = approach(this.trailingExtension, this.targetExtension, deltaSeconds,
-                    this.targetExtension > this.trailingExtension ? 4.2F : 2.1F);
-            this.crosswind = approach(this.crosswind, this.targetCrosswind, deltaSeconds, 5.0F);
-            this.outwardWind = approach(this.outwardWind, this.targetOutwardWind, deltaSeconds, 5.0F);
-            this.gust = approach(this.gust, this.targetGust, deltaSeconds,
-                    this.targetGust > this.gust ? 9.0F : 3.0F);
-            this.turbulence = approach(this.turbulence, this.targetTurbulence, deltaSeconds, 8.0F);
-            this.exposure = approach(this.exposure, this.targetExposure, deltaSeconds, 4.0F);
+            this.extension = ToucanMotion.smoothExp(this.extension, this.targetExtension,
+                    this.targetExtension > this.extension ? 7.5F : 3.2F, deltaSeconds);
+            this.trailingExtension = ToucanMotion.smoothExp(this.trailingExtension, this.targetExtension,
+                    this.targetExtension > this.trailingExtension ? 4.2F : 2.1F, deltaSeconds);
+            this.crosswind = ToucanMotion.smoothExp(this.crosswind, this.targetCrosswind, 5.0F, deltaSeconds);
+            this.outwardWind = ToucanMotion.smoothExp(this.outwardWind, this.targetOutwardWind, 5.0F, deltaSeconds);
+            this.gust = ToucanMotion.smoothExp(this.gust, this.targetGust,
+                    this.targetGust > this.gust ? 9.0F : 3.0F, deltaSeconds);
+            this.turbulence = ToucanMotion.smoothExp(this.turbulence, this.targetTurbulence, 8.0F, deltaSeconds);
+            this.exposure = ToucanMotion.smoothExp(this.exposure, this.targetExposure, 4.0F, deltaSeconds);
 
             // Model the vanilla flag as a light rigid panel hanging from its top edge. The spring
             // gives gusts a little overshoot and follow-through without introducing cloth geometry.
@@ -218,10 +219,6 @@ public final class BannerWindStateCache {
             this.previousExposure = this.exposure;
             this.previousHingeResponse = this.hingeResponse;
             this.previousSideResponse = this.sideResponse;
-        }
-
-        private static float approach(float current, float target, float deltaSeconds, float response) {
-            return Mth.lerp(1.0F - (float) Math.exp(-deltaSeconds * response), current, target);
         }
 
         public float phase() {

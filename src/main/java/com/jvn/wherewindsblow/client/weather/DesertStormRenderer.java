@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.weather;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
@@ -34,22 +35,13 @@ import org.joml.Vector3f;
  * red sand; the CPU does not rebuild storm geometry each frame.
  */
 public final class DesertStormRenderer {
-    private static final ResourceLocation DUST_TEXTURE = ResourceLocation.fromNamespaceAndPath(
-            WhereWindsBlow.MOD_ID,
-            "textures/environment/desert_dust.png"
-    );
+    private static final ResourceLocation DUST_TEXTURE = WhereWindsBlow.IDS.id("textures/environment/desert_dust.png");
     private static final ResourceLocation SAND_TEXTURE =
             ResourceLocation.withDefaultNamespace("textures/block/sand.png");
     private static final ResourceLocation RED_SAND_TEXTURE =
             ResourceLocation.withDefaultNamespace("textures/block/red_sand.png");
-    private static final ResourceLocation TERRAIN_TEXTURE = ResourceLocation.fromNamespaceAndPath(
-            WhereWindsBlow.MOD_ID,
-            "dynamic/gpu_desert_storm_terrain"
-    );
-    private static final ResourceLocation COLLISION_TEXTURE = ResourceLocation.fromNamespaceAndPath(
-            WhereWindsBlow.MOD_ID,
-            "dynamic/gpu_desert_storm_collision"
-    );
+    private static final ResourceLocation TERRAIN_TEXTURE = WhereWindsBlow.IDS.id("dynamic/gpu_desert_storm_terrain");
+    private static final ResourceLocation COLLISION_TEXTURE = WhereWindsBlow.IDS.id("dynamic/gpu_desert_storm_collision");
     private static final int TERRAIN_RADIUS = 25;
     private static final int TERRAIN_SIZE = TERRAIN_RADIUS * 2 + 1;
     private static final int TERRAIN_FULL_REFRESH_TICKS = 100;
@@ -109,7 +101,7 @@ public final class DesertStormRenderer {
                     new BlockPos(centerX, centerY, centerZ)
             );
             float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
-            float gust = smoothFade(Mth.clamp(wind.gustStrength() * 2.3F, 0.0F, 1.0F));
+            float gust = ToucanEasing.smoothstep(Mth.clamp(wind.gustStrength() * 2.3F, 0.0F, 1.0F));
             float stormActivity = BlizzardWeatherEffects.blizzardActivity(thunder);
             DesertStormProfile profile = configuredProfile(stormActivity);
             float severeIntensity = Mth.lerp(
@@ -420,11 +412,6 @@ public final class DesertStormRenderer {
                 (float) ordinary.getAsDouble(),
                 (float) sandstorm.getAsDouble()
         );
-    }
-
-    private static float smoothFade(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
     }
 
     private record DesertStormProfile(

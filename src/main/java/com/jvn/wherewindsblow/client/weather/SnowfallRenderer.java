@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.weather;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -136,10 +137,10 @@ public final class SnowfallRenderer {
                 WindSample wind = DynamicWindManager.sampleWind(level, samplePos);
                 float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
                 float squall = dynamicSqualls
-                        ? smoothFade(Mth.clamp(wind.gustStrength() * 2.4F, 0.0F, 1.0F))
+                        ? ToucanEasing.smoothstep(Mth.clamp(wind.gustStrength() * 2.4F, 0.0F, 1.0F))
                                 * squallStrength * stormActivity
                         : 0.0F;
-                float lullFade = dynamicSqualls ? smoothFade(lull) * squallStrength : 0.0F;
+                float lullFade = dynamicSqualls ? ToucanEasing.smoothstep(lull) * squallStrength : 0.0F;
                 float baseDensity = Mth.clamp(
                         0.68F + rainLevel * 0.20F + thunder * 0.08F
                                 + squall * 0.12F - lullFade * 0.18F,
@@ -201,7 +202,7 @@ public final class SnowfallRenderer {
                     }
 
                     float verticalDistance = (float) Math.abs(flakeY - camY);
-                    float verticalVisibility = smoothFade(Mth.clamp(
+                    float verticalVisibility = ToucanEasing.smoothstep(Mth.clamp(
                             (halfVerticalSpan - verticalDistance) / VERTICAL_FADE_DEPTH,
                             0.0F,
                             1.0F
@@ -389,12 +390,7 @@ public final class SnowfallRenderer {
 
     private static float radialVisibility(float normalizedDistance) {
         float edge = (normalizedDistance - EDGE_FADE_START) / (1.0F - EDGE_FADE_START);
-        return 1.0F - smoothFade(edge);
-    }
-
-    private static float smoothFade(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
+        return 1.0F - ToucanEasing.smoothstep(edge);
     }
 
     private static double positiveModulo(double value, double modulus) {

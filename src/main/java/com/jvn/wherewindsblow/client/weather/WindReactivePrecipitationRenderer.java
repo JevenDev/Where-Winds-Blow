@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.weather;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -308,8 +309,8 @@ public final class WindReactivePrecipitationRenderer {
             return PrecipitationResponse.NONE;
         }
 
-        float squall = smoothFade(Mth.clamp(wind.gustStrength() * 2.4F, 0.0F, 1.0F)) * configuredStrength;
-        float lull = smoothFade(lullAmount) * configuredStrength;
+        float squall = ToucanEasing.smoothstep(Mth.clamp(wind.gustStrength() * 2.4F, 0.0F, 1.0F)) * configuredStrength;
+        float lull = ToucanEasing.smoothstep(lullAmount) * configuredStrength;
         return new PrecipitationResponse(
                 squall * 0.14F - lull * 0.20F,
                 squall * 0.22F - lull * 0.16F,
@@ -328,12 +329,7 @@ public final class WindReactivePrecipitationRenderer {
             return 1.0F;
         }
         float transition = (density - unitFloat(hash)) / RAIN_DENSITY_FADE_WIDTH + 0.5F;
-        return smoothFade(transition);
-    }
-
-    private static float smoothFade(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
+        return ToucanEasing.smoothstep(transition);
     }
 
     private static float unitFloat(long hash) {

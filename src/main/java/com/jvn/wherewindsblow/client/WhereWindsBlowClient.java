@@ -1,5 +1,7 @@
 package com.jvn.wherewindsblow.client;
 
+import com.jvn.toucanlib.neoforge.config.ToucanConfigScreens;
+import com.jvn.toucanlib.neoforge.event.ToucanEventBuses;
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.client.banner.BannerWindStateCache;
@@ -27,14 +29,12 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.config.ModConfigEvent;
-import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.client.event.ClientPauseChangeEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
 public final class WhereWindsBlowClient {
     private WhereWindsBlowClient() {
@@ -42,28 +42,30 @@ public final class WhereWindsBlowClient {
 
     public static void register(IEventBus modEventBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.CLIENT, ClientConfig.SPEC);
-        modContainer.registerExtensionPoint(IConfigScreenFactory.class, (container, screen) -> WhereWindsBlowConfigScreen.create(screen));
-        modEventBus.addListener(WhereWindsBlowClient::registerBlockColors);
-        modEventBus.addListener(WhereWindsBlowClient::registerItemColors);
-        modEventBus.addListener(WhereWindsBlowClient::modifyBakedModels);
-        modEventBus.addListener(WhereWindsBlowClient::registerShaders);
-        modEventBus.addListener(WhereWindsBlowClient::registerReloadListeners);
-        modEventBus.addListener(WhereWindsBlowClient::onClientConfigReload);
-        NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onRenderLevelStage);
-        NeoForge.EVENT_BUS.addListener(ResponsiveFoliagePhysics::onClientTick);
-        NeoForge.EVENT_BUS.addListener(DynamicWindManager::onClientTick);
-        NeoForge.EVENT_BUS.addListener(BannerWindStateCache::onClientTick);
-        NeoForge.EVENT_BUS.addListener(WhereWindsBlowClient::onClientPauseChange);
-        NeoForge.EVENT_BUS.addListener(WhereWindsBlowClient::onClientLogin);
-        NeoForge.EVENT_BUS.addListener(SwingingLanternAssemblyRenderer::onRenderLevelStage);
-        NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onRenderLevelStage);
-        NeoForge.EVENT_BUS.addListener(WindStreakRenderer::onClientTick);
-        NeoForge.EVENT_BUS.addListener(TumbleweedRenderer::onRenderLevelStage);
-        NeoForge.EVENT_BUS.addListener(TumbleweedRenderer::onClientTick);
-        NeoForge.EVENT_BUS.addListener(WindDebugOverlay::onRenderGui);
-        NeoForge.EVENT_BUS.addListener(BlizzardWeatherEffects::onRenderFog);
-        NeoForge.EVENT_BUS.addListener(BlizzardWeatherEffects::onComputeFogColor);
-        NeoForge.EVENT_BUS.addListener(BlizzardWeatherEffects::onRenderLevelStage);
+        ToucanConfigScreens.register(modContainer, WhereWindsBlowConfigScreen::create);
+        ToucanEventBuses.on(modEventBus)
+                .listener(WhereWindsBlowClient::registerBlockColors)
+                .listener(WhereWindsBlowClient::registerItemColors)
+                .listener(WhereWindsBlowClient::modifyBakedModels)
+                .listener(WhereWindsBlowClient::registerShaders)
+                .listener(WhereWindsBlowClient::registerReloadListeners)
+                .listener(WhereWindsBlowClient::onClientConfigReload);
+        ToucanEventBuses.game()
+                .listener(ResponsiveFoliagePhysics::onRenderLevelStage)
+                .listener(ResponsiveFoliagePhysics::onClientTick)
+                .listener(DynamicWindManager::onClientTick)
+                .listener(BannerWindStateCache::onClientTick)
+                .listener(WhereWindsBlowClient::onClientPauseChange)
+                .listener(WhereWindsBlowClient::onClientLogin)
+                .listener(SwingingLanternAssemblyRenderer::onRenderLevelStage)
+                .listener(WindStreakRenderer::onRenderLevelStage)
+                .listener(WindStreakRenderer::onClientTick)
+                .listener(TumbleweedRenderer::onRenderLevelStage)
+                .listener(TumbleweedRenderer::onClientTick)
+                .listener(WindDebugOverlay::onRenderGui)
+                .listener(BlizzardWeatherEffects::onRenderFog)
+                .listener(BlizzardWeatherEffects::onComputeFogColor)
+                .listener(BlizzardWeatherEffects::onRenderLevelStage);
     }
 
     private static void registerBlockColors(RegisterColorHandlersEvent.Block event) {

@@ -1,9 +1,9 @@
 package com.jvn.wherewindsblow.client.wind;
 
+import com.jvn.toucanlib.client.ToucanEasing;
+import com.jvn.toucanlib.util.ToucanBoundedCache;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.config.ClientConfig;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
@@ -21,12 +21,7 @@ public final class WindExposureCache {
     private static final int DIRECTION_BUCKETS = 16;
     private static final int MAX_ENTRIES = 4096;
     private static final long ENTRY_TTL_MILLIS = 3000L;
-    private static final Map<Long, Entry> CACHE = new LinkedHashMap<>(256, 0.75F, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<Long, Entry> eldest) {
-            return size() > MAX_ENTRIES;
-        }
-    };
+    private static final ToucanBoundedCache<Long, Entry> CACHE = new ToucanBoundedCache<>(256, MAX_ENTRIES);
 
     private WindExposureCache() {
     }
@@ -70,7 +65,7 @@ public final class WindExposureCache {
 
         float heightRange = Math.max(1.0F, level.getHeight());
         float normalizedHeight = Mth.clamp((float) ((y - level.getMinBuildHeight()) / heightRange), 0.0F, 1.0F);
-        float exposedHeight = smooth(Mth.clamp((normalizedHeight - 0.30F) / 0.70F, 0.0F, 1.0F));
+        float exposedHeight = ToucanEasing.smoothstep(Mth.clamp((normalizedHeight - 0.30F) / 0.70F, 0.0F, 1.0F));
         return 1.0F + exposedHeight * influence * 0.25F;
     }
 
@@ -119,7 +114,7 @@ public final class WindExposureCache {
         float upwindSky = skyAccess(level, upwindSample);
         float roofAccess = localSky * 0.72F + upwindSky * directionalOpening * 0.28F;
         float exposure = directionalOpening * 0.58F + roofAccess * 0.42F;
-        return Mth.clamp(smooth(exposure), 0.0F, 1.0F);
+        return Mth.clamp(ToucanEasing.smoothstep(exposure), 0.0F, 1.0F);
     }
 
     private static float traceOpening(
@@ -180,11 +175,6 @@ public final class WindExposureCache {
         value ^= (long) radius * 0xc2b2ae3d27d4eb4fL;
         value ^= value >>> 29;
         return value;
-    }
-
-    private static float smooth(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
     }
 
     private record Entry(float exposure, long createdAtMillis) {

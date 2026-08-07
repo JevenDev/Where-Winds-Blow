@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.smoke;
 
+import com.jvn.toucanlib.util.ToucanBoundedCache;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import java.lang.ref.WeakReference;
@@ -9,7 +10,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
@@ -36,12 +36,7 @@ public final class CampfireSmokePlumes {
     private static final int MAX_WIND_SAMPLES = 512;
     private static final ThreadLocal<SpawnContext> ACTIVE_SPAWN_CONTEXT = new ThreadLocal<>();
     private static final Map<BlockPos, SmokeCluster> CLUSTER_CACHE = new HashMap<>();
-    private static final Map<Long, CachedWindSample> WIND_SAMPLE_CACHE = new LinkedHashMap<>(64, 0.75F, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<Long, CachedWindSample> eldest) {
-            return size() > MAX_WIND_SAMPLES;
-        }
-    };
+    private static final Map<Long, CachedWindSample> WIND_SAMPLE_CACHE = new ToucanBoundedCache<>(64, MAX_WIND_SAMPLES);
     private static WeakReference<Level> clusterCacheLevel = new WeakReference<>(null);
     private static WeakReference<Level> windSampleCacheLevel = new WeakReference<>(null);
     private static long clusterCacheGameTime = Long.MIN_VALUE;

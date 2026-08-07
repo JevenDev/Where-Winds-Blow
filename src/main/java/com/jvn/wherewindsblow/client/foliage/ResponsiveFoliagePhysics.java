@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.foliage;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -333,7 +334,7 @@ public final class ResponsiveFoliagePhysics {
     private static float contactDecay(FoliageContact contact, long nowMillis) {
         float age = Mth.clamp((float) (nowMillis - contact.lastTouchedMillis()) / CONTACT_LIFETIME_MILLIS, 0.0F, 1.0F);
         float remaining = 1.0F - age;
-        return smoothCurve(remaining);
+        return ToucanEasing.smoothstep(remaining);
     }
 
     private static long contactKey(int cellX, int cellY, int cellZ) {
@@ -397,7 +398,7 @@ public final class ResponsiveFoliagePhysics {
             return;
         }
 
-        float influence = smoothCurve(1.0F - (float) Math.sqrt(surfaceDistanceSqr) / influenceRadius);
+        float influence = ToucanEasing.smoothstep(1.0F - (float) Math.sqrt(surfaceDistanceSqr) / influenceRadius);
         float offset = influence * baseStrength * INTERACTION_OFFSET_SCALE;
         if (offset <= MIN_VISIBLE_IMPULSE) {
             return;
@@ -522,11 +523,6 @@ public final class ResponsiveFoliagePhysics {
         }
     }
 
-    private static float smoothCurve(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
-    }
-
     private static float edgeInfluenceRadius(Entity entity) {
         AABB bounds = entity.getBoundingBox();
         float horizontalSize = (float) Math.max(bounds.getXsize(), bounds.getZsize());
@@ -617,7 +613,7 @@ public final class ResponsiveFoliagePhysics {
         }
 
         private float currentStrength(long nowMillis) {
-            return strength * smoothCurve(1.0F - age(nowMillis));
+            return strength * ToucanEasing.smoothstep(1.0F - age(nowMillis));
         }
 
         private ForceSample sampleAt(double sampleX, double sampleY, double sampleZ, long nowMillis) {
@@ -627,7 +623,7 @@ public final class ResponsiveFoliagePhysics {
             double dy = Math.abs(sampleY - y) * 0.35D;
             double distance = Math.sqrt(horizontal * horizontal + dy * dy);
             if (distance >= radius || horizontal < 0.001D) return new ForceSample(0.0D, 0.0D);
-            float influence = smoothCurve(1.0F - (float) distance / radius) * currentStrength(nowMillis);
+            float influence = ToucanEasing.smoothstep(1.0F - (float) distance / radius) * currentStrength(nowMillis);
             return new ForceSample(dx / horizontal * influence, dz / horizontal * influence);
         }
     }
@@ -725,7 +721,7 @@ public final class ResponsiveFoliagePhysics {
 
         private ContactSample sample(long nowMillis) {
             float progress = Mth.clamp((nowMillis - updatedMillis) * 0.001F * CONTACT_SMOOTHNESS, 0.0F, 1.0F);
-            progress = smoothCurve(progress);
+            progress = ToucanEasing.smoothstep(progress);
             return new ContactSample(
                     Mth.lerp(progress, previousX, x),
                     Mth.lerp(progress, previousMinY, minY),

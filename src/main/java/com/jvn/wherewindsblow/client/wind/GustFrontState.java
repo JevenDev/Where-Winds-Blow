@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.wind;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import net.minecraft.util.Mth;
 
 /**
@@ -58,17 +59,13 @@ public record GustFrontState(
 
     private float temporalEnvelope(float progress) {
         if (progress < attackFraction) {
-            return smooth(progress / attackFraction);
+            return ToucanEasing.smoothstep(progress / attackFraction);
         }
         if (progress <= releaseStartFraction) {
             return 1.0F;
         }
 
-        return smooth(1.0F - (progress - releaseStartFraction) / (1.0F - releaseStartFraction));
+        return ToucanEasing.smoothstep(1.0F - (progress - releaseStartFraction) / (1.0F - releaseStartFraction));
     }
 
-    private static float smooth(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
-    }
 }

@@ -25,7 +25,24 @@ base {
     archivesName = archives_base_name
 }
 
+def useLocalToucanLib = project.findProperty('useLocalToucanLib')?.toBoolean() ?: false
+
 repositories {
+    if (useLocalToucanLib) {
+        mavenLocal()
+    }
+
+    maven {
+        name = 'Architectury'
+        url = 'https://maven.architectury.dev/'
+    }
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
     maven {
         name = 'Xander Maven'
         url = 'https://maven.isxander.dev/releases'
@@ -86,6 +103,11 @@ configurations {
 }
 
 dependencies {
+    if (useLocalToucanLib) {
+        implementation "com.jvn.toucanlib:toucanlib-neoforge-${minecraft_version}:${toucanlib_version}"
+    } else {
+        implementation "maven.modrinth:toucan:${toucanlib_neoforge_version}"
+    }
     implementation "dev.isxander:yet-another-config-lib:${yacl_version}"
 }
 
@@ -93,6 +115,7 @@ var replaceProperties = [
         minecraft_version      : minecraft_version,
         minecraft_version_range: minecraft_version_range,
         yacl_version           : yacl_version,
+        toucanlib_version      : toucanlib_version,
         sodium_version_range: sodium_version_range,
         iris_version_range: iris_version_range,
         neo_version            : neo_version,

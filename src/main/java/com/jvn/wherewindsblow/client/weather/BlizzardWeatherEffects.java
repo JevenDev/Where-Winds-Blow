@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.weather;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -233,7 +234,7 @@ public final class BlizzardWeatherEffects {
     }
 
     static float blizzardActivity(float thunder) {
-        return smoothFade((thunder - BLIZZARD_THUNDER_START)
+        return ToucanEasing.smoothstep((thunder - BLIZZARD_THUNDER_START)
                 / (BLIZZARD_THUNDER_FULL - BLIZZARD_THUNDER_START));
     }
 
@@ -304,7 +305,7 @@ public final class BlizzardWeatherEffects {
             return StormFogSample.CLEAR;
         }
 
-        float whiteout = smoothFade((energy - WHITEOUT_START_ENERGY)
+        float whiteout = ToucanEasing.smoothstep((energy - WHITEOUT_START_ENERGY)
                 / (WHITEOUT_FULL_ENERGY - WHITEOUT_START_ENERGY));
         if (level.canSeeSky(cameraPos)) {
             return StormFogSample.forPalette(whiteout, palette);
@@ -361,7 +362,7 @@ public final class BlizzardWeatherEffects {
                 0.0F,
                 1.0F
         );
-        daylight = smoothFade(daylight);
+        daylight = ToucanEasing.smoothstep(daylight);
         // Hold onto the darker dawn/dusk range longer, then settle below pure white at midday.
         daylight *= Mth.lerp(daylight, 0.78F, 1.0F);
         StormFogColor snow = new StormFogColor(
@@ -399,7 +400,7 @@ public final class BlizzardWeatherEffects {
     }
 
     private static float stormColorBlend(float whiteout) {
-        return smoothFade(Mth.clamp(whiteout * 2.0F, 0.0F, 1.0F));
+        return ToucanEasing.smoothstep(Mth.clamp(whiteout * 2.0F, 0.0F, 1.0F));
     }
 
     private static void renderFogBoundary(
@@ -482,11 +483,6 @@ public final class BlizzardWeatherEffects {
                 Mth.sin(latitude) * radius,
                 Mth.sin(longitude) * horizontalRadius
         ).setColor(color.red(), color.green(), color.blue(), alpha);
-    }
-
-    private static float smoothFade(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
     }
 
     /**
@@ -608,7 +604,7 @@ public final class BlizzardWeatherEffects {
                     0.0F,
                     1.0F
             );
-            return 1.0F - smoothFade(fogProgress);
+            return 1.0F - ToucanEasing.smoothstep(fogProgress);
         }
     }
 

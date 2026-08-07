@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.lantern;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -163,7 +164,7 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
             float progress = Mth.clamp(distanceFromTop / effectiveHeight, 0.0F, 1.0F);
             float longStack = Mth.clamp((key.height() - 3.0F) / 8.0F, 0.0F, 1.0F);
             float bendExponent = Mth.lerp(longStack, 1.45F, 1.05F);
-            float swayWeight = (float) Math.pow(smoothStep(progress), bendExponent);
+            float swayWeight = (float) Math.pow(ToucanEasing.smoothstep(progress), bendExponent);
             vertices[offset + 3] = packChainAlpha(vertices[offset + 3], swayWeight * exposureScale);
         }
 
@@ -230,11 +231,6 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
     private static int packChainAlpha(int color, float swayWeight) {
         int alpha = Math.round(CHAIN_ALPHA_MIN + Mth.clamp(swayWeight, 0.0F, 1.0F) * (CHAIN_ALPHA_LEVELS - 1));
         return (color & 0x00FFFFFF) | (Mth.clamp(alpha, CHAIN_ALPHA_MIN, CHAIN_ALPHA_MAX) << 24);
-    }
-
-    private static float smoothStep(float value) {
-        float x = Mth.clamp(value, 0.0F, 1.0F);
-        return x * x * (3.0F - 2.0F * x);
     }
 
     private static float windExposure(ModelData extraData) {

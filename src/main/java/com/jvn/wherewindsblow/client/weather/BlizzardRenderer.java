@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.weather;
 
+import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -95,7 +96,7 @@ public final class BlizzardRenderer {
                 pos.set(x, surfaceY, z);
                 WindSample wind = DynamicWindManager.sampleWind(level, pos);
                 float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
-                float gust = smoothFade(Mth.clamp(wind.gustStrength() * 2.2F, 0.0F, 1.0F));
+                float gust = ToucanEasing.smoothstep(Mth.clamp(wind.gustStrength() * 2.2F, 0.0F, 1.0F));
                 float stormEnergy = BlizzardWeatherEffects.blizzardEnergy(
                         wind, rainLevel, thunder, configuredIntensity
                 );
@@ -263,7 +264,7 @@ public final class BlizzardRenderer {
         double dz = z + 0.5D - camZ;
         float normalizedDistance = (float) Math.sqrt(dx * dx + dz * dz) / radius;
         float edge = (normalizedDistance - EDGE_FADE_START) / (1.0F - EDGE_FADE_START);
-        return 1.0F - smoothFade(edge);
+        return 1.0F - ToucanEasing.smoothstep(edge);
     }
 
     private static long precipitationHash(int x, int z) {
@@ -275,12 +276,7 @@ public final class BlizzardRenderer {
             return 0.0F;
         }
         float transition = (density - unitFloat(hash)) / DENSITY_FADE_WIDTH + 0.5F;
-        return smoothFade(transition);
-    }
-
-    private static float smoothFade(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        return value * value * (3.0F - 2.0F * value);
+        return ToucanEasing.smoothstep(transition);
     }
 
     private static float fractionalPart(float value) {

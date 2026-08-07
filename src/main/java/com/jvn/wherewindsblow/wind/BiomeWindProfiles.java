@@ -1,20 +1,19 @@
 package com.jvn.wherewindsblow.wind;
 
+import com.jvn.toucanlib.util.ToucanBoundedCache;
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 
 public final class BiomeWindProfiles {
     private static final int MAX_CACHED_BIOMES = 512;
     private static final BiomeWindProfile FALLBACK = new BiomeWindProfile(
-            ResourceLocation.fromNamespaceAndPath(WhereWindsBlow.MOD_ID, "default"),
+            WhereWindsBlow.IDS.id("default"),
             List.of(),
             List.of(),
             true,
@@ -74,12 +73,7 @@ public final class BiomeWindProfiles {
 
     private static final class ProfileSet {
         private List<BiomeWindProfile> profiles = List.of();
-        private final Map<ResourceKey<Biome>, BiomeWindProfile> cache = new LinkedHashMap<>(64, 0.75F, true) {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<ResourceKey<Biome>, BiomeWindProfile> eldest) {
-                return size() > MAX_CACHED_BIOMES;
-            }
-        };
+        private final Map<ResourceKey<Biome>, BiomeWindProfile> cache = new ToucanBoundedCache<>(64, MAX_CACHED_BIOMES);
 
         private synchronized BiomeWindProfile resolve(Holder<Biome> biome) {
             ResourceKey<Biome> key = biome.unwrapKey().orElse(null);
