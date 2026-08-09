@@ -1,0 +1,22 @@
+{
+  "type": "leaves",
+  "priority": 110,
+  "interactive": false,
+  "sway_strength_multiplier": 0.95,
+  "blocks": [
+    "bountifulfares:apple_leaves",
+    "bountifulfares:flowering_apple_leaves",
+    "bountifulfares:orange_leaves",
+    "bountifulfares:flowering_orange_leaves",
+    "bountifulfares:lemon_leaves",
+    "bountifulfares:flowering_lemon_leaves",
+    "bountifulfares:plum_leaves",
+    "bountifulfares:flowering_plum_leaves",
+    "bountifulfares:hoary_leaves",
+    "bountifulfares:walnut_leaves",
+    "bountifulfares:golden_apple_leaves",
+    "bountifulfares:flowering_golden_apple_leaves",
+    "bountifulfares:palm_frond",
+    "bountifulfares:wall_palm_frond"
+  ]
+}

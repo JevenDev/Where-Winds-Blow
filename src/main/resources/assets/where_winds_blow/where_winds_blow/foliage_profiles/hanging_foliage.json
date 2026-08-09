@@ -6,10 +6,6 @@
   "sway_strength_multiplier": 0.85,
   "interaction_strength_multiplier": 0.65,
   "blocks": [
-    "minecraft:weeping_vines",
-    "minecraft:weeping_vines_plant",
-    "minecraft:cave_vines",
-    "minecraft:cave_vines_plant",
     "minecraft:hanging_roots",
     "minecraft:spore_blossom"
   ]

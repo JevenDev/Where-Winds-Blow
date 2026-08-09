@@ -1,0 +1,14 @@
+{
+  "type": "hanging_foliage",
+  "priority": 80,
+  "interactive": false,
+  "sway_start_height_multiplier": 0.45,
+  "sway_strength_multiplier": 0.85,
+  "interaction_strength_multiplier": 0.0,
+  "blocks": [
+    "minecraft:weeping_vines",
+    "minecraft:weeping_vines_plant",
+    "minecraft:cave_vines",
+    "minecraft:cave_vines_plant"
+  ]
+}

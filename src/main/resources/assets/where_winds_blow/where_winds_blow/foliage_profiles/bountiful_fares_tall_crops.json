@@ -1,0 +1,12 @@
+{
+  "type": "tall_foliage",
+  "priority": 95,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.55,
+  "sway_strength_multiplier": 0.8,
+  "interaction_strength_multiplier": 0.6,
+  "blocks": [
+    "bountifulfares:maize_crop",
+    "bountifulfares:wild_maize"
+  ]
+}

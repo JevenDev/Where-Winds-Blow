@@ -1,0 +1,19 @@
+{
+  "type": "hanging_foliage",
+  "priority": 90,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.4,
+  "sway_strength_multiplier": 0.75,
+  "interaction_strength_multiplier": 0.4,
+  "blocks": [
+    "bountifulfares:hanging_apple",
+    "bountifulfares:hanging_orange",
+    "bountifulfares:hanging_lemon",
+    "bountifulfares:hanging_plum",
+    "bountifulfares:hanging_hoary_apple",
+    "bountifulfares:hanging_walnuts",
+    "bountifulfares:hanging_golden_apple",
+    "bountifulfares:hanging_withered_golden_apple",
+    "bountifulfares:coconut"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "type": "tall_foliage",
+  "priority": 80,
+  "interactive": false,
+  "sway_start_height_multiplier": 0.65,
+  "sway_strength_multiplier": 0.95,
+  "interaction_strength_multiplier": 0.0,
+  "blocks": [
+    "minecraft:twisting_vines",
+    "minecraft:twisting_vines_plant"
+  ]
+}

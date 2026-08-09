@@ -1,0 +1,18 @@
+{
+  "type": "crop",
+  "priority": 90,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.75,
+  "sway_strength_multiplier": 0.7,
+  "interaction_strength_multiplier": 0.65,
+  "blocks": [
+    "bountifulfares:hoary_apple_sapling_crop",
+    "bountifulfares:leeks",
+    "bountifulfares:scorchkin_stem",
+    "bountifulfares:wild_wheat",
+    "bountifulfares:wild_carrots",
+    "bountifulfares:wild_potatoes",
+    "bountifulfares:wild_beetroots",
+    "bountifulfares:wild_leeks"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "type": "foliage",
+  "priority": 85,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.8,
+  "sway_strength_multiplier": 0.85,
+  "interaction_strength_multiplier": 0.8,
+  "blocks": [
+    "bountifulfares:apple_sapling",
+    "bountifulfares:orange_sapling",
+    "bountifulfares:lemon_sapling",
+    "bountifulfares:plum_sapling",
+    "bountifulfares:hoary_apple_sapling",
+    "bountifulfares:walnut_sapling",
+    "bountifulfares:palm_sapling",
+    "bountifulfares:golden_apple_sapling",
+    "bountifulfares:tea_shrub",
+    "bountifulfares:chamomile_flowers",
+    "bountifulfares:honeysuckle",
+    "bountifulfares:violet_bellflower",
+    "bountifulfares:prismarine_blossom"
+  ]
+}
