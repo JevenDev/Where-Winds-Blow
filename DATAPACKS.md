@@ -12,6 +12,7 @@ These are the tags pack creators should target going forward:
 - `#where_winds_blow:has_medium_short_grass`
 - `#where_winds_blow:has_sparse_short_grass`
 - `#where_winds_blow:has_tall_grass`
+- `#where_winds_blow:has_fern_accents`
 - `#where_winds_blow:has_overgrown_grass`
 - `#where_winds_blow:has_overgrown_grass_fields`
 - `#where_winds_blow:has_short_dry_grass`
@@ -46,6 +47,7 @@ Surface rules for dry and dead grasses live in:
 - Medium short grass: `has_medium_short_grass` -> `where_winds_blow_medium_grass.json`
 - Sparse short grass: `has_sparse_short_grass` -> `where_winds_blow_sparse_grass.json`
 - Tall grass: `has_tall_grass` -> `where_winds_blow_tall_grass.json`
+- Fern accents: `has_fern_accents` -> `where_winds_blow_fern_accents.json`
 - Overgrown grass: `has_overgrown_grass` -> `where_winds_blow_overgrown_grass.json`
 - Overgrown grass fields: `has_overgrown_grass_fields` -> `where_winds_blow_overgrown_grass_fields.json`
 - Short dry grass: `has_short_dry_grass` -> `where_winds_blow_short_dry_grass.json`
@@ -55,6 +57,8 @@ Surface rules for dry and dead grasses live in:
 
 ## Mixed-variant notes
 
+- Tall-grass and fern-accent placement uses terrain noise so plants gather into broad, coherent regions instead of evenly scattered spots.
+- Fern accents place the vanilla `fern` block, the feature changes composition without replacing its model or texture.
 - Dense, medium, and sparse short-grass patches can mix vanilla `short_grass` with `flat_grass`. That mix is controlled in the configured feature JSON, not by separate biome tags.
 - Dead-grass patches mix `short_dead_grass` and `flat_dead_grass` inside `dead_grass_patch.json`.
 - Dry and dead grasses use `dry_grass_plantable_on.json` for survival, so a datapack can expand or restrict valid ground blocks there.

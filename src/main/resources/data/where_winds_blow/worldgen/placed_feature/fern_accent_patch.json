@@ -1,11 +1,11 @@
 {
-  "feature": "where_winds_blow:tall_grass_patch",
+  "feature": "where_winds_blow:fern_accent_patch",
   "placement": [
     {
       "type": "minecraft:noise_threshold_count",
       "above_noise": 1,
       "below_noise": 0,
-      "noise_level": 0.45
+      "noise_level": 0.42
     },
     {
       "type": "minecraft:in_square"

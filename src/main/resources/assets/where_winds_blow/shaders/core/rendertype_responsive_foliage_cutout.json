@@ -36,6 +36,8 @@
     { "name": "LanternWindSwayStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "PlantWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
     { "name": "LeafWindSheenStrength", "type": "float", "count": 1, "values": [ 1.0 ] },
+    { "name": "FoliageColorVariationStrength", "type": "float", "count": 1, "values": [ 0.25 ] },
+    { "name": "FoliageAnimationStepRate", "type": "float", "count": 1, "values": [ 0.0 ] },
     { "name": "WindDirection", "type": "float", "count": 2, "values": [ 0.819152, 0.573576 ] },
     { "name": "CameraPosition", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0 ] },
     { "name": "FoliageInteractorCount", "type": "int", "count": 1, "values": [ 0 ] },

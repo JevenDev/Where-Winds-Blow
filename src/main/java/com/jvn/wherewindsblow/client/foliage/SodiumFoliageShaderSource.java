@@ -39,6 +39,8 @@ public final class SodiumFoliageShaderSource {
             uniform float u_WwbLanternSwayStrength;
             uniform float u_WwbPlantSheenStrength;
             uniform float u_WwbLeafSheenStrength;
+            uniform float u_WwbFoliageColorVariationStrength;
+            uniform float u_WwbFoliageAnimationStepRate;
             uniform vec2 u_WwbWindDirection;
             uniform vec3 u_WwbCameraPosition;
             uniform int u_WwbInteractorCount;
@@ -234,6 +236,37 @@ public final class SodiumFoliageShaderSource {
                 return fract(sin(dot(cell, salt)) * 43758.5453);
             }
 
+            float wwb_foliage_value_noise(vec2 position, vec2 salt) {
+                vec2 cell = floor(position);
+                vec2 local = fract(position);
+                local = local * local * (3.0 - 2.0 * local);
+                float bottomLeft = wwb_grass_variation_seed(cell, salt);
+                float bottomRight = wwb_grass_variation_seed(cell + vec2(1.0, 0.0), salt);
+                float topLeft = wwb_grass_variation_seed(cell + vec2(0.0, 1.0), salt);
+                float topRight = wwb_grass_variation_seed(cell + vec2(1.0, 1.0), salt);
+                return mix(
+                        mix(bottomLeft, bottomRight, local.x),
+                        mix(topLeft, topRight, local.x),
+                        local.y
+                );
+            }
+
+            float wwb_foliage_color_variation(vec2 worldPosition) {
+                float broad = wwb_foliage_value_noise(worldPosition * 0.045, vec2(127.1, 311.7));
+                float local = wwb_foliage_value_noise(worldPosition * 0.18, vec2(269.5, 183.3));
+                float accent = smoothstep(0.68, 0.90, broad);
+                return (broad - 0.5) * 0.38 + (local - 0.5) * 0.08 + accent * 0.08;
+            }
+
+            float wwb_foliage_animation_time(float continuousTime, vec2 worldPosition) {
+                if (u_WwbFoliageAnimationStepRate <= 0.0) {
+                    return continuousTime;
+                }
+                float rate = max(u_WwbFoliageAnimationStepRate, 1.0);
+                float phase = wwb_grass_variation_seed(floor(worldPosition * 2.0), vec2(41.7, 289.3)) / rate;
+                return floor((continuousTime + phase) * rate) / rate - phase;
+            }
+
             float wwb_foliage_wind_sheen(
                     vec3 position,
                     float alpha,
@@ -247,8 +280,8 @@ public final class SodiumFoliageShaderSource {
                 }
 
                 float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
-                float t = u_WwbTime;
                 vec3 windPosition = position + u_WwbCameraPosition;
+                float t = wwb_is_plant_wind_vertex(alpha) ? wwb_foliage_animation_time(u_WwbTime, windPosition.xz) : u_WwbTime;
                 vec2 phaseDir = normalize(vec2(0.82, 0.57));
                 vec2 phaseCross = vec2(-phaseDir.y, phaseDir.x);
                 float along = dot(windPosition.xz, phaseDir);
@@ -258,30 +291,25 @@ public final class SodiumFoliageShaderSource {
                 vec2 bladeCell = floor(windPosition.xz * 2.7);
                 float gustSeed = wwb_grass_variation_seed(gustCell, vec2(127.1, 311.7));
                 float bladeSeed = wwb_grass_variation_seed(bladeCell, vec2(269.5, 183.3));
-                float localPhase = plantWind * ((gustSeed - 0.5) * 3.2 + (bladeSeed - 0.5) * 0.7);
-                float localTempo = mix(1.0, 0.82 + gustSeed * 0.36, plantWind);
+                float localPhase = plantWind * ((gustSeed - 0.5) * 1.7 + (bladeSeed - 0.5) * 0.16);
+                float localTempo = mix(1.0, 0.94 + gustSeed * 0.12, plantWind);
                 float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
                         + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
                 phaseDrift += localPhase * 0.38;
                 float tempoDrift = (1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09 + localPhase * 0.2) * 0.08) * localTempo;
-                float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
+                float broad = sin(along * 0.35 - t * 1.28 * tempoDrift + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + localPhase);
+                float wave = pow(max(0.0, broad), 1.7);
                 float proceduralGust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
-                float fieldWarp = sin(along * 0.075 + across * 0.115 + t * 0.21) * 0.75
-                        + sin(along * 0.16 - across * 0.085 - t * 0.13) * 0.36;
-                float wavePhase = along * 0.34 - t * 1.52 * tempoDrift + sin(across * 0.055 + t * 0.22) * 1.1 + fieldWarp + phaseDrift * 0.55;
-                float waveFace = sin(wavePhase) * 0.5 + 0.5;
-                float leadingCrest = wwb_smooth_curve(smoothstep(0.46, 0.86, waveFace));
-                float trailingWash = pow(max(0.0, sin(wavePhase - 0.62)), 2.6) * 0.35;
-                float patchBreakup = 0.58 + 0.42 * wwb_smooth_curve(sin(along * 0.23 + across * 0.31 - t * 0.34 + phaseDrift * 0.45) * 0.5 + 0.5);
-                float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47 + phaseDrift * 0.5);
-                float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
+                float motionBand = wwb_smooth_curve(wave) * (0.82 + proceduralGust * 0.18);
                 float tipLift = wwb_smooth_curve(bend);
+                float sheenLull = 1.0 - wwb_smooth_curve(u_WwbWeatherState.z) * mix(0.35, 0.72, plantWind);
                 return clamp(
-                        (sheenBand * 0.30 + ripple * proceduralGust * 0.035 + gustLeadingEdge * 0.12)
+                        (motionBand * 0.22 + gustLeadingEdge * 0.08)
                                 * tipLift
-                                * wwb_sheen_strength_for_alpha(alpha),
+                                * wwb_sheen_strength_for_alpha(alpha)
+                                * sheenLull,
                         0.0,
-                        0.35
+                        0.32
                 );
             }
 
@@ -381,8 +409,8 @@ public final class SodiumFoliageShaderSource {
                 }
 
                 float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
-                float t = u_WwbTime;
                 vec3 windPosition = position + u_WwbCameraPosition;
+                float t = wwb_is_plant_wind_vertex(alpha) ? wwb_foliage_animation_time(u_WwbTime, windPosition.xz) : u_WwbTime;
                 vec2 crossDir = vec2(-windDir.y, windDir.x);
                 vec2 phaseDir = normalize(vec2(0.82, 0.57));
                 vec2 phaseCross = vec2(-phaseDir.y, phaseDir.x);
@@ -393,9 +421,9 @@ public final class SodiumFoliageShaderSource {
                 vec2 bladeCell = floor(windPosition.xz * 2.7);
                 float gustSeed = wwb_grass_variation_seed(gustCell, vec2(127.1, 311.7));
                 float bladeSeed = wwb_grass_variation_seed(bladeCell, vec2(269.5, 183.3));
-                float localPhase = plantWind * ((gustSeed - 0.5) * 3.2 + (bladeSeed - 0.5) * 0.7);
-                float localTempo = mix(1.0, 0.82 + gustSeed * 0.36, plantWind);
-                float localAmplitude = mix(1.0, 0.62 + gustSeed * 0.55 + bladeSeed * 0.18, plantWind);
+                float localPhase = plantWind * ((gustSeed - 0.5) * 1.7 + (bladeSeed - 0.5) * 0.16);
+                float localTempo = mix(1.0, 0.94 + gustSeed * 0.12, plantWind);
+                float localAmplitude = mix(1.0, 0.82 + gustSeed * 0.30 + bladeSeed * 0.08, plantWind);
                 float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
                         + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
                 phaseDrift += localPhase * 0.38;
@@ -411,7 +439,7 @@ public final class SodiumFoliageShaderSource {
                         0.0,
                         1.5
                 );
-                float lullSoftening = 1.0 - wwb_smooth_curve(u_WwbWeatherState.z) * 0.28;
+                float lullSoftening = 1.0 - wwb_smooth_curve(u_WwbWeatherState.z) * mix(0.35, 0.72, plantWind);
                 float leafWind = 1.0 - plantWind;
                 float dynamicStrength = (1.0
                         + clamp(u_WwbAmbientWindStrength, 0.0, 1.5) * 0.55
@@ -421,10 +449,12 @@ public final class SodiumFoliageShaderSource {
                         1.0 - precipitationLoad * 0.12,
                         plantWind
                 );
-                float shimmer = sin(windPosition.x * 2.17 + windPosition.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
-                float originalSway = 0.018 + wave * 0.145 * amplitudeDrift
-                        + ripple * proceduralGust * 0.055
-                        + shimmer;
+                float shimmer = sin(windPosition.x * 2.17 + windPosition.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8);
+                float broadSway = mix(0.145, 0.225, plantWind);
+                float fineSway = mix(0.055, 0.020, plantWind);
+                float originalSway = 0.014 + wave * broadSway * amplitudeDrift
+                        + ripple * proceduralGust * fineSway
+                        + shimmer * mix(0.012, 0.003, plantWind);
                 float impactFlutter = sin(t * 9.7 + bladeSeed * 11.0 + across * 0.31)
                         * sin(t * 6.3 + gustSeed * 7.0 - along * 0.17);
                 float steadyWeatherLean = plantWind * precipitationLoad * (0.010 + stormEnergy * 0.014)
@@ -438,7 +468,7 @@ public final class SodiumFoliageShaderSource {
                         0.42
                 );
                 float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase)
-                        * (0.18 + plantWind * 0.08);
+                        * mix(0.18, 0.10, plantWind);
                 vec2 dir = normalize(windDir + crossDir * directionNoise);
                 position.xz += dir * strength;
                 return position;
@@ -544,13 +574,23 @@ public final class SodiumFoliageShaderSource {
                 position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbPlantAnchor, wwbFoliageAlpha);""";
 
     private static final String WIND_COLOR_INJECTION = """
+                if (wwb_is_plant_wind_vertex(wwbFoliageAlpha) && u_WwbFoliageColorVariationStrength > 0.0) {
+                    float wwbVariation = clamp(
+                            wwb_foliage_color_variation(wwbPlantAnchor + u_WwbCameraPosition.xz) * u_WwbFoliageColorVariationStrength,
+                            -0.26,
+                            0.32
+                    );
+                    float wwbLuminance = dot(v_Color.rgb, vec3(0.2126, 0.7152, 0.0722));
+                    v_Color.rgb = mix(vec3(wwbLuminance), v_Color.rgb, clamp(1.0 + wwbVariation * 1.35, 0.70, 1.34));
+                    v_Color.rgb *= 1.0 + wwbVariation * 0.82;
+                }
                 if (wwb_is_foliage_wind_vertex(wwbFoliageAlpha) || wwb_is_lantern_wind_vertex(wwbFoliageAlpha) || wwb_is_chain_wind_vertex(wwbFoliageAlpha)) {
                     v_Color.a = 1.0;
                 }
-                // v_Color already contains the terrain lightmap result. Keep wind sheen
-                // proportional to it so foliage does not flash white in dark areas.
                 float wwbLightLevel = clamp(max(max(v_Color.r, v_Color.g), v_Color.b), 0.0, 1.0);
-                v_Color.rgb += vec3(wwbWindSheen * 0.44 * wwbLightLevel);""";
+                float wwbSheen = clamp(wwbWindSheen, 0.0, 0.32);
+                vec3 wwbSheenTarget = v_Color.rgb * vec3(1.42, 1.54, 1.30) + vec3(0.025, 0.060, 0.012) * wwbLightLevel;
+                v_Color.rgb = mix(v_Color.rgb, wwbSheenTarget, wwbSheen);""";
 
     private SodiumFoliageShaderSource() {
     }

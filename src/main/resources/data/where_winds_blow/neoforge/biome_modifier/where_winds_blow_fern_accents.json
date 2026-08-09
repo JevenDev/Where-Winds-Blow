@@ -1,0 +1,16 @@
+{
+  "type": "where_winds_blow:configurable_grass",
+  "biomes": "#where_winds_blow:has_fern_accents",
+  "features": [
+    "where_winds_blow:fern_accent_patch",
+    "where_winds_blow:fern_accent_patch_2",
+    "where_winds_blow:fern_accent_patch_3",
+    "where_winds_blow:fern_accent_patch_4",
+    "where_winds_blow:fern_accent_patch_5",
+    "where_winds_blow:fern_accent_patch_6",
+    "where_winds_blow:fern_accent_patch_7",
+    "where_winds_blow:fern_accent_patch_8"
+  ],
+  "density": "fern_accents",
+  "step": "vegetal_decoration"
+}

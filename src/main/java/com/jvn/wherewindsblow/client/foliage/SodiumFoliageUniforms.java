@@ -21,6 +21,8 @@ public final class SodiumFoliageUniforms {
     private static int lanternSwayStrengthUniform = UNRESOLVED_UNIFORM;
     private static int plantSheenStrengthUniform = UNRESOLVED_UNIFORM;
     private static int leafSheenStrengthUniform = UNRESOLVED_UNIFORM;
+    private static int foliageColorVariationStrengthUniform = UNRESOLVED_UNIFORM;
+    private static int foliageAnimationStepRateUniform = UNRESOLVED_UNIFORM;
     private static int windDirectionUniform = UNRESOLVED_UNIFORM;
     private static int cameraPositionUniform = UNRESOLVED_UNIFORM;
     private static int interactorCountUniform = UNRESOLVED_UNIFORM;
@@ -46,6 +48,8 @@ public final class SodiumFoliageUniforms {
         lanternSwayStrengthUniform = UNRESOLVED_UNIFORM;
         plantSheenStrengthUniform = UNRESOLVED_UNIFORM;
         leafSheenStrengthUniform = UNRESOLVED_UNIFORM;
+        foliageColorVariationStrengthUniform = UNRESOLVED_UNIFORM;
+        foliageAnimationStepRateUniform = UNRESOLVED_UNIFORM;
         windDirectionUniform = UNRESOLVED_UNIFORM;
         cameraPositionUniform = UNRESOLVED_UNIFORM;
         interactorCountUniform = UNRESOLVED_UNIFORM;
@@ -80,6 +84,8 @@ public final class SodiumFoliageUniforms {
             uploadUniform(lanternSwayStrengthUniform, ResponsiveFoliageShaders.lanternWindSwayStrength());
             uploadUniform(plantSheenStrengthUniform, ResponsiveFoliageShaders.plantWindSheenStrength());
             uploadUniform(leafSheenStrengthUniform, ResponsiveFoliageShaders.leafWindSheenStrength());
+            uploadUniform(foliageColorVariationStrengthUniform, ResponsiveFoliageShaders.foliageColorVariationStrength());
+            uploadUniform(foliageAnimationStepRateUniform, ResponsiveFoliageShaders.foliageAnimationStepRate());
             uploadVector2Uniform(windDirectionUniform, windState.directionX(), windState.directionZ());
             uploadGustUniforms();
             Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
@@ -108,6 +114,8 @@ public final class SodiumFoliageUniforms {
         lanternSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLanternSwayStrength");
         plantSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSheenStrength");
         leafSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSheenStrength");
+        foliageColorVariationStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbFoliageColorVariationStrength");
+        foliageAnimationStepRateUniform = GL20C.glGetUniformLocation(program, "u_WwbFoliageAnimationStepRate");
         windDirectionUniform = GL20C.glGetUniformLocation(program, "u_WwbWindDirection");
         cameraPositionUniform = GL20C.glGetUniformLocation(program, "u_WwbCameraPosition");
         interactorCountUniform = GL20C.glGetUniformLocation(program, "u_WwbInteractorCount");

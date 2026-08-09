@@ -206,6 +206,7 @@ public final class WhereWindsBlowConfigScreen {
                         .option(worldgenOption(CommonConfig.MEDIUM_GRASS_DENSITY_MULTIPLIER))
                         .option(worldgenOption(CommonConfig.SPARSE_GRASS_DENSITY_MULTIPLIER))
                         .option(worldgenOption(CommonConfig.TALL_GRASS_PATCH_MULTIPLIER))
+                        .option(worldgenOption(CommonConfig.FERN_ACCENT_PATCH_MULTIPLIER))
                         .option(worldgenOption(CommonConfig.SHORT_DRY_GRASS_PATCH_MULTIPLIER))
                         .option(worldgenOption(CommonConfig.TALL_DRY_GRASS_PATCH_MULTIPLIER))
                         .option(worldgenOption(CommonConfig.DEAD_GRASS_PATCH_MULTIPLIER))
@@ -452,6 +453,13 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_SHEEN_STRENGTH_MAX,
                                 SMALL_STEP
                         ))
+                        .option(booleanOption(ClientConfig.ENABLE_FOLIAGE_COLOR_VARIATION))
+                        .option(doubleOption(
+                                ClientConfig.FOLIAGE_COLOR_VARIATION_STRENGTH,
+                                ClientConfig.FOLIAGE_COLOR_VARIATION_STRENGTH_MIN,
+                                ClientConfig.FOLIAGE_COLOR_VARIATION_STRENGTH_MAX,
+                                SMALL_STEP
+                        ))
                         .build())
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.windMotion"))
@@ -471,6 +479,18 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_PLANT_SWAY_START_HEIGHT_MAX,
                                 SMALL_STEP,
                                 WhereWindsBlowConfigScreen::rebuildFoliage
+                        ))
+                        .option(enumOption(
+                                ClientConfig.FOLIAGE_ANIMATION_MODE,
+                                ClientConfig.FoliageAnimationMode.class,
+                                () -> {
+                                }
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.FOLIAGE_STEPPED_RATE,
+                                ClientConfig.FOLIAGE_STEPPED_RATE_MIN,
+                                ClientConfig.FOLIAGE_STEPPED_RATE_MAX,
+                                1.0D
                         ))
                         .build())
                 .group(OptionGroup.createBuilder()

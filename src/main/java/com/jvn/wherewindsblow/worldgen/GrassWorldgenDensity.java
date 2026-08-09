@@ -13,6 +13,7 @@ public enum GrassWorldgenDensity {
     MEDIUM_SHORT_GRASS("medium_short_grass", CommonConfig.MEDIUM_GRASS_DENSITY_MULTIPLIER),
     SPARSE_SHORT_GRASS("sparse_short_grass", CommonConfig.SPARSE_GRASS_DENSITY_MULTIPLIER),
     TALL_GRASS("tall_grass", CommonConfig.TALL_GRASS_PATCH_MULTIPLIER),
+    FERN_ACCENTS("fern_accents", CommonConfig.FERN_ACCENT_PATCH_MULTIPLIER),
     SHORT_DRY_GRASS("short_dry_grass", CommonConfig.SHORT_DRY_GRASS_PATCH_MULTIPLIER),
     TALL_DRY_GRASS("tall_dry_grass", CommonConfig.TALL_DRY_GRASS_PATCH_MULTIPLIER),
     DEAD_GRASS("dead_grass", CommonConfig.DEAD_GRASS_PATCH_MULTIPLIER),

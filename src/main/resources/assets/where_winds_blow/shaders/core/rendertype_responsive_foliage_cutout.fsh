@@ -22,6 +22,8 @@ void main() {
         discard;
     }
 
-    color.rgb = mix(color.rgb, vec3(1.0), clamp(windSheen, 0.0, 0.35));
+    float sheen = clamp(windSheen, 0.0, 0.32);
+    vec3 sheenTarget = color.rgb * vec3(1.42, 1.54, 1.30) + vec3(0.025, 0.060, 0.012);
+    color.rgb = mix(color.rgb, sheenTarget, sheen);
     fragColor = linear_fog(color, vertexDistance, FogStart, FogEnd, FogColor);
 }

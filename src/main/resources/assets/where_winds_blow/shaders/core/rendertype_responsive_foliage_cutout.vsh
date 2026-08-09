@@ -37,6 +37,8 @@ uniform float LeafWindSwayStrength;
 uniform float LanternWindSwayStrength;
 uniform float PlantWindSheenStrength;
 uniform float LeafWindSheenStrength;
+uniform float FoliageColorVariationStrength;
+uniform float FoliageAnimationStepRate;
 uniform vec2 WindDirection;
 uniform vec3 CameraPosition;
 uniform int FoliageInteractorCount;
@@ -282,6 +284,37 @@ float grassVariationSeed(vec2 cell, vec2 salt) {
     return fract(sin(dot(cell, salt)) * 43758.5453);
 }
 
+float foliageValueNoise(vec2 position, vec2 salt) {
+    vec2 cell = floor(position);
+    vec2 local = fract(position);
+    local = local * local * (3.0 - 2.0 * local);
+    float bottomLeft = grassVariationSeed(cell, salt);
+    float bottomRight = grassVariationSeed(cell + vec2(1.0, 0.0), salt);
+    float topLeft = grassVariationSeed(cell + vec2(0.0, 1.0), salt);
+    float topRight = grassVariationSeed(cell + vec2(1.0, 1.0), salt);
+    return mix(
+            mix(bottomLeft, bottomRight, local.x),
+            mix(topLeft, topRight, local.x),
+            local.y
+    );
+}
+
+float foliageColorVariation(vec2 worldPosition) {
+    float broad = foliageValueNoise(worldPosition * 0.045, vec2(127.1, 311.7));
+    float local = foliageValueNoise(worldPosition * 0.18, vec2(269.5, 183.3));
+    float accent = smoothstep(0.68, 0.90, broad);
+    return (broad - 0.5) * 0.38 + (local - 0.5) * 0.08 + accent * 0.08;
+}
+
+float foliageAnimationTime(float continuousTime, vec2 worldPosition) {
+    if (FoliageAnimationStepRate <= 0.0) {
+        return continuousTime;
+    }
+    float rate = max(FoliageAnimationStepRate, 1.0);
+    float phase = grassVariationSeed(floor(worldPosition * 2.0), vec2(41.7, 289.3)) / rate;
+    return floor((continuousTime + phase) * rate) / rate - phase;
+}
+
 vec3 rotateAroundAxis(vec3 value, vec3 axis, float angle) {
     float c = cos(angle);
     float s = sin(angle);
@@ -368,8 +401,8 @@ void main() {
             float windBend = smoothCurve(decodeWindAlpha(Color.a));
             float swayStrength = windSwayStrengthForAlpha(Color.a);
             float sheenStrength = windSheenStrengthForAlpha(Color.a);
-            float t = WindTime;
             vec3 windPos = pos + CameraPosition;
+            float t = isPlantWindAlpha(Color.a) ? foliageAnimationTime(WindTime, windPos.xz) : WindTime;
             float localGustStrength;
             float localTurbulence;
             float gustLeadingEdge;
@@ -391,9 +424,9 @@ void main() {
             vec2 bladeCell = floor(windPos.xz * 2.7);
             float gustSeed = grassVariationSeed(gustCell, vec2(127.1, 311.7));
             float bladeSeed = grassVariationSeed(bladeCell, vec2(269.5, 183.3));
-            float localPhase = plantWind * ((gustSeed - 0.5) * 3.2 + (bladeSeed - 0.5) * 0.7);
-            float localTempo = mix(1.0, 0.82 + gustSeed * 0.36, plantWind);
-            float localAmplitude = mix(1.0, 0.62 + gustSeed * 0.55 + bladeSeed * 0.18, plantWind);
+            float localPhase = plantWind * ((gustSeed - 0.5) * 1.7 + (bladeSeed - 0.5) * 0.16);
+            float localTempo = mix(1.0, 0.94 + gustSeed * 0.12, plantWind);
+            float localAmplitude = mix(1.0, 0.82 + gustSeed * 0.30 + bladeSeed * 0.08, plantWind);
             float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
                     + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
             phaseDrift += localPhase * 0.38;
@@ -403,22 +436,16 @@ void main() {
             float wave = pow(max(0.0, broad), 1.7);
             float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
             float proceduralGust = smoothCurve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
-            float fieldWarp = sin(along * 0.075 + across * 0.115 + t * 0.21) * 0.75
-                    + sin(along * 0.16 - across * 0.085 - t * 0.13) * 0.36;
-            float wavePhase = along * 0.34 - t * 1.52 * tempoDrift + sin(across * 0.055 + t * 0.22) * 1.1 + fieldWarp + phaseDrift * 0.55;
-            float waveFace = sin(wavePhase) * 0.5 + 0.5;
-            float leadingCrest = smoothCurve(smoothstep(0.46, 0.86, waveFace));
-            float trailingWash = pow(max(0.0, sin(wavePhase - 0.62)), 2.6) * 0.35;
-            float patchBreakup = 0.58 + 0.42 * smoothCurve(sin(along * 0.23 + across * 0.31 - t * 0.34 + phaseDrift * 0.45) * 0.5 + 0.5);
-            float crossFeather = 0.72 + 0.28 * sin(across * 0.19 + t * 0.47 + phaseDrift * 0.5);
-            float sheenBand = max(leadingCrest, trailingWash) * patchBreakup * crossFeather;
+            float motionBand = smoothCurve(wave) * (0.82 + proceduralGust * 0.18);
             float tipLift = smoothCurve(windBend);
+            float sheenLull = 1.0 - smoothCurve(WeatherState.z) * mix(0.35, 0.72, plantWind);
             windSheen = clamp(
-                    (sheenBand * 0.30 + ripple * proceduralGust * 0.035 + gustLeadingEdge * 0.12)
+                    (motionBand * 0.22 + gustLeadingEdge * 0.08)
                             * tipLift
-                            * sheenStrength,
+                            * sheenStrength
+                            * sheenLull,
                     0.0,
-                    0.35
+                    0.32
             );
             // Preserve the original sway as the animation. Dynamic wind only supplies a smooth
             // direction and amplitude control signal instead of adding another oscillator.
@@ -428,7 +455,7 @@ void main() {
                     0.0,
                     1.5
             );
-            float lullSoftening = 1.0 - smoothCurve(WeatherState.z) * 0.28;
+            float lullSoftening = 1.0 - smoothCurve(WeatherState.z) * mix(0.35, 0.72, plantWind);
             float leafWind = 1.0 - plantWind;
             float dynamicStrength = (1.0
                     + clamp(AmbientWindStrength, 0.0, 1.5) * 0.55
@@ -438,10 +465,12 @@ void main() {
                     1.0 - precipitationLoad * 0.12,
                     plantWind
             );
-            float shimmer = sin(windPos.x * 2.17 + windPos.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8) * 0.012;
-            float originalSway = 0.018 + wave * 0.145 * amplitudeDrift
-                    + ripple * proceduralGust * 0.055
-                    + shimmer;
+            float shimmer = sin(windPos.x * 2.17 + windPos.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8);
+            float broadSway = mix(0.145, 0.225, plantWind);
+            float fineSway = mix(0.055, 0.020, plantWind);
+            float originalSway = 0.014 + wave * broadSway * amplitudeDrift
+                    + ripple * proceduralGust * fineSway
+                    + shimmer * mix(0.012, 0.003, plantWind);
             float impactFlutter = sin(t * 9.7 + bladeSeed * 11.0 + across * 0.31)
                     * sin(t * 6.3 + gustSeed * 7.0 - along * 0.17);
             float steadyWeatherLean = plantWind * precipitationLoad * (0.010 + stormEnergy * 0.014)
@@ -455,7 +484,7 @@ void main() {
                     0.42
             );
             float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase)
-                    * (0.18 + plantWind * 0.08);
+                    * mix(0.18, 0.10, plantWind);
             vec2 dir = normalize(windDir + crossDir * directionNoise);
             pos.xz += dir * strength;
         }
@@ -478,8 +507,17 @@ void main() {
     vertexDistance = fog_distance(pos, FogShape);
     vec4 lightmapColor = minecraft_sample_lightmap(Sampler2, UV2);
     vertexColor = vec4(Color.rgb, 1.0) * lightmapColor;
-    // The sheen is blended toward white in the fragment shader.  Scale it by the
-    // sampled terrain light so moving foliage cannot emit a bright highlight at night.
+    if (isPlantWindAlpha(Color.a) && FoliageColorVariationStrength > 0.0) {
+        vec2 colorAnchor = floor((Position + ChunkOffset).xz + CameraPosition.xz) + vec2(0.5);
+        float variation = clamp(
+                foliageColorVariation(colorAnchor) * FoliageColorVariationStrength,
+                -0.26,
+                0.32
+        );
+        float luminance = dot(vertexColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+        vertexColor.rgb = mix(vec3(luminance), vertexColor.rgb, clamp(1.0 + variation * 1.35, 0.70, 1.34));
+        vertexColor.rgb *= 1.0 + variation * 0.82;
+    }
     windSheen *= clamp(max(max(lightmapColor.r, lightmapColor.g), lightmapColor.b), 0.0, 1.0);
     texCoord0 = UV0;
 }

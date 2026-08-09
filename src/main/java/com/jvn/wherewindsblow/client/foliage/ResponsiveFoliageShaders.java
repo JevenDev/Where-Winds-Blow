@@ -165,6 +165,8 @@ public final class ResponsiveFoliageShaders {
         shader.safeGetUniform("LanternWindSwayStrength").set(lanternWindSwayStrength());
         shader.safeGetUniform("PlantWindSheenStrength").set(plantWindSheenStrength());
         shader.safeGetUniform("LeafWindSheenStrength").set(leafWindSheenStrength());
+        shader.safeGetUniform("FoliageColorVariationStrength").set(foliageColorVariationStrength());
+        shader.safeGetUniform("FoliageAnimationStepRate").set(foliageAnimationStepRate());
         shader.safeGetUniform("WindDirection").set(windState.directionX(), windState.directionZ());
         uploadGustUniforms(shader);
         Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
@@ -272,6 +274,18 @@ public final class ResponsiveFoliageShaders {
 
     public static float leafWindSheenStrength() {
         return 0.0F;
+    }
+
+    public static float foliageColorVariationStrength() {
+        return shouldUseCustomFoliageShaders() && ClientConfig.ENABLE_FOLIAGE_COLOR_VARIATION.getAsBoolean()
+                ? (float) ClientConfig.FOLIAGE_COLOR_VARIATION_STRENGTH.getAsDouble()
+                : 0.0F;
+    }
+
+    public static float foliageAnimationStepRate() {
+        return ClientConfig.FOLIAGE_ANIMATION_MODE.get() == ClientConfig.FoliageAnimationMode.STEPPED
+                ? (float) ClientConfig.FOLIAGE_STEPPED_RATE.getAsDouble()
+                : 0.0F;
     }
 
     private static float weatherDrivenSheenStrength() {

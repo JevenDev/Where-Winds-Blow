@@ -48,8 +48,11 @@ public final class ResponsiveFoliagePhysics {
     private static final float MIN_VISIBLE_IMPULSE = 0.012F;
     private static final float MIN_IMPULSE_CHANGE_SQR = 0.000025F;
     private static final float CONTACT_SMOOTHNESS = 9.5F;
-    private static final long CONTACT_LIFETIME_MILLIS = 560L;
+    private static final long CONTACT_LIFETIME_MILLIS = 1050L;
     private static final float MIN_VISIBLE_CONTACT_DECAY = 0.035F;
+    private static final float WAKE_SPEED_RESPONSE = 5.5F;
+    private static final float WAKE_DISTANCE_MIN = 0.18F;
+    private static final float WAKE_DISTANCE_MAX = 1.20F;
     private static final float PLAYER_REFERENCE_WIDTH = 0.6F;
     private static final float PLAYER_REFERENCE_HEIGHT = 1.8F;
     private static final double ENTITY_VISIBILITY_RADIUS = 12.0D;
@@ -280,20 +283,29 @@ public final class ResponsiveFoliagePhysics {
 
     private static void touchShaderContact(Entity entity, long nowMillis, Set<Long> touchedKeys) {
         Vec3 movement = entity.getDeltaMovement();
-        if (movement.horizontalDistanceSqr() < MIN_CONTACT_MOVEMENT_SQR) {
+        double horizontalMovementSqr = movement.horizontalDistanceSqr();
+        if (horizontalMovementSqr < MIN_CONTACT_MOVEMENT_SQR) {
             return;
         }
 
         AABB bounds = entity.getBoundingBox();
+        double horizontalSpeed = Math.sqrt(horizontalMovementSqr);
+        float wakeStrength = Mth.clamp((float) horizontalSpeed * WAKE_SPEED_RESPONSE, 0.0F, 1.0F);
+        float wakeDistance = Mth.lerp(wakeStrength, WAKE_DISTANCE_MIN, WAKE_DISTANCE_MAX);
+        float contactX = (float) (entity.getX() - movement.x / horizontalSpeed * wakeDistance);
+        float contactZ = (float) (entity.getZ() - movement.z / horizontalSpeed * wakeDistance);
+        float radius = edgeInfluenceRadius(entity) * (1.0F + wakeStrength * 0.48F);
         int cellX = Mth.floor(entity.getX());
         int cellY = Mth.floor(bounds.minY);
         int cellZ = Mth.floor(entity.getZ());
         long key = contactKey(cellX, cellY, cellZ);
-        float strength = entitySizeStrength(entity) * (float) ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH.getAsDouble();
+        float strength = entitySizeStrength(entity)
+                * (float) ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH.getAsDouble()
+                * (1.0F + wakeStrength * 0.30F);
         FoliageContact existingContact = ACTIVE_CONTACTS.get(key);
         FoliageContact updatedContact = existingContact != null
-                ? existingContact.refresh((float) entity.getX(), (float) bounds.minY, (float) entity.getZ(), edgeInfluenceRadius(entity), strength, nowMillis)
-                : FoliageContact.create(cellX, cellY, cellZ, (float) entity.getX(), (float) bounds.minY, (float) entity.getZ(), edgeInfluenceRadius(entity), strength, nowMillis);
+                ? existingContact.refresh(contactX, (float) bounds.minY, contactZ, radius, strength, nowMillis)
+                : FoliageContact.create(cellX, cellY, cellZ, contactX, (float) bounds.minY, contactZ, radius, strength, nowMillis);
         ACTIVE_CONTACTS.put(key, updatedContact);
         touchedKeys.add(key);
     }

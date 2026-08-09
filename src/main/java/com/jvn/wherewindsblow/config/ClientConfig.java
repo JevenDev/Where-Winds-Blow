@@ -7,6 +7,10 @@ public final class ClientConfig {
     public static final double FOLIAGE_INTERACTIVITY_STRENGTH_MAX = 2.0D;
     public static final double WIND_SHEEN_STRENGTH_MIN = 0.0D;
     public static final double WIND_SHEEN_STRENGTH_MAX = 2.0D;
+    public static final double FOLIAGE_COLOR_VARIATION_STRENGTH_MIN = 0.0D;
+    public static final double FOLIAGE_COLOR_VARIATION_STRENGTH_MAX = 2.0D;
+    public static final double FOLIAGE_STEPPED_RATE_MIN = 4.0D;
+    public static final double FOLIAGE_STEPPED_RATE_MAX = 24.0D;
     public static final double WIND_STREAK_VISIBILITY_MIN = 0.0D;
     public static final double WIND_STREAK_VISIBILITY_MAX = 4.0D;
     public static final double WIND_LINE_DENSITY_MIN = 0.0D;
@@ -119,6 +123,19 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_SHEEN_STRENGTH = BUILDER
             .comment("Scales the visible intensity of wind sheen highlights.")
             .defineInRange("windSheenStrength", 1.0D, WIND_SHEEN_STRENGTH_MIN, WIND_SHEEN_STRENGTH_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_FOLIAGE_COLOR_VARIATION = BUILDER
+            .comment("Adds subtle, coherent color variation to responsive plant foliage without changing its model or texture.")
+            .define("enableFoliageColorVariation", true);
+
+    public static final ModConfigSpec.DoubleValue FOLIAGE_COLOR_VARIATION_STRENGTH = BUILDER
+            .comment("Scales broad color regions and smaller local variation on responsive plant foliage.")
+            .defineInRange(
+                    "foliageColorVariationStrength",
+                    0.25D,
+                    FOLIAGE_COLOR_VARIATION_STRENGTH_MIN,
+                    FOLIAGE_COLOR_VARIATION_STRENGTH_MAX
+            );
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_STREAKS = BUILDER
             .comment("Enables subtle Wind Waker-inspired wind streaks in the air.")
@@ -344,6 +361,14 @@ public final class ClientConfig {
             .comment("Sets how far above the bottom of plant-like foliage wind sway starts, in block units.")
             .defineInRange("windPlantSwayStartHeight", 0.6D, WIND_PLANT_SWAY_START_HEIGHT_MIN, WIND_PLANT_SWAY_START_HEIGHT_MAX);
 
+    public static final ModConfigSpec.EnumValue<FoliageAnimationMode> FOLIAGE_ANIMATION_MODE = BUILDER
+            .comment("Chooses smooth foliage animation or staggered stepped updates for plant-like foliage.")
+            .defineEnum("foliageAnimationMode", FoliageAnimationMode.SMOOTH);
+
+    public static final ModConfigSpec.DoubleValue FOLIAGE_STEPPED_RATE = BUILDER
+            .comment("Sets the visible updates per second used by stepped plant animation.")
+            .defineInRange("foliageSteppedRate", 10.0D, FOLIAGE_STEPPED_RATE_MIN, FOLIAGE_STEPPED_RATE_MAX);
+
     public static final ModConfigSpec.DoubleValue CLEAR_WEATHER_WIND_POWER = BUILDER
             .comment("Weather wind power while the weather is clear. Affects foliage gust intensity, wind streak density, and wind smoke.")
             .defineInRange("clearWeatherWindPower", 0.25D, WEATHER_WIND_POWER_MIN, WEATHER_WIND_POWER_MAX);
@@ -526,6 +551,11 @@ public final class ClientConfig {
     public enum WindDirectionMode {
         DYNAMIC,
         FIXED
+    }
+
+    public enum FoliageAnimationMode {
+        SMOOTH,
+        STEPPED
     }
 
     public enum SnowFogMode {
