@@ -1,0 +1,14 @@
+{
+  "biomes": [
+    "nomansland:maple_grove",
+    "nomansland:frozen_woods",
+    "nomansland:frozen_shore"
+  ],
+  "priority": 45,
+  "base_strength_multiplier": 1.05,
+  "gust_strength_multiplier": 1.15,
+  "gust_frequency_multiplier": 1.25,
+  "turbulence_multiplier": 1.15,
+  "direction_instability_multiplier": 1.15,
+  "altitude_influence": 1.1
+}

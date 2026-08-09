@@ -1,0 +1,20 @@
+{
+  "type": "grass",
+  "priority": 90,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.25,
+  "sway_strength_multiplier": 1.1,
+  "interaction_strength_multiplier": 1.1,
+  "blocks": [
+    "nomansland:grass_sprouts",
+    "nomansland:oat_grass",
+    "nomansland:short_beachgrass",
+    "nomansland:tall_beachgrass",
+    "nomansland:dried_grass",
+    "nomansland:frosted_grass",
+    "nomansland:fiddlehead",
+    "nomansland:mycelium_sprouts",
+    "nomansland:cave_weeds",
+    "nomansland:mycelium_growths"
+  ]
+}

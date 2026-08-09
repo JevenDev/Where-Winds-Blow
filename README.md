@@ -54,6 +54,7 @@ Where Winds Blow adds a visible, weather-driven wind system and denser Vanilla+ 
 - Iris has full support while no shader pack is active.
 - With an Iris shader pack active, weather, streaks, leaves, smoke, banners, signs, world generation, and local plant interaction remain available. Foliage sway, wind sheen, and lantern/chain sway are disabled to avoid terrain-shader conflicts.
 - Bountiful Fares
+- No Man's Land
 
 Where Winds Blow is incompatible with **Chunks Fade In** because both mods alter terrain shader rendering.
 

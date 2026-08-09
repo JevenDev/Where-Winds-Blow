@@ -1,0 +1,18 @@
+{
+  "biomes": [
+    "nomansland:autumnal_forest",
+    "nomansland:dark_taiga",
+    "nomansland:boreal_forest",
+    "nomansland:maple_forest",
+    "nomansland:old_growth_forest",
+    "nomansland:old_growth_forest_clearing",
+    "nomansland:old_growth_forest_edge"
+  ],
+  "priority": 45,
+  "base_strength_multiplier": 0.72,
+  "gust_strength_multiplier": 0.85,
+  "gust_frequency_multiplier": 0.9,
+  "turbulence_multiplier": 1.15,
+  "direction_instability_multiplier": 1.0,
+  "altitude_influence": 0.6
+}

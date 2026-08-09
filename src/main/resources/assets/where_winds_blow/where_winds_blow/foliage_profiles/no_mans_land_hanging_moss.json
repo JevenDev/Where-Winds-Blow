@@ -1,0 +1,11 @@
+{
+  "type": "hanging_foliage",
+  "priority": 95,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.4,
+  "sway_strength_multiplier": 0.8,
+  "interaction_strength_multiplier": 0.5,
+  "blocks": [
+    "nomansland:beard_moss"
+  ]
+}

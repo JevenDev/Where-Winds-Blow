@@ -1,0 +1,13 @@
+{
+  "biomes": [
+    "nomansland:prairie",
+    "nomansland:lavender_field"
+  ],
+  "priority": 45,
+  "base_strength_multiplier": 1.05,
+  "gust_strength_multiplier": 1.1,
+  "gust_frequency_multiplier": 1.0,
+  "turbulence_multiplier": 0.8,
+  "direction_instability_multiplier": 0.9,
+  "altitude_influence": 0.7
+}

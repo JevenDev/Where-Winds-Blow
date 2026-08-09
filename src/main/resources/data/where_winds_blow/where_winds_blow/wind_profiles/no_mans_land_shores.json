@@ -1,0 +1,13 @@
+{
+  "biomes": [
+    "nomansland:mud_beach",
+    "nomansland:tropical_beach"
+  ],
+  "priority": 45,
+  "base_strength_multiplier": 1.15,
+  "gust_strength_multiplier": 1.1,
+  "gust_frequency_multiplier": 1.05,
+  "turbulence_multiplier": 0.75,
+  "direction_instability_multiplier": 0.7,
+  "altitude_influence": 0.5
+}

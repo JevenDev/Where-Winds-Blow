@@ -1,0 +1,12 @@
+{
+  "type": "hanging_foliage",
+  "priority": 95,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.3,
+  "sway_strength_multiplier": 0.65,
+  "interaction_strength_multiplier": 0.35,
+  "blocks": [
+    "nomansland:apple",
+    "nomansland:pear"
+  ]
+}

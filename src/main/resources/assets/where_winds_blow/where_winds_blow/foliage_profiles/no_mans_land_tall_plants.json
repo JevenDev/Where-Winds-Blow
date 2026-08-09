@@ -1,0 +1,14 @@
+{
+  "type": "tall_foliage",
+  "priority": 95,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.55,
+  "sway_strength_multiplier": 0.85,
+  "interaction_strength_multiplier": 0.7,
+  "blocks": [
+    "nomansland:cattail",
+    "nomansland:reeds",
+    "nomansland:cut_sugar_cane",
+    "minecraft:sugar_cane"
+  ]
+}
