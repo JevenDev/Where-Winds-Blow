@@ -446,6 +446,10 @@ public final class WhereWindsBlowConfigScreen {
                         .name(translatable("group.foliage"))
                         .description(description("group.foliage.description"))
                         .option(booleanOption(ClientConfig.ENABLE_CUSTOM_FOLIAGE_SHADER, WhereWindsBlowConfigScreen::rebuildFoliage))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.windSheen"))
+                        .description(description("group.windSheen.description"))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_SHEEN))
                         .option(doubleOption(
                                 ClientConfig.WIND_SHEEN_STRENGTH,
@@ -453,6 +457,10 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_SHEEN_STRENGTH_MAX,
                                 SMALL_STEP
                         ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.foliageColor"))
+                        .description(description("group.foliageColor.description"))
                         .option(booleanOption(ClientConfig.ENABLE_FOLIAGE_COLOR_VARIATION))
                         .option(doubleOption(
                                 ClientConfig.FOLIAGE_COLOR_VARIATION_STRENGTH,
@@ -515,31 +523,14 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_STREAK_VISIBILITY_MAX,
                                 SMALL_STEP
                         ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.windLines"))
+                        .description(description("group.windLines.description"))
                         .option(doubleOption(
                                 ClientConfig.WIND_LINE_DENSITY,
                                 ClientConfig.WIND_LINE_DENSITY_MIN,
                                 ClientConfig.WIND_LINE_DENSITY_MAX,
-                                SMALL_STEP
-                        ))
-                        .option(booleanOption(ClientConfig.ENABLE_WIND_LEAVES))
-                        .option(doubleOption(
-                                ClientConfig.WIND_LEAF_DENSITY,
-                                ClientConfig.WIND_LEAF_DENSITY_MIN,
-                                ClientConfig.WIND_LEAF_DENSITY_MAX,
-                                SMALL_STEP
-                        ))
-                        .option(booleanOption(ClientConfig.ENABLE_WIND_FLOWER_PETALS))
-                        .option(doubleOption(
-                                ClientConfig.WIND_FLOWER_PETAL_DENSITY,
-                                ClientConfig.WIND_FLOWER_PETAL_DENSITY_MIN,
-                                ClientConfig.WIND_FLOWER_PETAL_DENSITY_MAX,
-                                SMALL_STEP
-                        ))
-                        .option(booleanOption(ClientConfig.ENABLE_TUMBLEWEEDS))
-                        .option(doubleOption(
-                                ClientConfig.TUMBLEWEED_DENSITY,
-                                ClientConfig.TUMBLEWEED_DENSITY_MIN,
-                                ClientConfig.TUMBLEWEED_DENSITY_MAX,
                                 SMALL_STEP
                         ))
                         .option(doubleOption(
@@ -549,9 +540,37 @@ public final class WhereWindsBlowConfigScreen {
                                 SMALL_STEP
                         ))
                         .option(doubleOption(
+                                ClientConfig.WIND_STREAK_THICKNESS,
+                                ClientConfig.WIND_STREAK_THICKNESS_MIN,
+                                ClientConfig.WIND_STREAK_THICKNESS_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.windLeaves"))
+                        .description(description("group.windLeaves.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_LEAVES))
+                        .option(doubleOption(
+                                ClientConfig.WIND_LEAF_DENSITY,
+                                ClientConfig.WIND_LEAF_DENSITY_MIN,
+                                ClientConfig.WIND_LEAF_DENSITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
                                 ClientConfig.WIND_LEAF_OPACITY,
                                 ClientConfig.WIND_LEAF_OPACITY_MIN,
                                 ClientConfig.WIND_LEAF_OPACITY_MAX,
+                                SMALL_STEP
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.windFlowerPetals"))
+                        .description(description("group.windFlowerPetals.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_WIND_FLOWER_PETALS))
+                        .option(doubleOption(
+                                ClientConfig.WIND_FLOWER_PETAL_DENSITY,
+                                ClientConfig.WIND_FLOWER_PETAL_DENSITY_MIN,
+                                ClientConfig.WIND_FLOWER_PETAL_DENSITY_MAX,
                                 SMALL_STEP
                         ))
                         .option(doubleOption(
@@ -560,12 +579,21 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_FLOWER_PETAL_OPACITY_MAX,
                                 SMALL_STEP
                         ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.tumbleweeds"))
+                        .description(description("group.tumbleweeds.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_TUMBLEWEEDS))
                         .option(doubleOption(
-                                ClientConfig.WIND_STREAK_THICKNESS,
-                                ClientConfig.WIND_STREAK_THICKNESS_MIN,
-                                ClientConfig.WIND_STREAK_THICKNESS_MAX,
+                                ClientConfig.TUMBLEWEED_DENSITY,
+                                ClientConfig.TUMBLEWEED_DENSITY_MIN,
+                                ClientConfig.TUMBLEWEED_DENSITY_MAX,
                                 SMALL_STEP
                         ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.windSmoke"))
+                        .description(description("group.windSmoke.description"))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_SMOKE))
                         .option(doubleOption(
                                 ClientConfig.WIND_SMOKE_STRENGTH,
@@ -573,6 +601,10 @@ public final class WhereWindsBlowConfigScreen {
                                 ClientConfig.WIND_SMOKE_STRENGTH_MAX,
                                 SMALL_STEP
                         ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.hangingDecorations"))
+                        .description(description("group.hangingDecorations.description"))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_LANTERN_SWAY, WhereWindsBlowConfigScreen::rebuildFoliage))
                         .option(doubleOption(
                                 ClientConfig.WIND_LANTERN_SWAY_STRENGTH,
