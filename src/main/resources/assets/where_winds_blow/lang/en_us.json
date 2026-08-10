@@ -108,7 +108,7 @@
   "where_winds_blow.config.wildWheatPatchMultiplier": "Wild Wheat",
   "where_winds_blow.config.wildWheatPatchMultiplier.tooltip": "Multiplies wild wheat patch generation passes. Values are rounded to whole passes when biome modifiers load.",
   "where_winds_blow.config.enableFoliageInteractivity": "Foliage Interactivity",
-  "where_winds_blow.config.enableFoliageInteractivity.tooltip": "Lets nearby entities push and bend supported foliage on the client.",
+  "where_winds_blow.config.enableFoliageInteractivity.tooltip": "Lets nearby entities press supported foliage aside and leave smooth directional wakes as they move.",
   "where_winds_blow.config.foliageInteractivityStrength": "Interactivity Strength",
   "where_winds_blow.config.foliageInteractivityStrength.tooltip": "Scales how strongly supported foliage reacts when entities move through it.",
   "where_winds_blow.config.enableCustomFoliageShader": "Custom Wind Shader",

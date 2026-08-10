@@ -21,6 +21,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LightningBolt;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -51,19 +52,19 @@ public final class ResponsiveFoliagePhysics {
     private static final long CONTACT_LIFETIME_MILLIS = 1050L;
     private static final float MIN_VISIBLE_CONTACT_DECAY = 0.035F;
     private static final float WAKE_SPEED_RESPONSE = 5.5F;
-    private static final float WAKE_DISTANCE_MIN = 0.18F;
-    private static final float WAKE_DISTANCE_MAX = 1.20F;
+    private static final float STATIONARY_CONTACT_STRENGTH = 0.34F;
+    private static final float MOVING_CONTACT_STRENGTH = 1.06F;
+    private static final float WAKE_DISTANCE_MAX = 1.55F;
     private static final float PLAYER_REFERENCE_WIDTH = 0.6F;
     private static final float PLAYER_REFERENCE_HEIGHT = 1.8F;
     private static final double ENTITY_VISIBILITY_RADIUS = 12.0D;
     private static final double FOLIAGE_SCAN_Y_PADDING = 0.55D;
     private static final double MIN_NON_PLAYER_MOVEMENT_SQR = 0.0004D;
-    private static final double MIN_CONTACT_MOVEMENT_SQR = 0.0001D;
     private static final int MAX_INTERACTIVE_ENTITIES = ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS;
     private static final int MAX_TRACKED_FOLIAGE_IMPULSES = 192;
     private static final int MAX_TRANSIENT_FORCES = 12;
     private static final Map<BlockPos, FoliageImpulse> ACTIVE_IMPULSES = new ConcurrentHashMap<>();
-    private static final Map<Long, FoliageContact> ACTIVE_CONTACTS = new HashMap<>();
+    private static final Map<Integer, FoliageContact> ACTIVE_CONTACTS = new HashMap<>();
     private static final List<TransientForce> TRANSIENT_FORCES = new ArrayList<>();
     private static long lastInteractorUpdateGameTime = Long.MIN_VALUE;
     private static long pauseStartedMillis;
@@ -259,20 +260,21 @@ public final class ResponsiveFoliagePhysics {
         }
 
         double movementSqr = entity.getDeltaMovement().horizontalDistanceSqr();
+        if (entity instanceof LivingEntity) return true;
         if (entity instanceof AbstractMinecart) return movementSqr >= 0.0036D;
         if (entity instanceof Projectile) return movementSqr >= 0.01D;
         return movementSqr >= MIN_NON_PLAYER_MOVEMENT_SQR;
     }
 
     private static void refreshShaderContacts(List<Entity> entities, long nowMillis) {
-        Set<Long> touchedKeys = new HashSet<>();
+        Set<Integer> touchedKeys = new HashSet<>();
         for (Entity entity : entities) {
             touchShaderContact(entity, nowMillis, touchedKeys);
         }
 
-        Iterator<Map.Entry<Long, FoliageContact>> iterator = ACTIVE_CONTACTS.entrySet().iterator();
+        Iterator<Map.Entry<Integer, FoliageContact>> iterator = ACTIVE_CONTACTS.entrySet().iterator();
         while (iterator.hasNext()) {
-            Map.Entry<Long, FoliageContact> entry = iterator.next();
+            Map.Entry<Integer, FoliageContact> entry = iterator.next();
             FoliageContact contact = entry.getValue();
             if (!touchedKeys.contains(entry.getKey())
                     && nowMillis - contact.lastTouchedMillis() > CONTACT_LIFETIME_MILLIS) {
@@ -281,31 +283,13 @@ public final class ResponsiveFoliagePhysics {
         }
     }
 
-    private static void touchShaderContact(Entity entity, long nowMillis, Set<Long> touchedKeys) {
-        Vec3 movement = entity.getDeltaMovement();
-        double horizontalMovementSqr = movement.horizontalDistanceSqr();
-        if (horizontalMovementSqr < MIN_CONTACT_MOVEMENT_SQR) {
-            return;
-        }
-
-        AABB bounds = entity.getBoundingBox();
-        double horizontalSpeed = Math.sqrt(horizontalMovementSqr);
-        float wakeStrength = Mth.clamp((float) horizontalSpeed * WAKE_SPEED_RESPONSE, 0.0F, 1.0F);
-        float wakeDistance = Mth.lerp(wakeStrength, WAKE_DISTANCE_MIN, WAKE_DISTANCE_MAX);
-        float contactX = (float) (entity.getX() - movement.x / horizontalSpeed * wakeDistance);
-        float contactZ = (float) (entity.getZ() - movement.z / horizontalSpeed * wakeDistance);
-        float radius = edgeInfluenceRadius(entity) * (1.0F + wakeStrength * 0.48F);
-        int cellX = Mth.floor(entity.getX());
-        int cellY = Mth.floor(bounds.minY);
-        int cellZ = Mth.floor(entity.getZ());
-        long key = contactKey(cellX, cellY, cellZ);
-        float strength = entitySizeStrength(entity)
-                * (float) ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH.getAsDouble()
-                * (1.0F + wakeStrength * 0.30F);
+    private static void touchShaderContact(Entity entity, long nowMillis, Set<Integer> touchedKeys) {
+        InteractionShape shape = interactionShape(entity);
+        int key = entity.getId();
         FoliageContact existingContact = ACTIVE_CONTACTS.get(key);
         FoliageContact updatedContact = existingContact != null
-                ? existingContact.refresh(contactX, (float) bounds.minY, contactZ, radius, strength, nowMillis)
-                : FoliageContact.create(cellX, cellY, cellZ, contactX, (float) bounds.minY, contactZ, radius, strength, nowMillis);
+                ? existingContact.refresh(shape, nowMillis)
+                : FoliageContact.create(shape, nowMillis);
         ACTIVE_CONTACTS.put(key, updatedContact);
         touchedKeys.add(key);
     }
@@ -330,17 +314,20 @@ public final class ResponsiveFoliagePhysics {
         List<ShaderInteraction> uploadedContacts = contacts;
         ResponsiveFoliageShaders.setFoliageInteractors(
                 contacts.size(),
-                (interactors, strengths, index) -> fillShaderInteractor(uploadedContacts.get(index), interactors, strengths, index)
+                (interactors, motions, index) -> fillShaderInteractor(uploadedContacts.get(index), interactors, motions, index)
         );
     }
 
-    private static void fillShaderInteractor(ShaderInteraction sample, float[] interactors, float[] strengths, int index) {
+    private static void fillShaderInteractor(ShaderInteraction sample, float[] interactors, float[] motions, int index) {
         int offset = index * 4;
         interactors[offset] = sample.x();
         interactors[offset + 1] = sample.minY();
         interactors[offset + 2] = sample.z();
         interactors[offset + 3] = sample.radius();
-        strengths[index] = sample.strength();
+        motions[offset] = sample.maxY();
+        motions[offset + 1] = sample.trailX();
+        motions[offset + 2] = sample.trailZ();
+        motions[offset + 3] = sample.strength();
     }
 
     private static float contactDecay(FoliageContact contact, long nowMillis) {
@@ -349,28 +336,16 @@ public final class ResponsiveFoliagePhysics {
         return ToucanEasing.smoothstep(remaining);
     }
 
-    private static long contactKey(int cellX, int cellY, int cellZ) {
-        return ((long) cellX & 0x3FFFFFFL) << 38
-                | ((long) cellZ & 0x3FFFFFFL) << 12
-                | ((long) cellY & 0xFFFL);
-    }
-
     private static void collectFoliageImpulses(ClientLevel level, Entity entity, long nowMillis, Map<BlockPos, FoliageImpulse> touchedImpulses) {
-        Vec3 movement = entity.getDeltaMovement();
-        double horizontalMovementSqr = movement.horizontalDistanceSqr();
-        if (horizontalMovementSqr < MIN_CONTACT_MOVEMENT_SQR) {
-            return;
-        }
-
+        InteractionShape shape = interactionShape(entity);
         AABB bounds = entity.getBoundingBox();
-        float influenceRadius = edgeInfluenceRadius(entity);
-        float baseStrength = entitySizeStrength(entity) * (float) ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH.getAsDouble();
-        int minX = Mth.floor(bounds.minX - influenceRadius);
-        int maxX = Mth.floor(bounds.maxX + influenceRadius);
+        float influenceRadius = shape.radius();
+        int minX = Mth.floor(Math.min(entity.getX(), entity.getX() + shape.trailX()) - influenceRadius);
+        int maxX = Mth.floor(Math.max(entity.getX(), entity.getX() + shape.trailX()) + influenceRadius);
         int minY = Mth.floor(bounds.minY - FOLIAGE_SCAN_Y_PADDING);
         int maxY = Mth.floor(bounds.maxY + FOLIAGE_SCAN_Y_PADDING);
-        int minZ = Mth.floor(bounds.minZ - influenceRadius);
-        int maxZ = Mth.floor(bounds.maxZ + influenceRadius);
+        int minZ = Mth.floor(Math.min(entity.getZ(), entity.getZ() + shape.trailZ()) - influenceRadius);
+        int maxZ = Mth.floor(Math.max(entity.getZ(), entity.getZ() + shape.trailZ()) + influenceRadius);
         BlockPos.MutableBlockPos samplePos = new BlockPos.MutableBlockPos();
 
         for (int x = minX; x <= maxX; x++) {
@@ -382,51 +357,51 @@ public final class ResponsiveFoliagePhysics {
                         continue;
                     }
 
-                    addImpulseForBlock(entity, bounds, movement, samplePos, influenceRadius, baseStrength, nowMillis, touchedImpulses);
+                    addImpulseForBlock(shape, samplePos, nowMillis, touchedImpulses);
                 }
             }
         }
     }
 
     private static void addImpulseForBlock(
-            Entity entity,
-            AABB bounds,
-            Vec3 movement,
+            InteractionShape shape,
             BlockPos pos,
-            float influenceRadius,
-            float baseStrength,
             long nowMillis,
             Map<BlockPos, FoliageImpulse> touchedImpulses
     ) {
         double centerX = pos.getX() + 0.5D;
         double centerZ = pos.getZ() + 0.5D;
-        double nearestX = Mth.clamp(centerX, bounds.minX, bounds.maxX);
-        double nearestZ = Mth.clamp(centerZ, bounds.minZ, bounds.maxZ);
+        double trailLengthSqr = shape.trailX() * shape.trailX() + shape.trailZ() * shape.trailZ();
+        double progress = trailLengthSqr > 0.000001D
+                ? Mth.clamp(((centerX - shape.x()) * shape.trailX() + (centerZ - shape.z()) * shape.trailZ()) / trailLengthSqr, 0.0D, 1.0D)
+                : 0.0D;
+        double nearestX = shape.x() + shape.trailX() * progress;
+        double nearestZ = shape.z() + shape.trailZ() * progress;
         double surfaceDeltaX = centerX - nearestX;
         double surfaceDeltaZ = centerZ - nearestZ;
         double surfaceDistanceSqr = surfaceDeltaX * surfaceDeltaX + surfaceDeltaZ * surfaceDeltaZ;
-        float radiusSqr = influenceRadius * influenceRadius;
+        float radiusSqr = shape.radius() * shape.radius();
         if (surfaceDistanceSqr >= radiusSqr) {
             return;
         }
 
-        float influence = ToucanEasing.smoothstep(1.0F - (float) Math.sqrt(surfaceDistanceSqr) / influenceRadius);
-        float offset = influence * baseStrength * INTERACTION_OFFSET_SCALE;
+        float influence = ToucanEasing.smoothstep(1.0F - (float) Math.sqrt(surfaceDistanceSqr) / shape.radius());
+        float offset = influence * shape.strength() * INTERACTION_OFFSET_SCALE;
         if (offset <= MIN_VISIBLE_IMPULSE) {
             return;
         }
 
-        double directionX = centerX - entity.getX();
-        double directionZ = centerZ - entity.getZ();
+        double directionX = surfaceDeltaX;
+        double directionZ = surfaceDeltaZ;
         double directionLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
         if (directionLength > 0.001D) {
             directionX /= directionLength;
             directionZ /= directionLength;
         } else {
-            double movementLength = Math.sqrt(movement.x * movement.x + movement.z * movement.z);
-            if (movementLength > 0.001D) {
-                directionX = -movement.x / movementLength;
-                directionZ = -movement.z / movementLength;
+            double trailLength = Math.sqrt(trailLengthSqr);
+            if (trailLength > 0.001D) {
+                directionX = -shape.trailX() / trailLength;
+                directionZ = -shape.trailZ() / trailLength;
             } else {
                 directionX = 1.0D;
                 directionZ = 0.0D;
@@ -568,6 +543,29 @@ public final class ResponsiveFoliagePhysics {
         return strength;
     }
 
+    private static InteractionShape interactionShape(Entity entity) {
+        AABB bounds = entity.getBoundingBox();
+        Vec3 movement = entity.getDeltaMovement();
+        double horizontalSpeed = Math.sqrt(movement.horizontalDistanceSqr());
+        float wakeStrength = Mth.clamp((float) horizontalSpeed * WAKE_SPEED_RESPONSE, 0.0F, 1.0F);
+        float wakeDistance = wakeStrength * WAKE_DISTANCE_MAX;
+        float trailX = horizontalSpeed > 0.001D ? (float) (-movement.x / horizontalSpeed * wakeDistance) : 0.0F;
+        float trailZ = horizontalSpeed > 0.001D ? (float) (-movement.z / horizontalSpeed * wakeDistance) : 0.0F;
+        float strength = entitySizeStrength(entity)
+                * (float) ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH.getAsDouble()
+                * Mth.lerp(wakeStrength, STATIONARY_CONTACT_STRENGTH, MOVING_CONTACT_STRENGTH);
+        float bodyRadius = (float) Math.max(bounds.getXsize(), bounds.getZsize()) * 0.5F;
+        return new InteractionShape(
+                (float) entity.getX(), (float) bounds.minY, (float) bounds.maxY, (float) entity.getZ(),
+                Mth.clamp(
+                        (edgeInfluenceRadius(entity) + bodyRadius) * (1.0F + wakeStrength * 0.16F),
+                        BASE_EDGE_INFLUENCE_RADIUS,
+                        MAX_EDGE_INFLUENCE_RADIUS
+                ),
+                trailX, trailZ, strength
+        );
+    }
+
     private static void detectLocalForceEvents(ClientLevel level, Entity cameraPlayer) {
         AABB bounds = cameraPlayer.getBoundingBox().inflate(ENTITY_VISIBILITY_RADIUS);
         for (LightningBolt lightning : level.getEntitiesOfClass(LightningBolt.class, bounds, bolt -> bolt.tickCount == 1)) {
@@ -640,15 +638,26 @@ public final class ResponsiveFoliagePhysics {
         }
     }
 
-    private record ShaderInteraction(float x, float minY, float z, float radius, float strength) {
+    private record InteractionShape(
+            float x, float minY, float maxY, float z, float radius, float trailX, float trailZ, float strength
+    ) {
+    }
+
+    private record ShaderInteraction(
+            float x, float minY, float maxY, float z, float radius, float trailX, float trailZ, float strength
+    ) {
         private static ShaderInteraction fromContact(FoliageContact contact, long nowMillis) {
             ContactSample sample = contact.sample(nowMillis);
-            return new ShaderInteraction(sample.x(), sample.minY(), sample.z(), sample.radius(),
+            return new ShaderInteraction(sample.x(), sample.minY(), sample.maxY(), sample.z(), sample.radius(),
+                    sample.trailX(), sample.trailZ(),
                     sample.strength() * contactDecay(contact, nowMillis));
         }
 
         private static ShaderInteraction fromForce(TransientForce force, long nowMillis) {
-            return new ShaderInteraction(force.x(), force.y() - 0.4F, force.z(), force.radius(), force.currentStrength(nowMillis));
+            return new ShaderInteraction(
+                    force.x(), force.y() - force.radius() * 0.45F, force.y() + force.radius() * 0.45F,
+                    force.z(), force.radius(), 0.0F, 0.0F, force.currentStrength(nowMillis)
+            );
         }
 
         private boolean visible() {
@@ -663,108 +672,54 @@ public final class ResponsiveFoliagePhysics {
         }
     }
 
+    private record ContactSample(
+            float x, float minY, float maxY, float z, float radius, float trailX, float trailZ, float strength
+    ) {
+    }
+
     private record FoliageContact(
-            int cellX,
-            int cellY,
-            int cellZ,
-            float previousX,
-            float previousMinY,
-            float previousZ,
-            float previousRadius,
-            float previousStrength,
-            float x,
-            float minY,
-            float z,
-            float radius,
-            float strength,
+            ContactSample previous,
+            InteractionShape target,
             long updatedMillis,
             long lastTouchedMillis
     ) {
-        private static FoliageContact create(
-                int cellX,
-                int cellY,
-                int cellZ,
-                float x,
-                float minY,
-                float z,
-                float radius,
-                float strength,
-                long nowMillis
-        ) {
+        private static FoliageContact create(InteractionShape shape, long nowMillis) {
+            ContactSample sample = new ContactSample(
+                    shape.x(), shape.minY(), shape.maxY(), shape.z(), shape.radius(),
+                    shape.trailX(), shape.trailZ(), shape.strength()
+            );
             return new FoliageContact(
-                    cellX,
-                    cellY,
-                    cellZ,
-                    x,
-                    minY,
-                    z,
-                    radius,
-                    strength,
-                    x,
-                    minY,
-                    z,
-                    radius,
-                    strength,
-                    nowMillis,
-                    nowMillis
+                    sample, shape, nowMillis, nowMillis
             );
         }
 
-        private FoliageContact refresh(float x, float minY, float z, float radius, float strength, long nowMillis) {
-            ContactSample sample = sample(nowMillis);
-            return new FoliageContact(
-                    cellX,
-                    cellY,
-                    cellZ,
-                    sample.x(),
-                    sample.minY(),
-                    sample.z(),
-                    sample.radius(),
-                    sample.strength(),
-                    x,
-                    minY,
-                    z,
-                    radius,
-                    strength,
-                    nowMillis,
-                    nowMillis
-            );
+        private FoliageContact refresh(InteractionShape shape, long nowMillis) {
+            return new FoliageContact(sample(nowMillis), shape, nowMillis, nowMillis);
         }
 
         private ContactSample sample(long nowMillis) {
             float progress = Mth.clamp((nowMillis - updatedMillis) * 0.001F * CONTACT_SMOOTHNESS, 0.0F, 1.0F);
             progress = ToucanEasing.smoothstep(progress);
             return new ContactSample(
-                    Mth.lerp(progress, previousX, x),
-                    Mth.lerp(progress, previousMinY, minY),
-                    Mth.lerp(progress, previousZ, z),
-                    Mth.lerp(progress, previousRadius, radius),
-                    Mth.lerp(progress, previousStrength, strength)
+                    Mth.lerp(progress, previous.x(), target.x()),
+                    Mth.lerp(progress, previous.minY(), target.minY()),
+                    Mth.lerp(progress, previous.maxY(), target.maxY()),
+                    Mth.lerp(progress, previous.z(), target.z()),
+                    Mth.lerp(progress, previous.radius(), target.radius()),
+                    Mth.lerp(progress, previous.trailX(), target.trailX()),
+                    Mth.lerp(progress, previous.trailZ(), target.trailZ()),
+                    Mth.lerp(progress, previous.strength(), target.strength())
             );
         }
 
         private FoliageContact shift(long millis) {
             return new FoliageContact(
-                    cellX,
-                    cellY,
-                    cellZ,
-                    previousX,
-                    previousMinY,
-                    previousZ,
-                    previousRadius,
-                    previousStrength,
-                    x,
-                    minY,
-                    z,
-                    radius,
-                    strength,
+                    previous,
+                    target,
                     updatedMillis + millis,
                     lastTouchedMillis + millis
             );
         }
-    }
-
-    private record ContactSample(float x, float minY, float z, float radius, float strength) {
     }
 
     private record FoliageImpulse(float offsetX, float offsetZ, long updatedMillis) {

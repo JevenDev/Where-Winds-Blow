@@ -31,7 +31,7 @@ public final class SodiumFoliageUniforms {
     private static final int[] gustStrengthUniforms = new int[DynamicWindManager.MAX_ACTIVE_GUSTS];
     private static final int[] gustEnvelopeUniforms = new int[DynamicWindManager.MAX_ACTIVE_GUSTS];
     private static final int[] interactorUniforms = new int[ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS];
-    private static final int[] interactorStrengthUniforms = new int[(ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS + 3) / 4];
+    private static final int[] interactorMotionUniforms = new int[ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS];
 
     private SodiumFoliageUniforms() {
     }
@@ -58,7 +58,7 @@ public final class SodiumFoliageUniforms {
         Arrays.fill(gustStrengthUniforms, UNRESOLVED_UNIFORM);
         Arrays.fill(gustEnvelopeUniforms, UNRESOLVED_UNIFORM);
         Arrays.fill(interactorUniforms, UNRESOLVED_UNIFORM);
-        Arrays.fill(interactorStrengthUniforms, UNRESOLVED_UNIFORM);
+        Arrays.fill(interactorMotionUniforms, UNRESOLVED_UNIFORM);
     }
 
     public static void uploadActiveProgramUniforms() {
@@ -92,7 +92,12 @@ public final class SodiumFoliageUniforms {
             uploadCameraPositionUniform(cameraPositionUniform, cameraPosition);
             int interactorCount = ResponsiveFoliageShaders.foliageInteractorCount();
             uploadIntUniform(interactorCountUniform, interactorCount);
-            uploadInteractorUniforms(ResponsiveFoliageShaders.foliageInteractors(), ResponsiveFoliageShaders.foliageInteractorStrengths(), interactorCount, cameraPosition);
+            uploadInteractorUniforms(
+                    ResponsiveFoliageShaders.foliageInteractors(),
+                    ResponsiveFoliageShaders.foliageInteractorMotions(),
+                    interactorCount,
+                    cameraPosition
+            );
         } catch (RuntimeException exception) {
             ResponsiveFoliageShaders.disableSodiumShaderPatch("Failed to upload Sodium foliage shader uniforms.", exception);
         }
@@ -128,9 +133,7 @@ public final class SodiumFoliageUniforms {
         Arrays.fill(interactorUniforms, UNRESOLVED_UNIFORM);
         for (int index = 0; index < interactorUniforms.length; index++) {
             interactorUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbInteractor" + index);
-        }
-        for (int group = 0; group < interactorStrengthUniforms.length; group++) {
-            interactorStrengthUniforms[group] = GL20C.glGetUniformLocation(program, "u_WwbInteractorStrengths" + group);
+            interactorMotionUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbInteractorMotion" + index);
         }
     }
 
@@ -215,11 +218,11 @@ public final class SodiumFoliageUniforms {
         }
     }
 
-    private static void uploadInteractorUniforms(float[] interactors, float[] strengths, int interactorCount, Vec3 cameraPosition) {
+    private static void uploadInteractorUniforms(float[] interactors, float[] motions, int interactorCount, Vec3 cameraPosition) {
         for (int index = 0; index < interactorCount; index++) {
+            int offset = index * 4;
             int location = interactorUniforms[index];
             if (location >= 0) {
-                int offset = index * 4;
                 GL20C.glUniform4f(
                         location,
                         (float) (interactors[offset] - cameraPosition.x),
@@ -228,13 +231,16 @@ public final class SodiumFoliageUniforms {
                         interactors[offset + 3]
                 );
             }
-        }
 
-        for (int group = 0; group < ResponsiveFoliageShaders.interactorStrengthGroupCount(interactorCount); group++) {
-            int location = interactorStrengthUniforms[group];
-            if (location >= 0) {
-                int offset = group * 4;
-                GL20C.glUniform4f(location, strengths[offset], strengths[offset + 1], strengths[offset + 2], strengths[offset + 3]);
+            int motionLocation = interactorMotionUniforms[index];
+            if (motionLocation >= 0) {
+                GL20C.glUniform4f(
+                        motionLocation,
+                        (float) (motions[offset] - cameraPosition.y),
+                        motions[offset + 1],
+                        motions[offset + 2],
+                        motions[offset + 3]
+                );
             }
         }
     }

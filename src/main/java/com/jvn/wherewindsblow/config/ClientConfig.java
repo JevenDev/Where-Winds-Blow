@@ -105,7 +105,7 @@ public final class ClientConfig {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
     public static final ModConfigSpec.BooleanValue ENABLE_FOLIAGE_INTERACTIVITY = BUILDER
-            .comment("Enables entity-driven foliage interaction on the client.")
+            .comment("Lets nearby entities press foliage aside and leave directional motion wakes on the client.")
             .define("enableFoliageInteractivity", true);
 
     public static final ModConfigSpec.DoubleValue FOLIAGE_INTERACTIVITY_STRENGTH = BUILDER

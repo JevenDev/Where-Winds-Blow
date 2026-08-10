@@ -60,10 +60,22 @@ public final class SodiumFoliageShaderSource {
             uniform vec4 u_WwbInteractor13;
             uniform vec4 u_WwbInteractor14;
             uniform vec4 u_WwbInteractor15;
-            uniform vec4 u_WwbInteractorStrengths0;
-            uniform vec4 u_WwbInteractorStrengths1;
-            uniform vec4 u_WwbInteractorStrengths2;
-            uniform vec4 u_WwbInteractorStrengths3;
+            uniform vec4 u_WwbInteractorMotion0;
+            uniform vec4 u_WwbInteractorMotion1;
+            uniform vec4 u_WwbInteractorMotion2;
+            uniform vec4 u_WwbInteractorMotion3;
+            uniform vec4 u_WwbInteractorMotion4;
+            uniform vec4 u_WwbInteractorMotion5;
+            uniform vec4 u_WwbInteractorMotion6;
+            uniform vec4 u_WwbInteractorMotion7;
+            uniform vec4 u_WwbInteractorMotion8;
+            uniform vec4 u_WwbInteractorMotion9;
+            uniform vec4 u_WwbInteractorMotion10;
+            uniform vec4 u_WwbInteractorMotion11;
+            uniform vec4 u_WwbInteractorMotion12;
+            uniform vec4 u_WwbInteractorMotion13;
+            uniform vec4 u_WwbInteractorMotion14;
+            uniform vec4 u_WwbInteractorMotion15;
             """;
 
     private static final String WIND_FUNCTIONS = """
@@ -332,11 +344,23 @@ public final class SodiumFoliageShaderSource {
                 return u_WwbInteractor15;
             }
 
-            float wwb_foliage_interactor_strength_at(int index) {
-                if (index < 4) return u_WwbInteractorStrengths0[index];
-                if (index < 8) return u_WwbInteractorStrengths1[index - 4];
-                if (index < 12) return u_WwbInteractorStrengths2[index - 8];
-                return u_WwbInteractorStrengths3[index - 12];
+            vec4 wwb_foliage_interactor_motion_at(int index) {
+                if (index == 0) return u_WwbInteractorMotion0;
+                if (index == 1) return u_WwbInteractorMotion1;
+                if (index == 2) return u_WwbInteractorMotion2;
+                if (index == 3) return u_WwbInteractorMotion3;
+                if (index == 4) return u_WwbInteractorMotion4;
+                if (index == 5) return u_WwbInteractorMotion5;
+                if (index == 6) return u_WwbInteractorMotion6;
+                if (index == 7) return u_WwbInteractorMotion7;
+                if (index == 8) return u_WwbInteractorMotion8;
+                if (index == 9) return u_WwbInteractorMotion9;
+                if (index == 10) return u_WwbInteractorMotion10;
+                if (index == 11) return u_WwbInteractorMotion11;
+                if (index == 12) return u_WwbInteractorMotion12;
+                if (index == 13) return u_WwbInteractorMotion13;
+                if (index == 14) return u_WwbInteractorMotion14;
+                return u_WwbInteractorMotion15;
             }
 
             vec3 wwb_foliage_interaction_offset(vec3 position, vec2 anchor, float bend) {
@@ -351,20 +375,31 @@ public final class SodiumFoliageShaderSource {
                     }
 
                     vec4 interactor = wwb_foliage_interactor_at(index);
-                    if (position.y < interactor.y - 0.15) {
+                    vec4 motion = wwb_foliage_interactor_motion_at(index);
+                    float radius = max(interactor.w, 0.001);
+                    float verticalDistance = max(max(interactor.y - position.y, position.y - motion.x), 0.0);
+                    float verticalInfluence = wwb_smooth_curve(1.0 - verticalDistance / (0.30 + radius * 0.55));
+                    if (verticalInfluence <= 0.0) {
                         continue;
                     }
 
-                    float radius = max(interactor.w, 0.001);
-                    vec2 delta = anchor - interactor.xz;
+                    vec2 trail = motion.yz;
+                    float trailLengthSqr = dot(trail, trail);
+                    float trailProgress = trailLengthSqr > 0.000001
+                            ? clamp(dot(anchor - interactor.xz, trail) / trailLengthSqr, 0.0, 1.0)
+                            : 0.0;
+                    vec2 nearestPoint = interactor.xz + trail * trailProgress;
+                    vec2 delta = anchor - nearestPoint;
                     float horizontalDistance = length(delta);
                     float horizontalInfluence = wwb_smooth_curve(1.0 - horizontalDistance / radius);
                     if (horizontalInfluence <= 0.0) {
                         continue;
                     }
 
-                    vec2 direction = horizontalDistance > 0.001 ? delta / horizontalDistance : vec2(1.0, 0.0);
-                    totalOffset += direction * horizontalInfluence * wwb_foliage_interactor_strength_at(index);
+                    vec2 direction = horizontalDistance > 0.001
+                            ? delta / horizontalDistance
+                            : (trailLengthSqr > 0.000001 ? -normalize(trail) : vec2(1.0, 0.0));
+                    totalOffset += direction * horizontalInfluence * verticalInfluence * motion.w;
                 }
 
                 float offsetLength = length(totalOffset);

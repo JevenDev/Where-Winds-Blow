@@ -41,8 +41,9 @@ public final class ResponsiveFoliageShaders {
     private static volatile boolean sodiumShaderPatchDisabled;
     private static boolean incompatibleRendererWarningLogged;
     private static int foliageInteractorCount;
+    // Interactor: center x, min y, center z, radius. Motion: max y, trailing x/z, strength.
     private static final float[] foliageInteractors = new float[MAX_FOLIAGE_INTERACTORS * 4];
-    private static final float[] foliageInteractorStrengths = new float[MAX_FOLIAGE_INTERACTORS];
+    private static final float[] foliageInteractorMotions = new float[MAX_FOLIAGE_INTERACTORS * 4];
 
     private ResponsiveFoliageShaders() {
     }
@@ -93,9 +94,9 @@ public final class ResponsiveFoliageShaders {
     public static void setFoliageInteractors(int interactorCount, FoliageInteractorWriter writer) {
         int count = Mth.clamp(interactorCount, 0, MAX_FOLIAGE_INTERACTORS);
         Arrays.fill(foliageInteractors, 0.0F);
-        Arrays.fill(foliageInteractorStrengths, 0.0F);
+        Arrays.fill(foliageInteractorMotions, 0.0F);
         for (int index = 0; index < count; index++) {
-            writer.write(foliageInteractors, foliageInteractorStrengths, index);
+            writer.write(foliageInteractors, foliageInteractorMotions, index);
         }
 
         foliageInteractorCount = count;
@@ -108,7 +109,7 @@ public final class ResponsiveFoliageShaders {
 
         foliageInteractorCount = 0;
         Arrays.fill(foliageInteractors, 0.0F);
-        Arrays.fill(foliageInteractorStrengths, 0.0F);
+        Arrays.fill(foliageInteractorMotions, 0.0F);
     }
 
     public static int foliageInteractorCount() {
@@ -119,8 +120,8 @@ public final class ResponsiveFoliageShaders {
         return foliageInteractors;
     }
 
-    public static float[] foliageInteractorStrengths() {
-        return foliageInteractorStrengths;
+    public static float[] foliageInteractorMotions() {
+        return foliageInteractorMotions;
     }
 
     public static void disableCustomFoliageShader(String reason, @Nullable Throwable throwable) {
@@ -225,21 +226,13 @@ public final class ResponsiveFoliageShaders {
                     foliageInteractors[offset + 2],
                     foliageInteractors[offset + 3]
             );
-        }
-
-        for (int group = 0; group < interactorStrengthGroupCount(foliageInteractorCount); group++) {
-            int offset = group * 4;
-            shader.safeGetUniform("FoliageInteractorStrengths" + group).set(
-                    foliageInteractorStrengths[offset],
-                    foliageInteractorStrengths[offset + 1],
-                    foliageInteractorStrengths[offset + 2],
-                    foliageInteractorStrengths[offset + 3]
+            shader.safeGetUniform("FoliageInteractorMotion" + index).set(
+                    foliageInteractorMotions[offset],
+                    foliageInteractorMotions[offset + 1],
+                    foliageInteractorMotions[offset + 2],
+                    foliageInteractorMotions[offset + 3]
             );
         }
-    }
-
-    public static int interactorStrengthGroupCount(int interactorCount) {
-        return (Mth.clamp(interactorCount, 0, MAX_FOLIAGE_INTERACTORS) + 3) / 4;
     }
 
     public static float windSwayStrength() {
@@ -390,6 +383,6 @@ public final class ResponsiveFoliageShaders {
 
     @FunctionalInterface
     public interface FoliageInteractorWriter {
-        void write(float[] interactors, float[] strengths, int index);
+        void write(float[] interactors, float[] motions, int index);
     }
 }

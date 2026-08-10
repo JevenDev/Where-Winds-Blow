@@ -58,10 +58,22 @@ uniform vec4 FoliageInteractor12;
 uniform vec4 FoliageInteractor13;
 uniform vec4 FoliageInteractor14;
 uniform vec4 FoliageInteractor15;
-uniform vec4 FoliageInteractorStrengths0;
-uniform vec4 FoliageInteractorStrengths1;
-uniform vec4 FoliageInteractorStrengths2;
-uniform vec4 FoliageInteractorStrengths3;
+uniform vec4 FoliageInteractorMotion0;
+uniform vec4 FoliageInteractorMotion1;
+uniform vec4 FoliageInteractorMotion2;
+uniform vec4 FoliageInteractorMotion3;
+uniform vec4 FoliageInteractorMotion4;
+uniform vec4 FoliageInteractorMotion5;
+uniform vec4 FoliageInteractorMotion6;
+uniform vec4 FoliageInteractorMotion7;
+uniform vec4 FoliageInteractorMotion8;
+uniform vec4 FoliageInteractorMotion9;
+uniform vec4 FoliageInteractorMotion10;
+uniform vec4 FoliageInteractorMotion11;
+uniform vec4 FoliageInteractorMotion12;
+uniform vec4 FoliageInteractorMotion13;
+uniform vec4 FoliageInteractorMotion14;
+uniform vec4 FoliageInteractorMotion15;
 
 out float vertexDistance;
 out vec4 vertexColor;
@@ -235,11 +247,23 @@ vec4 foliageInteractorAt(int index) {
     return FoliageInteractor15;
 }
 
-float foliageInteractorStrengthAt(int index) {
-    if (index < 4) return FoliageInteractorStrengths0[index];
-    if (index < 8) return FoliageInteractorStrengths1[index - 4];
-    if (index < 12) return FoliageInteractorStrengths2[index - 8];
-    return FoliageInteractorStrengths3[index - 12];
+vec4 foliageInteractorMotionAt(int index) {
+    if (index == 0) return FoliageInteractorMotion0;
+    if (index == 1) return FoliageInteractorMotion1;
+    if (index == 2) return FoliageInteractorMotion2;
+    if (index == 3) return FoliageInteractorMotion3;
+    if (index == 4) return FoliageInteractorMotion4;
+    if (index == 5) return FoliageInteractorMotion5;
+    if (index == 6) return FoliageInteractorMotion6;
+    if (index == 7) return FoliageInteractorMotion7;
+    if (index == 8) return FoliageInteractorMotion8;
+    if (index == 9) return FoliageInteractorMotion9;
+    if (index == 10) return FoliageInteractorMotion10;
+    if (index == 11) return FoliageInteractorMotion11;
+    if (index == 12) return FoliageInteractorMotion12;
+    if (index == 13) return FoliageInteractorMotion13;
+    if (index == 14) return FoliageInteractorMotion14;
+    return FoliageInteractorMotion15;
 }
 
 vec3 foliageInteractionOffset(vec3 pos, vec2 anchor, float bend) {
@@ -254,20 +278,31 @@ vec3 foliageInteractionOffset(vec3 pos, vec2 anchor, float bend) {
         }
 
         vec4 interactor = foliageInteractorAt(index);
-        if (pos.y < interactor.y - 0.15) {
+        vec4 motion = foliageInteractorMotionAt(index);
+        float radius = max(interactor.w, 0.001);
+        float verticalDistance = max(max(interactor.y - pos.y, pos.y - motion.x), 0.0);
+        float verticalInfluence = smoothCurve(1.0 - verticalDistance / (0.30 + radius * 0.55));
+        if (verticalInfluence <= 0.0) {
             continue;
         }
 
-        float radius = max(interactor.w, 0.001);
-        vec2 delta = anchor - interactor.xz;
+        vec2 trail = motion.yz;
+        float trailLengthSqr = dot(trail, trail);
+        float trailProgress = trailLengthSqr > 0.000001
+                ? clamp(dot(anchor - interactor.xz, trail) / trailLengthSqr, 0.0, 1.0)
+                : 0.0;
+        vec2 nearestPoint = interactor.xz + trail * trailProgress;
+        vec2 delta = anchor - nearestPoint;
         float horizontalDistance = length(delta);
         float horizontalInfluence = smoothCurve(1.0 - horizontalDistance / radius);
         if (horizontalInfluence <= 0.0) {
             continue;
         }
 
-        vec2 direction = horizontalDistance > 0.001 ? delta / horizontalDistance : vec2(1.0, 0.0);
-        totalOffset += direction * horizontalInfluence * foliageInteractorStrengthAt(index);
+        vec2 direction = horizontalDistance > 0.001
+                ? delta / horizontalDistance
+                : (trailLengthSqr > 0.000001 ? -normalize(trail) : vec2(1.0, 0.0));
+        totalOffset += direction * horizontalInfluence * verticalInfluence * motion.w;
     }
 
     float offsetLength = length(totalOffset);
