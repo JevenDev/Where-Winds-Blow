@@ -1,0 +1,20 @@
+{
+  "type": "foliage",
+  "priority": 85,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.75,
+  "sway_strength_multiplier": 0.85,
+  "interaction_strength_multiplier": 0.8,
+  "blocks": [
+    "sweety_garden:baileya",
+    "sweety_garden:bloody_dogwood",
+    "sweety_garden:busy_lizzie",
+    "sweety_garden:cyan_poppy",
+    "sweety_garden:edelweiss",
+    "sweety_garden:heather",
+    "sweety_garden:passion_flower",
+    "sweety_garden:pontederia",
+    "sweety_garden:shaggy_purslane",
+    "sweety_garden:snowdrop"
+  ]
+}

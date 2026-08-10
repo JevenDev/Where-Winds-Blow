@@ -1,0 +1,17 @@
+{
+  "type": "foliage",
+  "priority": 90,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.75,
+  "height_scale": 5.3333335,
+  "interaction_height_scale_multiplier": 3.0,
+  "sway_strength_multiplier": 0.85,
+  "interaction_strength_multiplier": 0.25,
+  "blocks": [
+    "sweety_garden:hepatica",
+    "sweety_garden:pale_petals",
+    "sweety_garden:purple_shamrock",
+    "sweety_garden:wood_anemone",
+    "sweety_garden:wood_sorrel"
+  ]
+}

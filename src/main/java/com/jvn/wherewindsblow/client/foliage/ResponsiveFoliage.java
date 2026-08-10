@@ -41,20 +41,26 @@ public final class ResponsiveFoliage {
                     ? state.getValue(BlockStateProperties.DOUBLE_BLOCK_HALF)
                     : DoubleBlockHalf.LOWER;
             BlockPos root = half == DoubleBlockHalf.UPPER ? pos.below() : pos;
-            return new FoliageModelData.ColumnSegment(root, half == DoubleBlockHalf.UPPER ? 1 : 0, 2);
+            return new FoliageModelData.ColumnSegment(
+                    root,
+                    half == DoubleBlockHalf.UPPER ? 1 : 0,
+                    2,
+                    false,
+                    profile.heightScale()
+            );
         }
 
         if (state.getBlock() instanceof PinkPetalsBlock) {
             // Vanilla petals are only three pixels tall. Normalize that height so
             // their tops reach the wind and interaction marker ranges.
-            return new FoliageModelData.ColumnSegment(pos, 0, 1, false, 16.0F / 3.0F);
+            return new FoliageModelData.ColumnSegment(pos, 0, 1, false, profile.heightScale() * 16.0F / 3.0F);
         }
 
         if (profile.type().isColumn()) {
             return profileColumn(level, pos, profile);
         }
 
-        return new FoliageModelData.ColumnSegment(pos, 0, 1);
+        return new FoliageModelData.ColumnSegment(pos, 0, 1, false, profile.heightScale());
     }
 
     private static FoliageModelData.ColumnSegment profileColumn(
@@ -78,7 +84,7 @@ public final class ResponsiveFoliage {
         }
 
         int offset = hangsFromTop ? root.getY() - pos.getY() : pos.getY() - root.getY();
-        return new FoliageModelData.ColumnSegment(root, offset, height, hangsFromTop, 1.0F);
+        return new FoliageModelData.ColumnSegment(root, offset, height, hangsFromTop, profile.heightScale());
     }
 
     private static boolean sameProfile(BlockState state, FoliageSwayProfile profile) {

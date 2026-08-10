@@ -50,10 +50,13 @@ Blocks in the same `tall_foliage` or `hanging_foliage` profile are treated as on
 - `priority` defaults to `0`. Higher-priority matching profiles win. Equal priorities are resolved by profile resource ID for deterministic results.
 - `interactive` defaults to `true` for plant types and `false` for `leaves` and `none`.
 - `sway_start_height_multiplier` scales the global plant sway-start setting. Lower values let motion begin closer to the anchor. It defaults to `1.0`.
+- `height_scale` scales model-space vertex heights when calculating wind and interaction weights without changing the rendered geometry. Use values above `1.0` for low-profile models such as flowerbeds. It defaults to `1.0`.
+- `interaction_height_scale_multiplier` scales vertex heights only for interaction weighting. It can keep low-profile model parts responsive without changing their wind motion. It defaults to `1.0`.
 - `sway_strength_multiplier` scales wind bending for this profile. It defaults to `1.0`.
 - `interaction_strength_multiplier` scales entity-driven bending. It defaults to `1.0`.
 
 The three multipliers accept values from `0.0` through `4.0`. Priority accepts values from `-10000` through `10000`.
+`height_scale` and `interaction_height_scale_multiplier` accept values from `0.0625` through `16.0`.
 
 ## Opting a block out
 

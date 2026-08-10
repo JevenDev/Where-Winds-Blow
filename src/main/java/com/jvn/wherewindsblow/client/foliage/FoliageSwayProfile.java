@@ -16,6 +16,8 @@ record FoliageSwayProfile(
         int priority,
         boolean interactive,
         float swayStartHeightMultiplier,
+        float heightScale,
+        float interactionHeightScaleMultiplier,
         float swayStrengthMultiplier,
         float interactionStrengthMultiplier
 ) {

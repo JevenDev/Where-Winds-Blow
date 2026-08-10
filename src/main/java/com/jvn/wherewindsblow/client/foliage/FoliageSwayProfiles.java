@@ -19,6 +19,8 @@ public final class FoliageSwayProfiles {
             Integer.MIN_VALUE,
             false,
             0.0F,
+            1.0F,
+            1.0F,
             0.0F,
             0.0F
     );

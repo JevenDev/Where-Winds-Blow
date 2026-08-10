@@ -137,6 +137,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                         segment.height(),
                         segment.hangsFromTop(),
                         segment.localHeightScale(),
+                        profile.interactionHeightScaleMultiplier(),
                         Float.intBitsToFloat(swayStartHeightBits),
                         windExposure * Float.intBitsToFloat(swayStrengthBits),
                         Float.intBitsToFloat(interactionStrengthBits),
@@ -150,6 +151,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                         segment.height(),
                         segment.hangsFromTop(),
                         Float.floatToIntBits(segment.localHeightScale()),
+                        Float.floatToIntBits(profile.interactionHeightScaleMultiplier()),
                         swayStartHeightBits,
                         Float.floatToIntBits(windExposure),
                         swayStrengthBits,
@@ -170,6 +172,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 key.segmentHeight(),
                 key.hangsFromTop(),
                 Float.intBitsToFloat(key.localHeightScaleBits()),
+                Float.intBitsToFloat(key.interactionHeightScaleMultiplierBits()),
                 Float.intBitsToFloat(key.swayStartHeightBits()),
                 Float.intBitsToFloat(key.windExposureBits()) * Float.intBitsToFloat(key.swayStrengthBits()),
                 Float.intBitsToFloat(key.interactionStrengthBits()),
@@ -184,6 +187,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             int segmentHeight,
             boolean hangsFromTop,
             float localHeightScale,
+            float interactionHeightScaleMultiplier,
             float swayStartHeight,
             float windExposure,
             float interactionStrength,
@@ -199,10 +203,12 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             float y = Float.intBitsToFloat(vertices[offset + 1]);
             float z = Float.intBitsToFloat(vertices[offset + 2]);
             float distanceFromAnchor = hangsFromTop ? 1.0F - y : y;
-            float columnY = segmentOffset + distanceFromAnchor * localHeightScale;
-            float windWeight = plantBendWeight(columnY, segmentHeight, swayStartHeight) * windExposure;
+            float windColumnY = segmentOffset + distanceFromAnchor * localHeightScale;
+            float interactionColumnY = segmentOffset
+                    + distanceFromAnchor * localHeightScale * interactionHeightScaleMultiplier;
+            float windWeight = plantBendWeight(windColumnY, segmentHeight, swayStartHeight) * windExposure;
             float interactionWeight = Mth.clamp(
-                    plantInteractionWeight(columnY, segmentHeight) * interactionStrength,
+                    plantInteractionWeight(interactionColumnY, segmentHeight) * interactionStrength,
                     0.0F,
                     1.0F
             );
@@ -366,6 +372,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             int segmentHeight,
             boolean hangsFromTop,
             int localHeightScaleBits,
+            int interactionHeightScaleMultiplierBits,
             int swayStartHeightBits,
             int windExposureBits,
             int swayStrengthBits,
