@@ -58,6 +58,7 @@ Surface rules for dry and dead grasses live in:
 ## Mixed-variant notes
 
 - Tall-grass and fern-accent placement uses terrain noise so plants gather into broad, coherent regions instead of evenly scattered spots.
+- Tall-grass patches now form irregular clustered interiors with a short-grass fringe. Overgrown patches step down from height-graded cores through tall grass into mixed short grass.
 - Fern accents place the vanilla `fern` block, the feature changes composition without replacing its model or texture.
 - Dense, medium, and sparse short-grass patches can mix vanilla `short_grass` with `flat_grass`. That mix is controlled in the configured feature JSON, not by separate biome tags.
 - Dead-grass patches mix `short_dead_grass` and `flat_dead_grass` inside `dead_grass_patch.json`.
