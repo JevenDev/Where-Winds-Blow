@@ -411,14 +411,14 @@ public final class ClientConfig {
 
     public static final ModConfigSpec.BooleanValue ENABLE_DESERT_STORM_EFFECTS = BUILDER
             .comment("Replaces rainy weather in desert and badlands biomes with sand- or red-sand-tinted windstorms. Thunder makes them denser, more turbulent, and foggy.")
-            .define("enableDesertStormEffects", true);
+            .define("enableDesertStormEffects", false);
 
     public static final ModConfigSpec.DoubleValue SAND_DUST_AMOUNT = BUILDER
             .comment("Scales the amount of airborne dust during ordinary rainy desert weather.")
             .defineInRange("sandDustAmount", 1.0D, SAND_DUST_AMOUNT_MIN, SAND_DUST_AMOUNT_MAX);
 
     public static final ModConfigSpec.DoubleValue SAND_DUST_SIZE = BUILDER
-            .comment("Scales the size of blowing dust clusters during ordinary rainy desert weather.")
+            .comment("Scales the size of blowing dust particles during ordinary rainy desert weather.")
             .defineInRange("sandDustSize", 1.0D, SAND_DUST_SIZE_MIN, SAND_DUST_SIZE_MAX);
 
     public static final ModConfigSpec.DoubleValue SAND_DUST_SPEED = BUILDER
@@ -427,7 +427,7 @@ public final class ClientConfig {
 
     public static final ModConfigSpec.EnumValue<SandstormFogMode> SANDSTORM_FOG_MODE = BUILDER
             .comment("Controls whether desert visibility fog is disabled, limited to severe sandstorms, or present during all rainy desert weather.")
-            .defineEnum("sandstormFogMode", SandstormFogMode.SANDSTORMS_ONLY);
+            .defineEnum("sandstormFogMode", SandstormFogMode.DISABLED);
 
     public static final ModConfigSpec.DoubleValue SANDSTORM_FOG_INTENSITY = BUILDER
             .comment("Scales desert-storm visibility fog without changing blowing dust.")

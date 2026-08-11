@@ -13,7 +13,6 @@ import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
@@ -27,39 +26,32 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.neoforge.common.Tags;
-import org.joml.Vector3f;
 
 /**
- * Draws a persistent grid of GPU-simulated dust clusters in deserts and badlands. A small terrain
+ * Draws a persistent grid of GPU-simulated dust particles in deserts and badlands. A small terrain
  * texture tells the shader where the ground is and whether its palette should come from sand or
  * red sand; the CPU does not rebuild storm geometry each frame.
  */
 public final class DesertStormRenderer {
-    private static final ResourceLocation DUST_TEXTURE = WhereWindsBlow.IDS.id("textures/environment/desert_dust.png");
     private static final ResourceLocation SAND_TEXTURE =
             ResourceLocation.withDefaultNamespace("textures/block/sand.png");
     private static final ResourceLocation RED_SAND_TEXTURE =
             ResourceLocation.withDefaultNamespace("textures/block/red_sand.png");
     private static final ResourceLocation TERRAIN_TEXTURE = WhereWindsBlow.IDS.id("dynamic/gpu_desert_storm_terrain");
-    private static final ResourceLocation COLLISION_TEXTURE = WhereWindsBlow.IDS.id("dynamic/gpu_desert_storm_collision");
     private static final int TERRAIN_RADIUS = 25;
     private static final int TERRAIN_SIZE = TERRAIN_RADIUS * 2 + 1;
     private static final int TERRAIN_FULL_REFRESH_TICKS = 100;
-    private static final int COLLISION_LAYERS = 32;
-    private static final int COLLISION_LAYERS_BELOW_CAMERA = 16;
     private static final int WORLD_HASH_PERIOD = 8192;
-    private static final StormMesh FANCY_MESH = new StormMesh(14, 6, 22.0F, 9);
-    private static final StormMesh FAST_MESH = new StormMesh(8, 4, 15.0F, 7);
+    private static final StormMesh FANCY_MESH = new StormMesh(12, 12, 22.0F);
+    private static final StormMesh FAST_MESH = new StormMesh(7, 6, 14.0F);
 
     private static DynamicTexture terrainTexture;
-    private static DynamicTexture collisionTexture;
     private static ClientLevel cachedLevel;
     private static int cachedCenterX = Integer.MIN_VALUE;
     private static int cachedCenterY = Integer.MIN_VALUE;
     private static int cachedCenterZ = Integer.MIN_VALUE;
     private static long lastFullTerrainRefreshTick = Long.MIN_VALUE;
     private static final int[] TERRAIN_SHIFT_BUFFER = new int[TERRAIN_SIZE * TERRAIN_SIZE];
-    private static final int[] COLLISION_SHIFT_BUFFER = new int[TERRAIN_SIZE * TERRAIN_SIZE];
     private static double dustAnimationTime;
     private static double lastDustAnimationTime = Double.NaN;
     private static boolean gpuDisabled;
@@ -137,21 +129,15 @@ public final class DesertStormRenderer {
                     1.0F
             );
 
-            Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-            Vector3f left = camera.getLeftVector();
-            Vector3f up = camera.getUpVector();
-
             RenderSystem.disableCull();
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
             RenderSystem.enableDepthTest();
             RenderSystem.depthMask(Minecraft.useShaderTransparency());
             RenderSystem.setShader(() -> shader);
-            RenderSystem.setShaderTexture(0, DUST_TEXTURE);
-            RenderSystem.setShaderTexture(1, TERRAIN_TEXTURE);
-            RenderSystem.setShaderTexture(2, SAND_TEXTURE);
-            RenderSystem.setShaderTexture(3, RED_SAND_TEXTURE);
-            RenderSystem.setShaderTexture(4, COLLISION_TEXTURE);
+            RenderSystem.setShaderTexture(0, TERRAIN_TEXTURE);
+            RenderSystem.setShaderTexture(1, SAND_TEXTURE);
+            RenderSystem.setShaderTexture(2, RED_SAND_TEXTURE);
 
             shader.safeGetUniform("CameraState").set(
                     (float) (camX - centerX),
@@ -162,8 +148,10 @@ public final class DesertStormRenderer {
                     (float) Math.floorMod(centerX, WORLD_HASH_PERIOD),
                     (float) Math.floorMod(centerZ, WORLD_HASH_PERIOD)
             );
-            shader.safeGetUniform("CameraLeft").set(left.x(), left.y(), left.z());
-            shader.safeGetUniform("CameraUp").set(up.x(), up.y(), up.z());
+            shader.safeGetUniform("ScreenSize").set(
+                    (float) Minecraft.getInstance().getWindow().getWidth(),
+                    (float) Minecraft.getInstance().getWindow().getHeight()
+            );
             shader.safeGetUniform("Wind").set(
                     wind.directionX(),
                     wind.directionZ(),
@@ -172,15 +160,13 @@ public final class DesertStormRenderer {
             );
             shader.safeGetUniform("Storm").set(rainLevel, thunder, gust, density);
             shader.safeGetUniform("DustTime").set((float) animatedDustTime);
+            shader.safeGetUniform("FlutterTime").set((float) animationTime);
             shader.safeGetUniform("DustSize").set(profile.sizeScale());
             shader.safeGetUniform("Opacity").set(opacity);
             shader.safeGetUniform("Radius").set((float) mesh.radius);
             shader.safeGetUniform("VerticalSpan").set(mesh.verticalSpan);
             shader.safeGetUniform("HeightBase").set((float) level.getMinBuildHeight());
             shader.safeGetUniform("HeightRadius").set(TERRAIN_RADIUS);
-            shader.safeGetUniform("CollisionBase").set(
-                    (float) (centerY - COLLISION_LAYERS_BELOW_CAMERA)
-            );
             shader.safeGetUniform("StormLight").set(stormLight);
 
             mesh.buffer.bind();
@@ -215,11 +201,6 @@ public final class DesertStormRenderer {
             terrainTexture.setFilter(false, false);
             minecraft.getTextureManager().register(TERRAIN_TEXTURE, terrainTexture);
         }
-        if (collisionTexture == null) {
-            collisionTexture = new DynamicTexture(TERRAIN_SIZE, TERRAIN_SIZE, false);
-            collisionTexture.setFilter(false, false);
-            minecraft.getTextureManager().register(COLLISION_TEXTURE, collisionTexture);
-        }
 
         long gameTime = level.getGameTime();
         boolean sameLevel = cachedLevel == level;
@@ -234,8 +215,7 @@ public final class DesertStormRenderer {
         }
 
         NativeImage pixels = terrainTexture.getPixels();
-        NativeImage collisionPixels = collisionTexture.getPixels();
-        if (pixels == null || collisionPixels == null) {
+        if (pixels == null) {
             return false;
         }
 
@@ -244,14 +224,11 @@ public final class DesertStormRenderer {
                 && Math.abs(deltaZ) < TERRAIN_SIZE;
         if (canShift) {
             snapshotTexture(pixels, TERRAIN_SHIFT_BUFFER);
-            snapshotTexture(collisionPixels, COLLISION_SHIFT_BUFFER);
         }
 
         int minimumHeight = level.getMinBuildHeight();
-        int collisionBase = centerY - COLLISION_LAYERS_BELOW_CAMERA;
         BlockPos.MutableBlockPos biomePos = new BlockPos.MutableBlockPos();
         BlockPos.MutableBlockPos surfacePos = new BlockPos.MutableBlockPos();
-        BlockPos.MutableBlockPos collisionPos = new BlockPos.MutableBlockPos();
         for (int textureZ = 0; textureZ < TERRAIN_SIZE; textureZ++) {
             int z = centerZ + textureZ - TERRAIN_RADIUS;
             for (int textureX = 0; textureX < TERRAIN_SIZE; textureX++) {
@@ -262,19 +239,17 @@ public final class DesertStormRenderer {
                         && previousZ >= 0 && previousZ < TERRAIN_SIZE) {
                     int previousIndex = previousZ * TERRAIN_SIZE + previousX;
                     pixels.setPixelRGBA(textureX, textureZ, TERRAIN_SHIFT_BUFFER[previousIndex]);
-                    collisionPixels.setPixelRGBA(textureX, textureZ, COLLISION_SHIFT_BUFFER[previousIndex]);
                     continue;
                 }
 
                 int x = centerX + textureX - TERRAIN_RADIUS;
                 sampleTerrainCell(
-                        level, pixels, collisionPixels, textureX, textureZ, x, z,
-                        centerY, minimumHeight, collisionBase, biomePos, surfacePos, collisionPos
+                        level, pixels, textureX, textureZ, x, z,
+                        centerY, minimumHeight, biomePos, surfacePos
                 );
             }
         }
         terrainTexture.upload();
-        collisionTexture.upload();
         cachedLevel = level;
         cachedCenterX = centerX;
         cachedCenterY = centerY;
@@ -296,17 +271,14 @@ public final class DesertStormRenderer {
     private static void sampleTerrainCell(
             ClientLevel level,
             NativeImage terrainPixels,
-            NativeImage collisionPixels,
             int textureX,
             int textureZ,
             int x,
             int z,
             int centerY,
             int minimumHeight,
-            int collisionBase,
             BlockPos.MutableBlockPos biomePos,
-            BlockPos.MutableBlockPos surfacePos,
-            BlockPos.MutableBlockPos collisionPos
+            BlockPos.MutableBlockPos surfacePos
     ) {
         int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
         biomePos.set(x, centerY, z);
@@ -325,33 +297,6 @@ public final class DesertStormRenderer {
                 textureX,
                 textureZ,
                 FastColor.ABGR32.color(255, material, encodedHeight >>> 8 & 255, encodedHeight & 255)
-        );
-
-        int collisionByte0 = 0;
-        int collisionByte1 = 0;
-        int collisionByte2 = 0;
-        int collisionByte3 = 0;
-        for (int layer = 0; layer < COLLISION_LAYERS; layer++) {
-            collisionPos.set(x, collisionBase + layer, z);
-            var collisionState = level.getBlockState(collisionPos);
-            boolean occupied = !collisionState.getCollisionShape(level, collisionPos).isEmpty()
-                    || !collisionState.getFluidState().isEmpty();
-            if (occupied) {
-                int bit = 1 << (layer & 7);
-                switch (layer >> 3) {
-                    case 0 -> collisionByte0 |= bit;
-                    case 1 -> collisionByte1 |= bit;
-                    case 2 -> collisionByte2 |= bit;
-                    default -> collisionByte3 |= bit;
-                }
-            }
-        }
-        collisionPixels.setPixelRGBA(
-                textureX,
-                textureZ,
-                FastColor.ABGR32.color(
-                        collisionByte3, collisionByte2, collisionByte1, collisionByte0
-                )
         );
     }
 
@@ -423,16 +368,14 @@ public final class DesertStormRenderer {
 
     private static final class StormMesh {
         private final int radius;
-        private final int clustersPerColumn;
+        private final int particlesPerColumn;
         private final float verticalSpan;
-        private final int overflow;
         private VertexBuffer buffer;
 
-        private StormMesh(int radius, int clustersPerColumn, float verticalSpan, int overflow) {
+        private StormMesh(int radius, int particlesPerColumn, float verticalSpan) {
             this.radius = radius;
-            this.clustersPerColumn = clustersPerColumn;
+            this.particlesPerColumn = particlesPerColumn;
             this.verticalSpan = verticalSpan;
-            this.overflow = overflow;
         }
 
         private void ensureUploaded() {
@@ -444,10 +387,10 @@ public final class DesertStormRenderer {
                     VertexFormat.Mode.QUADS,
                     DefaultVertexFormat.POSITION
             );
-            int gridRadius = radius + overflow;
+            int gridRadius = radius + 2;
             for (int z = -gridRadius; z <= gridRadius; z++) {
                 for (int x = -gridRadius; x <= gridRadius; x++) {
-                    for (int lane = 0; lane < clustersPerColumn; lane++) {
+                    for (int lane = 0; lane < particlesPerColumn; lane++) {
                         for (int corner = 0; corner < 4; corner++) {
                             builder.addVertex(x, lane, z);
                         }
