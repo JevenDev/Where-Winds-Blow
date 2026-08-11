@@ -2,11 +2,11 @@
 
 Foliage sway selection is client-resource driven rather than datapack driven so it also works when the mod is installed client-side on an unmodded server. See [FOLIAGE_PROFILES.md](FOLIAGE_PROFILES.md) for block IDs, block tags, motion types, interaction settings, and opt-outs.
 
-`Where Winds Blow` exposes biome-specific grass placement through datapack JSON, so pack creators can control where each grass family spawns without editing code.
+`Where Winds Blow` exposes biome-specific grass placement through datapack JSON, so pack creators can control where each grass family spawns.
 
-## Canonical biome tags
+## Biome tags
 
-These are the tags pack creators should target going forward:
+These are the tags you should target going forward:
 
 - `#where_winds_blow:has_dense_short_grass`
 - `#where_winds_blow:has_medium_short_grass`
@@ -18,7 +18,7 @@ These are the tags pack creators should target going forward:
 - `#where_winds_blow:has_short_dry_grass`
 - `#where_winds_blow:has_tall_dry_grass`
 - `#where_winds_blow:has_dead_grass`
-- `#where_winds_blow:has_wild_wheat`
+- `#where_winds_blow:has_wild_wheat` (currently unused in base mod)
 
 Legacy tag names still exist as aliases for compatibility, but new datapacks should prefer the canonical names above.
 
