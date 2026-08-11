@@ -1,0 +1,12 @@
+{
+  "type": "crop",
+  "priority": 90,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.75,
+  "sway_strength_multiplier": 0.7,
+  "interaction_strength_multiplier": 0.65,
+  "blocks": [
+    "farmersdelight:cabbages",
+    "farmersdelight:onions"
+  ]
+}

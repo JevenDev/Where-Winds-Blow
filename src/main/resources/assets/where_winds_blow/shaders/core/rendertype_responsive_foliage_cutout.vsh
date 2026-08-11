@@ -529,8 +529,10 @@ void main() {
         }
 
         if (interactionMarker) {
-            vec2 plantAnchor = floor(Position.xz) + vec2(0.5) + ChunkOffset.xz + CameraPosition.xz;
-            vec3 interaction = foliageInteractionOffset(worldBasePos, plantAnchor, interactionBend);
+            // Randomized model offsets can place vertices from one plant on opposite sides of
+            // a block boundary. Sample continuously so flooring cannot split the quad.
+            vec3 interaction = foliageInteractionOffset(
+                    worldBasePos, worldBasePos.xz, interactionBend);
             vec2 windOffset = pos.xz - basePos.xz;
             float windKeep = mix(1.0, 0.18, interaction.z);
             pos.xz = basePos.xz + interaction.xy + windOffset * windKeep;

@@ -1,0 +1,23 @@
+{
+  "type": "hanging_foliage",
+  "priority": 95,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.4,
+  "sway_strength_multiplier": 0.8,
+  "interaction_strength_multiplier": 0.5,
+  "blocks": [
+    "regions_unexplored:dropleaf",
+    "regions_unexplored:dropleaf_plant",
+    "regions_unexplored:glistering_ivy",
+    "regions_unexplored:glistering_ivy_plant",
+    "regions_unexplored:hanging_earlight",
+    "regions_unexplored:hanging_earlight_plant",
+    "regions_unexplored:kapok_vines",
+    "regions_unexplored:kapok_vines_plant",
+    "regions_unexplored:lavender_wisteria_vines",
+    "regions_unexplored:salmon_wisteria_vines",
+    "regions_unexplored:sky_wisteria_vines",
+    "regions_unexplored:spanish_moss",
+    "regions_unexplored:spanish_moss_plant"
+  ]
+}

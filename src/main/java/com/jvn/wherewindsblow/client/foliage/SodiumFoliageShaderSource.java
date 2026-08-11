@@ -595,6 +595,9 @@ public final class SodiumFoliageShaderSource {
                         wwbLocalTurbulence,
                         wwbGustLeadingEdge
                 );
+                // Use the displaced vertex itself for interaction sampling. Flooring randomized
+                // model positions can assign vertices from one plant to different block cells.
+                vec2 wwbInteractionSample = position.xz;
                 vec2 wwbPlantAnchor = floor(_vert_position.xz) + vec2(0.5) + (position.xz - _vert_position.xz);
                 vec3 wwbFoliageBase = position;
                 position = wwb_apply_foliage_wind(
@@ -606,7 +609,7 @@ public final class SodiumFoliageShaderSource {
                         wwbGustLeadingEdge
                 );
                 position = wwb_apply_lantern_wind(position, wwbFoliageAlpha);
-                position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbPlantAnchor, wwbFoliageAlpha);""";
+                position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbInteractionSample, wwbFoliageAlpha);""";
 
     private static final String WIND_COLOR_INJECTION = """
                 if (wwb_is_plant_wind_vertex(wwbFoliageAlpha) && u_WwbFoliageColorVariationStrength > 0.0) {

@@ -1,0 +1,12 @@
+{
+  "type": "foliage",
+  "priority": 85,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.8,
+  "sway_strength_multiplier": 0.65,
+  "interaction_strength_multiplier": 0.55,
+  "blocks": [
+    "farmersdelight:brown_mushroom_colony",
+    "farmersdelight:red_mushroom_colony"
+  ]
+}

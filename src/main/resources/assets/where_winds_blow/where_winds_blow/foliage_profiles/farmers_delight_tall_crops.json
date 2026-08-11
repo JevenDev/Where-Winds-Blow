@@ -1,0 +1,15 @@
+{
+  "type": "tall_foliage",
+  "priority": 95,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.55,
+  "sway_strength_multiplier": 0.8,
+  "interaction_strength_multiplier": 0.6,
+  "blocks": [
+    "farmersdelight:budding_tomatoes",
+    "farmersdelight:tomatoes",
+    "farmersdelight:tomatoes_on_rope",
+    "farmersdelight:rice",
+    "farmersdelight:rice_panicles"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "type": "grass",
+  "priority": 90,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.25,
+  "sway_strength_multiplier": 1.1,
+  "interaction_strength_multiplier": 1.1,
+  "blocks": [
+    "regions_unexplored:ashen_grass",
+    "regions_unexplored:bladed_grass",
+    "regions_unexplored:brimsprout",
+    "regions_unexplored:cobalt_roots",
+    "regions_unexplored:dead_steppe_shrub",
+    "regions_unexplored:frozen_grass",
+    "regions_unexplored:glistering_fern",
+    "regions_unexplored:glistering_sprout",
+    "regions_unexplored:grass_sprouts",
+    "regions_unexplored:hyacinth_bloom",
+    "regions_unexplored:medium_grass",
+    "regions_unexplored:mycotoxic_grass",
+    "regions_unexplored:prismoss_sprout",
+    "regions_unexplored:sandy_grass",
+    "regions_unexplored:small_desert_shrub",
+    "regions_unexplored:steppe_grass",
+    "regions_unexplored:steppe_shrub",
+    "regions_unexplored:stone_bud"
+  ]
+}
