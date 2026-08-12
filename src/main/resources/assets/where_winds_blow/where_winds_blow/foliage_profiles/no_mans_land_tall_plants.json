@@ -8,7 +8,6 @@
   "blocks": [
     "nomansland:cattail",
     "nomansland:reeds",
-    "nomansland:cut_sugar_cane",
-    "minecraft:sugar_cane"
+    "nomansland:cut_sugar_cane"
   ]
 }

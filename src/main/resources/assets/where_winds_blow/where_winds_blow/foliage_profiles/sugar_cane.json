@@ -1,0 +1,9 @@
+{
+  "type": "rigid_column",
+  "priority": 100,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.8,
+  "sway_strength_multiplier": 0.7,
+  "interaction_strength_multiplier": 0.55,
+  "blocks": "minecraft:sugar_cane"
+}

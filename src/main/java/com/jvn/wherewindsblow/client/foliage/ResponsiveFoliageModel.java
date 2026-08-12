@@ -33,6 +33,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final int PLANT_INTERACTION_ALPHA_LEVELS = 4;
     private static final int LEAF_WIND_ALPHA_MIN = 45;
     private static final int LEAF_WIND_ALPHA_MAX = 72;
+    private static final int COLUMN_ALPHA_MIN = 105;
+    private static final int COLUMN_ALPHA_MAX = 132;
     private static final float LEAF_BEND_MIN = 0.10F;
     private static final float LEAF_BEND_MAX = 0.36F;
     private static final int MAX_LEAF_QUAD_CACHE_ENTRIES = 128;
@@ -139,6 +141,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                         segment.localHeightScale(),
                         profile.interactionHeightScaleMultiplier(),
                         Float.intBitsToFloat(swayStartHeightBits),
+                        profile.type().usesCoherentColumnMotion(),
                         windExposure * Float.intBitsToFloat(swayStrengthBits),
                         Float.intBitsToFloat(interactionStrengthBits),
                         false,
@@ -153,6 +156,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                         Float.floatToIntBits(segment.localHeightScale()),
                         Float.floatToIntBits(profile.interactionHeightScaleMultiplier()),
                         swayStartHeightBits,
+                        profile.type().usesCoherentColumnMotion(),
                         Float.floatToIntBits(windExposure),
                         swayStrengthBits,
                         interactionStrengthBits,
@@ -174,6 +178,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 Float.intBitsToFloat(key.localHeightScaleBits()),
                 Float.intBitsToFloat(key.interactionHeightScaleMultiplierBits()),
                 Float.intBitsToFloat(key.swayStartHeightBits()),
+                key.coherentColumnMotion(),
                 Float.intBitsToFloat(key.windExposureBits()) * Float.intBitsToFloat(key.swayStrengthBits()),
                 Float.intBitsToFloat(key.interactionStrengthBits()),
                 key.encodeInteractionMarker(),
@@ -189,6 +194,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             float localHeightScale,
             float interactionHeightScaleMultiplier,
             float swayStartHeight,
+            boolean coherentColumnMotion,
             float windExposure,
             float interactionStrength,
             boolean encodeInteractionMarker,
@@ -223,7 +229,12 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 vertices[offset + 2] = Float.floatToRawIntBits(z + interactionImpulse.offsetZ() * bakedInteractionWeight);
             }
             if (windWeight > 0.0F || markerInteractionWeight > 0.0F) {
-                vertices[offset + 3] = packPlantAlpha(vertices[offset + 3], windWeight, markerInteractionWeight);
+                vertices[offset + 3] = packPlantAlpha(
+                        vertices[offset + 3],
+                        windWeight,
+                        markerInteractionWeight,
+                        coherentColumnMotion
+                );
             }
         }
 
@@ -290,11 +301,13 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return weight * Mth.lerp(tallProgress, 1.0F, topDamping);
     }
 
-    private static int packPlantAlpha(int color, float windWeight, float interactionWeight) {
+    private static int packPlantAlpha(int color, float windWeight, float interactionWeight, boolean coherentColumnMotion) {
         int windLevel = encodeLevel(windWeight, PLANT_WIND_ALPHA_LEVELS);
         int interactionLevel = encodeLevel(interactionWeight, PLANT_INTERACTION_ALPHA_LEVELS);
-        int alpha = PLANT_ALPHA_MIN + interactionLevel * PLANT_WIND_ALPHA_LEVELS + windLevel;
-        return (color & 0x00FFFFFF) | (Mth.clamp(alpha, PLANT_ALPHA_MIN, PLANT_ALPHA_MAX) << 24);
+        int alphaMin = coherentColumnMotion ? COLUMN_ALPHA_MIN : PLANT_ALPHA_MIN;
+        int alphaMax = coherentColumnMotion ? COLUMN_ALPHA_MAX : PLANT_ALPHA_MAX;
+        int alpha = alphaMin + interactionLevel * PLANT_WIND_ALPHA_LEVELS + windLevel;
+        return (color & 0x00FFFFFF) | (Mth.clamp(alpha, alphaMin, alphaMax) << 24);
     }
 
     private static int packLeafWindAlpha(int color, float bendWeight) {
@@ -374,6 +387,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             int localHeightScaleBits,
             int interactionHeightScaleMultiplierBits,
             int swayStartHeightBits,
+            boolean coherentColumnMotion,
             int windExposureBits,
             int swayStrengthBits,
             int interactionStrengthBits,

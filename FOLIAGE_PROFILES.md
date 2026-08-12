@@ -37,11 +37,12 @@ They can be supplied by a mod or a client resource pack. Reload resources with `
 | `foliage` | Bottom-rooted, single block | Flowers, saplings, decorative foliage |
 | `crop` | Bottom-rooted, single block | Crops and stems |
 | `tall_foliage` | Bottom-rooted, profile-wide vertical column | Tall grass, reeds, upward vines |
+| `rigid_column` | Bottom-rooted column with one shared wind sample per block | Sugar cane and other rigid stalks |
 | `hanging_foliage` | Top-rooted, profile-wide vertical column | Hanging roots and downward vines |
 | `leaves` | Distributed movement across leaf-block geometry | Tree leaves |
 | `none` | No sway or interaction | Explicit opt-out override |
 
-Blocks in the same `tall_foliage` or `hanging_foliage` profile are treated as one continuous column. Put related head and body blocks in the same file.
+Blocks in the same `tall_foliage`, `rigid_column`, or `hanging_foliage` profile are treated as one continuous column. Put related head and body blocks in the same file. Use `rigid_column` when all vertices in a stalk should share one wind phase and direction instead of flexing independently.
 
 ## Fields
 
@@ -70,4 +71,4 @@ A high-priority `none` profile prevents a block from inheriting a broader tag-ba
 }
 ```
 
-Where Winds Blow ships separate default profiles for leaves, grass, general foliage, crops, tall foliage, and hanging foliage under `assets/where_winds_blow/where_winds_blow/foliage_profiles/`.
+Where Winds Blow ships separate default profiles for leaves, grass, general foliage, crops, tall foliage, rigid stalks, and hanging foliage under `assets/where_winds_blow/where_winds_blow/foliage_profiles/`.

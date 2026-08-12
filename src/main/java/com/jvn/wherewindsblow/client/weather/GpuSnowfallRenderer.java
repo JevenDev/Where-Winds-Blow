@@ -1,6 +1,7 @@
 package com.jvn.wherewindsblow.client.weather;
 
 import com.jvn.toucanlib.client.ToucanEasing;
+import com.jvn.toucanlib.client.ToucanScaledAnimationClock;
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
@@ -51,8 +52,8 @@ public final class GpuSnowfallRenderer {
     private static int cachedCenterY = Integer.MIN_VALUE;
     private static int cachedCenterZ = Integer.MIN_VALUE;
     private static long lastHeightRefreshTick = Long.MIN_VALUE;
-    private static double snowfallAnimationTime;
-    private static double lastSnowfallAnimationTime = Double.NaN;
+    private static final ToucanScaledAnimationClock SNOWFALL_ANIMATION_CLOCK =
+            new ToucanScaledAnimationClock(5.0D);
     private static boolean gpuDisabled;
 
     private GpuSnowfallRenderer() {
@@ -110,9 +111,10 @@ public final class GpuSnowfallRenderer {
             );
             float density = Mth.clamp(baseDensity * profile.densityScale(), 0.0F, 1.0F);
             float opacity = rainLevel * Math.max(0.52F, 1.0F + squall * 0.16F - lull * 0.28F);
-            double snowTime = advanceSnowfallAnimationTime(
+            double snowTime = SNOWFALL_ANIMATION_CLOCK.advance(
                     animationTime,
-                    (1.0F + thunder * 0.16F) * profile.speedScale()
+                    (1.0F + thunder * 0.16F) * profile.speedScale(),
+                    0.2F
             );
 
             Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
@@ -253,26 +255,6 @@ public final class GpuSnowfallRenderer {
         cachedCenterZ = centerZ;
         lastHeightRefreshTick = gameTime;
         return true;
-    }
-
-    private static double advanceSnowfallAnimationTime(
-            double animationTime,
-            float speedMultiplier
-    ) {
-        if (!Double.isFinite(lastSnowfallAnimationTime)) {
-            snowfallAnimationTime = animationTime;
-            lastSnowfallAnimationTime = animationTime;
-            return snowfallAnimationTime;
-        }
-
-        double delta = animationTime - lastSnowfallAnimationTime;
-        lastSnowfallAnimationTime = animationTime;
-        if (delta < 0.0D || delta > 5.0D) {
-            snowfallAnimationTime = animationTime;
-        } else {
-            snowfallAnimationTime += delta * Math.max(speedMultiplier, 0.2F);
-        }
-        return snowfallAnimationTime;
     }
 
     private static final class SnowMesh {

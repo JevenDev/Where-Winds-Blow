@@ -9,6 +9,8 @@
     "minecraft:short_grass",
     "minecraft:fern",
     "minecraft:dead_bush",
+    "where_winds_blow:flat_grass",
+    "where_winds_blow:flat_dead_grass",
     "where_winds_blow:short_dead_grass",
     "where_winds_blow:short_dry_grass"
   ]

@@ -1,6 +1,9 @@
 package com.jvn.wherewindsblow.client.weather;
 
+import static com.jvn.toucanlib.util.ToucanRandom.unitFloat;
+
 import com.jvn.toucanlib.client.ToucanEasing;
+import com.jvn.toucanlib.client.ToucanScaledAnimationClock;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -41,8 +44,8 @@ public final class SnowfallRenderer {
     private static final float FAST_VERTICAL_SPAN = 14.0F;
     private static final float EDGE_FADE_START = 0.72F;
     private static final float VERTICAL_FADE_DEPTH = 2.0F;
-    private static double snowfallAnimationTime;
-    private static double lastSnowfallAnimationTime = Double.NaN;
+    private static final ToucanScaledAnimationClock SNOWFALL_ANIMATION_CLOCK =
+            new ToucanScaledAnimationClock(5.0D);
     private static final FlakeUv[] FLAKE_UVS = {
             flakeUv(30, 45),
             flakeUv(25, 54),
@@ -99,9 +102,10 @@ public final class SnowfallRenderer {
         float lull = dynamicSqualls
                 ? DynamicWindManager.currentState().lullAmount() * stormActivity
                 : 0.0F;
-        double flakeAnimationTime = advanceSnowfallAnimationTime(
+        double flakeAnimationTime = SNOWFALL_ANIMATION_CLOCK.advance(
                 animationTime,
-                (1.0F + thunder * 0.16F) * profile.speedScale()
+                (1.0F + thunder * 0.16F) * profile.speedScale(),
+                0.2F
         );
 
         Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
@@ -346,26 +350,6 @@ public final class SnowfallRenderer {
                 .setUv2(skyLight, blockLight);
     }
 
-    private static double advanceSnowfallAnimationTime(
-            double animationTime,
-            float speedMultiplier
-    ) {
-        if (!Double.isFinite(lastSnowfallAnimationTime)) {
-            snowfallAnimationTime = animationTime;
-            lastSnowfallAnimationTime = animationTime;
-            return snowfallAnimationTime;
-        }
-
-        double delta = animationTime - lastSnowfallAnimationTime;
-        lastSnowfallAnimationTime = animationTime;
-        if (delta < 0.0D || delta > 5.0D) {
-            snowfallAnimationTime = animationTime;
-        } else {
-            snowfallAnimationTime += delta * Math.max(speedMultiplier, 0.2F);
-        }
-        return snowfallAnimationTime;
-    }
-
     static SnowfallProfile configuredProfile(float stormActivity) {
         float blend = Mth.clamp(stormActivity, 0.0F, 1.0F);
         float amount = blendedConfig(
@@ -420,13 +404,6 @@ public final class SnowfallRenderer {
             cache[index] = height;
         }
         return height;
-    }
-
-    private static float unitFloat(long hash) {
-        long mixed = hash ^ hash >>> 33;
-        mixed *= 0xff51afd7ed558ccdl;
-        mixed ^= mixed >>> 33;
-        return (mixed >>> 40) / (float) (1 << 24);
     }
 
     private static long flakeHash(int x, int z, int lane) {

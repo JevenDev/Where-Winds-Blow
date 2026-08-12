@@ -1,6 +1,7 @@
 package com.jvn.wherewindsblow.client.weather;
 
 import com.jvn.toucanlib.client.ToucanEasing;
+import com.jvn.toucanlib.client.ToucanScaledAnimationClock;
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
@@ -52,8 +53,8 @@ public final class DesertStormRenderer {
     private static int cachedCenterZ = Integer.MIN_VALUE;
     private static long lastFullTerrainRefreshTick = Long.MIN_VALUE;
     private static final int[] TERRAIN_SHIFT_BUFFER = new int[TERRAIN_SIZE * TERRAIN_SIZE];
-    private static double dustAnimationTime;
-    private static double lastDustAnimationTime = Double.NaN;
+    private static final ToucanScaledAnimationClock DUST_ANIMATION_CLOCK =
+            new ToucanScaledAnimationClock(5.0D);
     private static boolean gpuDisabled;
 
     private DesertStormRenderer() {
@@ -118,9 +119,10 @@ public final class DesertStormRenderer {
                     + Math.min(windStrength, 2.0F) * 0.12F
                     + thunder * 0.12F
                     + gust * 0.08F;
-            double animatedDustTime = advanceDustAnimationTime(
+            double animatedDustTime = DUST_ANIMATION_CLOCK.advance(
                     animationTime,
-                    profile.speedScale() * weatherSpeedMultiplier
+                    profile.speedScale() * weatherSpeedMultiplier,
+                    0.1F
             );
             float partialTick = (float) (animationTime - Math.floor(animationTime));
             float stormLight = Mth.lerp(
@@ -304,26 +306,6 @@ public final class DesertStormRenderer {
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
-    }
-
-    private static double advanceDustAnimationTime(
-            double animationTime,
-            float speedMultiplier
-    ) {
-        if (!Double.isFinite(lastDustAnimationTime)) {
-            dustAnimationTime = animationTime;
-            lastDustAnimationTime = animationTime;
-            return dustAnimationTime;
-        }
-
-        double delta = animationTime - lastDustAnimationTime;
-        lastDustAnimationTime = animationTime;
-        if (delta < 0.0D || delta > 5.0D) {
-            dustAnimationTime = animationTime;
-        } else {
-            dustAnimationTime += delta * Math.max(speedMultiplier, 0.1F);
-        }
-        return dustAnimationTime;
     }
 
     private static DesertStormProfile configuredProfile(float stormActivity) {

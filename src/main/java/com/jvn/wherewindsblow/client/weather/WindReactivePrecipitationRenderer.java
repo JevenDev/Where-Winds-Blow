@@ -1,6 +1,11 @@
 package com.jvn.wherewindsblow.client.weather;
 
+import static com.jvn.toucanlib.util.ToucanRandom.signedUnitFloat;
+import static com.jvn.toucanlib.util.ToucanRandom.unitFloat;
+
 import com.jvn.toucanlib.client.ToucanEasing;
+import com.jvn.toucanlib.client.ToucanMotion;
+import com.jvn.toucanlib.client.ToucanScaledAnimationClock;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -31,8 +36,8 @@ public final class WindReactivePrecipitationRenderer {
     private static final Biome.Precipitation[] PRECIPITATION_RENDER_ORDER = {
             Biome.Precipitation.RAIN
     };
-    private static double rainScrollTime;
-    private static float lastRainAnimationTime = Float.NaN;
+    private static final ToucanScaledAnimationClock RAIN_ANIMATION_CLOCK =
+            new ToucanScaledAnimationClock(5.0D);
 
     private WindReactivePrecipitationRenderer() {
     }
@@ -80,9 +85,10 @@ public final class WindReactivePrecipitationRenderer {
         PrecipitationResponse cameraWeatherResponse = precipitationResponse(
                 cameraWind, lullAmount, dynamicRainSqualls, squallStrength
         );
-        double precipitationAnimationTime = advanceRainAnimationTime(
+        double precipitationAnimationTime = RAIN_ANIMATION_CLOCK.advance(
                 animationTime,
-                cameraWeatherResponse.speedMultiplier() * (1.0F + thunder * 0.8F)
+                cameraWeatherResponse.speedMultiplier() * (1.0F + thunder * 0.8F),
+                0.1F
         );
         BlizzardRenderer.render(
                 level, rainSizeX, rainSizeZ, lightTexture,
@@ -275,21 +281,6 @@ public final class WindReactivePrecipitationRenderer {
         return new RainDrift(-directionX * drift, -directionZ * drift);
     }
 
-    private static double advanceRainAnimationTime(float animationTime, float speedMultiplier) {
-        if (!Float.isFinite(lastRainAnimationTime)) {
-            rainScrollTime = animationTime;
-        } else {
-            float delta = animationTime - lastRainAnimationTime;
-            if (delta < 0.0F || delta > 5.0F) {
-                rainScrollTime = animationTime;
-            } else if (delta > 0.0F) {
-                rainScrollTime += delta * Math.max(speedMultiplier, 0.1F);
-            }
-        }
-        lastRainAnimationTime = animationTime;
-        return rainScrollTime;
-    }
-
     private static WeatherLevels smoothWeatherLevels(
             ClientLevel level,
             float animationTime,
@@ -330,17 +321,6 @@ public final class WindReactivePrecipitationRenderer {
         }
         float transition = (density - unitFloat(hash)) / RAIN_DENSITY_FADE_WIDTH + 0.5F;
         return ToucanEasing.smoothstep(transition);
-    }
-
-    private static float unitFloat(long hash) {
-        long mixed = hash ^ hash >>> 33;
-        mixed *= 0xff51afd7ed558ccdl;
-        mixed ^= mixed >>> 33;
-        return (mixed >>> 40) / (float) (1 << 24);
-    }
-
-    private static float signedUnitFloat(long hash) {
-        return unitFloat(hash) * 2.0F - 1.0F;
     }
 
     private record RainDrift(float x, float z) {
@@ -384,7 +364,7 @@ public final class WindReactivePrecipitationRenderer {
             // Vanilla weather levels usually move gradually, but servers and commands can replace
             // them in a single update. A short render-side ease keeps all precipitation variants on
             // the same continuous clear/rain/thunder curve without making weather feel delayed.
-            float blend = 1.0F - (float) Math.exp(-delta * 0.12F);
+            float blend = ToucanMotion.expAlpha(0.12F, delta);
             rain = Mth.lerp(blend, rain, targetRain);
             thunder = Mth.lerp(blend, thunder, targetThunder);
             if (Math.abs(rain - targetRain) < 0.0001F) {

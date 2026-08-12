@@ -1,6 +1,7 @@
 package com.jvn.wherewindsblow.client.weather;
 
 import com.jvn.toucanlib.client.ToucanEasing;
+import com.jvn.toucanlib.client.ToucanMotion;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -520,7 +521,7 @@ public final class BlizzardWeatherEffects {
                 return currentSample();
             }
 
-            float blend = 1.0F - (float) Math.exp(-delta * WHITEOUT_TRANSITION_RATE);
+            float blend = ToucanMotion.expAlpha(WHITEOUT_TRANSITION_RATE, (float) delta);
             whiteout = approach(whiteout, target.whiteout(), blend);
             snowWeight = approach(snowWeight, target.snowWeight(), blend);
             sandWeight = approach(sandWeight, target.sandWeight(), blend);

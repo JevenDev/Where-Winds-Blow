@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.wind;
 
+import com.jvn.toucanlib.client.ToucanMotion;
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
 import com.jvn.wherewindsblow.client.banner.WindReactiveBannerRenderer;
@@ -311,8 +312,9 @@ public final class DynamicWindManager {
 
         float targetWeatherPower = targetWeatherWindPower(activeLevel);
         float response = targetWeatherPower > state.weatherPower() ? 1.7F : 1.05F;
-        float blend = 1.0F - (float) Math.exp(-deltaSeconds * response);
-        float weatherPower = Mth.lerp(blend, state.weatherPower(), targetWeatherPower);
+        float weatherPower = ToucanMotion.smoothExp(
+                state.weatherPower(), targetWeatherPower, response, deltaSeconds
+        );
         float rainLevel = activeLevel.getRainLevel(1.0F);
         float thunderLevel = activeLevel.getThunderLevel(1.0F);
         BiomeWindProfile profile = currentPlayerProfile();
@@ -342,8 +344,9 @@ public final class DynamicWindManager {
         float lullAmount = updateLull(deltaSeconds, weatherPower, dynamicWind);
         float ambientTarget = targetAmbientStrength(weatherPower, dynamicWind, lullAmount);
         float ambientResponse = ambientTarget > ambientStrength ? 0.75F : 0.48F;
-        float ambientBlend = 1.0F - (float) Math.exp(-deltaSeconds * ambientResponse);
-        ambientStrength = Mth.lerp(ambientBlend, ambientStrength, ambientTarget);
+        ambientStrength = ToucanMotion.smoothExp(
+                ambientStrength, ambientTarget, ambientResponse, deltaSeconds
+        );
         float instability = dynamicWind
                 ? Mth.clamp(
                         (rainLevel * 0.18F + thunderLevel * 0.62F) * activeProfile.directionInstabilityMultiplier(),
@@ -510,21 +513,14 @@ public final class DynamicWindManager {
     private static void updateEffectiveProfile(float deltaSeconds, BiomeWindProfile target) {
         // Player biome selection can alternate every tick along a boundary. Smooth only the
         // multipliers that directly drive rendered motion so that boundary crossings remain calm.
-        float blend = 1.0F - (float) Math.exp(-deltaSeconds * 0.7F);
-        effectiveBaseStrengthMultiplier = Mth.lerp(
-                blend,
-                effectiveBaseStrengthMultiplier,
-                target.baseStrengthMultiplier()
+        effectiveBaseStrengthMultiplier = ToucanMotion.smoothExp(
+                effectiveBaseStrengthMultiplier, target.baseStrengthMultiplier(), 0.7F, deltaSeconds
         );
-        effectiveGustStrengthMultiplier = Mth.lerp(
-                blend,
-                effectiveGustStrengthMultiplier,
-                target.gustStrengthMultiplier()
+        effectiveGustStrengthMultiplier = ToucanMotion.smoothExp(
+                effectiveGustStrengthMultiplier, target.gustStrengthMultiplier(), 0.7F, deltaSeconds
         );
-        effectiveTurbulenceMultiplier = Mth.lerp(
-                blend,
-                effectiveTurbulenceMultiplier,
-                target.turbulenceMultiplier()
+        effectiveTurbulenceMultiplier = ToucanMotion.smoothExp(
+                effectiveTurbulenceMultiplier, target.turbulenceMultiplier(), 0.7F, deltaSeconds
         );
     }
 

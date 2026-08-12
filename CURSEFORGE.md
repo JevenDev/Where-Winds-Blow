@@ -1,9 +1,9 @@
-<div style="text-align:center">
-<h1>Where Winds Blow, I'd go with you.</h1>
-<img src="https://i.imgur.com/RCgo20Y.gif" alt="Grass swaying in the wind">
-</div>
-
+<div style="text-align:center"><h2>Where Winds Blow, I'd go with you.</h2><img src="https://i.imgur.com/RCgo20Y.gif" alt="Grass swaying in the wind" width="900"></div>
 <br>
+
+Where Winds Blow is a Vanilla+ atmosphere and foliage overhaul built around a visible, weather-driven wind system. Wind shifts with the biome, weather, altitude, and nearby shelter.
+
+**Client-only friendly.** Install it on the client for visual wind and weather effects without requiring a server-side installation. For multiplayer with WWB blocks and world generation, install it on the server and connecting clients.
 
 <div style="text-align:center">
 
@@ -17,60 +17,46 @@
 
 <br>
 
-Where Winds Blow adds a visible, weather-driven wind system and denser Vanilla+ foliage. Wind changes with the biome, weather, altitude, and nearby shelter, then drives atmospheric effects across the world without pushing entities or replacing vanilla terrain.
+<div style="text-align:center"><img src="https://cdn.modrinth.com/data/cached_images/ec0e4dc78ec1a652eb11b233dd2926f7461fe770.png" alt="Where Winds Blow features" width="900"></div>
 
-> **Client-only friendly:** Install it on the client for visual wind and weather effects without requiring a server-side installation. For multiplayer with WWB blocks and world generation, install it on the server and connecting clients.
+![Interactive foliage](https://i.imgur.com/ScczSwj.gif)
 
-<div style="text-align:center">
+## What it adds
 
-<img src="https://cdn.modrinth.com/data/cached_images/ec0e4dc78ec1a652eb11b233dd2926f7461fe770.png" alt="Features">
-<br>
-<img src="https://i.imgur.com/ScczSwj.gif" alt="Interactive foliage">
+*   Dynamic wind with smooth direction changes, travelling gust fronts, calm lulls, and turbulence shaped by biomes, weather, altitude, and terrain
+*   Responsive grass, crops, flowers, and leaves, with local movement from nearby entities, projectiles, lightning, and explosions
+*   Wind-driven rain and snow, including rain squalls, drifting snowfall, ground-blown spindrift, and whiteout blizzards
+*   Desert and badlands storms with blowing sand, reduced visibility, and severe thunder-driven dust
+*   Visible wind streaks, biome-tinted leaves, flower petals, and tumbleweeds that move through the world and react to terrain
+*   Wind-shaped campfire smoke plus moving banners, hanging signs, lanterns, and chains
+*   Vanilla+ grass variants and denser biome coverage with softer transitions
+*   An in-game config and data-driven profiles for foliage, biome wind, and world generation
 
-</div>
+Every major visual effect can be adjusted or turned off.
 
-## What It Adds
+![Compatibility](https://cdn.modrinth.com/data/cached_images/1252c11050b7daf8b8621712b58dd1005e7ba982.png)
 
-<table>
-  <thead>
-    <tr><th>Feature</th><th>What It Does</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Dynamic wind</td><td>Creates smooth direction changes, gust fronts, calm lulls, and turbulence shaped by the biome, weather, altitude, and surrounding terrain.</td></tr>
-    <tr><td>Responsive foliage</td><td>Makes grass, crops, flowers, and leaves sway; nearby movement, projectiles, lightning, and explosions can disturb plants locally.</td></tr>
-    <tr><td>Visible air movement</td><td>Sends pale wind streaks and biome-tinted drifting leaves through the world, following the wind and reacting to terrain.</td></tr>
-    <tr><td>Atmospheric weather</td><td>Slants rain with the wind, gives snow drifting movement, and builds severe snowy weather into ground-blown spindrift and whiteout blizzards.</td></tr>
-    <tr><td>Reactive world details</td><td>Bends campfire smoke into wind-shaped plumes and moves banners, hanging signs, lanterns, and chains with the same wind.</td></tr>
-    <tr><td>Vanilla+ world generation</td><td>Adds flat, dry, dead, overgrown, and wild-wheat grass variants to create denser biome coverage and softer transitions.</td></tr>
-    <tr><td>Customization</td><td>Provides an in-game visual config plus datapack control over grass placement and biome-specific wind profiles.</td></tr>
-  </tbody>
-</table>
+![Wind-driven rain and weather changes](https://i.imgur.com/8QBmRsr.gif)
 
-<div style="text-align:center">
+## Requirements and compatibility
 
-<img src="https://cdn.modrinth.com/data/cached_images/1252c11050b7daf8b8621712b58dd1005e7ba982.png" alt="Compatibility">
-<br>
-<img src="https://i.imgur.com/8QBmRsr.gif" alt="Custom rain effects and weather-based wind changes">
-
-</div>
-
-## Compatibility
-
-- The standard renderer and Sodium support the complete feature set.
-- Iris has full support while no shader pack is active.
-- With an Iris shader pack active, weather, streaks, leaves, smoke, banners, signs, world generation, and local plant interaction remain available. Foliage sway, wind sheen, and lantern/chain sway are disabled to avoid terrain-shader conflicts.
+*   Made for **Minecraft 1.21.1** on **NeoForge** ONLY (don't ask for backports)
+*   Fabric 1.21.1 is planned with NO time-frame, it will be ported when I want to
+*   [ToucanLib](https://www.curseforge.com/minecraft/mc-mods/toucanlib) and [YetAnotherConfigLib](https://www.curseforge.com/minecraft/mc-mods/yacl) are required
+*   The standard renderer and Sodium support the complete feature set
+*   Iris has full support while no shader pack is active
+*   With an Iris shader pack active, weather, wind streaks, drifting leaves and petals, smoke, banners, signs, world generation, and local foliage interaction remain available. Foliage sway, wind sheen, and lantern or chain sway are disabled to avoid terrain-shader conflicts
+*   Responsive foliage profiles are included for Bountiful Fares, Farmer's Delight, No Man's Land, Regions Unexplored, and Sweety's Garden
 
 Where Winds Blow is incompatible with **Chunks Fade In** because both mods alter terrain shader rendering.
 
-See the [datapack guide](https://github.com/JevenDev/Where-Winds-Blow/blob/1.21.1/DATAPACKS.md) for more information.
+See the [datapack guide](https://github.com/JevenDev/Where-Winds-Blow/blob/1.21.1/DATAPACKS.md) for world generation and biome wind, or the [foliage profile guide](https://github.com/JevenDev/Where-Winds-Blow/blob/1.21.1/FOLIAGE_PROFILES.md) to add, tune, or exclude swaying blocks.
 
-<div style="text-align:center">
+Leave mod compat suggestions in the Discord/Github.
 
-<img src="https://cdn.modrinth.com/data/cached_images/5fd3ad80e342e6985dd6ebda1f7afd9c48749fce.png" alt="Credits and license">
-<br>
-<img src="https://i.imgur.com/S0X7Nm9.gif" alt="Swinging hanging sign and lantern">
+![Credits and license](https://cdn.modrinth.com/data/cached_images/5fd3ad80e342e6985dd6ebda1f7afd9c48749fce.png)
 
-</div>
+![Swinging hanging sign and lantern](https://i.imgur.com/S0X7Nm9.gif)
 
 ## Modpacks
 
@@ -88,10 +74,6 @@ Feel free to use this mod in modpacks, videos, etc. Just provide a link back to 
 
 Please don't port this mod without express permission from me.
 
-For any general queries or unlisted questions, DM me on Twitter (@prodbyjvn) or Discord (ijvn).
+For general questions, contact me on Twitter (@prodbyjvn) or Discord (ijvn).
 
-<div style="text-align:center">
-
-<p><strong><em>Warning: this mod ONLY exists on Modrinth and CurseForge as of June 2026. Any sites hosting this mod outside of Modrinth or CurseForge are not official releases.</em></strong></p>
-
-</div>
+<div><p><strong><em>Where Winds Blow is officially distributed only through CurseForge and Modrinth. Downloads from other sites are not official releases.</em></strong></p></div>

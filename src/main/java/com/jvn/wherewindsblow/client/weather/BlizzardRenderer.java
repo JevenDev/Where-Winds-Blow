@@ -1,6 +1,9 @@
 package com.jvn.wherewindsblow.client.weather;
 
+import static com.jvn.toucanlib.util.ToucanRandom.unitFloat;
+
 import com.jvn.toucanlib.client.ToucanEasing;
+import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
@@ -26,9 +29,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 /** Adds low spindrift to exposed snow-covered surfaces during wind-driven snowfall. */
 public final class BlizzardRenderer {
-    private static final ResourceLocation BLOWING_SNOW_TEXTURE = ResourceLocation.fromNamespaceAndPath(
-            "where_winds_blow", "textures/environment/desert_dust.png"
-    );
+    private static final ResourceLocation BLOWING_SNOW_TEXTURE =
+            WhereWindsBlow.IDS.texture("environment/desert_dust.png");
     private static final float DENSITY_FADE_WIDTH = 0.10F;
     private static final float EDGE_FADE_START = 0.70F;
 
@@ -283,10 +285,4 @@ public final class BlizzardRenderer {
         return value - Mth.floor(value);
     }
 
-    private static float unitFloat(long hash) {
-        long mixed = hash ^ hash >>> 33;
-        mixed *= 0xff51afd7ed558ccdl;
-        mixed ^= mixed >>> 33;
-        return (mixed >>> 40) / (float) (1 << 24);
-    }
 }

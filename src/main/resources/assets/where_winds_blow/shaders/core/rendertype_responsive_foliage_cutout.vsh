@@ -82,7 +82,12 @@ out float windSheen;
 
 bool isPlantWindAlpha(float alpha) {
     float encoded = alpha * 255.0;
-    return encoded >= 16.5 && encoded <= 44.5;
+    return (encoded >= 16.5 && encoded <= 44.5) || (encoded >= 104.5 && encoded <= 132.5);
+}
+
+bool isColumnWindAlpha(float alpha) {
+    float encoded = alpha * 255.0;
+    return encoded >= 104.5 && encoded <= 132.5;
 }
 
 bool isLeafWindAlpha(float alpha) {
@@ -105,7 +110,8 @@ bool isFoliageWindVertex(float alpha) {
 }
 
 float plantAlphaCode(float alpha) {
-    return clamp(floor(alpha * 255.0 + 0.5) - 17.0, 0.0, 27.0);
+    float alphaMin = isColumnWindAlpha(alpha) ? 105.0 : 17.0;
+    return clamp(floor(alpha * 255.0 + 0.5) - alphaMin, 0.0, 27.0);
 }
 
 float decodePlantInteractionAlpha(float alpha) {
@@ -174,6 +180,11 @@ float gustEnvelope(float progress, float attackEnd, float releaseStart) {
         return 1.0;
     }
     return smoothCurve(1.0 - (progress - releaseStart) / max(1.0 - releaseStart, 0.001));
+}
+
+vec2 foliageMotionPosition(vec3 position, float alpha) {
+    vec2 worldPosition = position.xz + CameraPosition.xz;
+    return isColumnWindAlpha(alpha) ? floor(worldPosition) + vec2(0.5) : worldPosition;
 }
 
 vec2 sampleDynamicWind(vec2 worldPosition, out float gustStrength, out float turbulence, out float leadingEdge) {
@@ -436,13 +447,13 @@ void main() {
             float windBend = smoothCurve(decodeWindAlpha(Color.a));
             float swayStrength = windSwayStrengthForAlpha(Color.a);
             float sheenStrength = windSheenStrengthForAlpha(Color.a);
-            vec3 windPos = pos + CameraPosition;
-            float t = isPlantWindAlpha(Color.a) ? foliageAnimationTime(WindTime, windPos.xz) : WindTime;
+            vec2 motionPosition = foliageMotionPosition(pos, Color.a);
+            float t = isPlantWindAlpha(Color.a) ? foliageAnimationTime(WindTime, motionPosition) : WindTime;
             float localGustStrength;
             float localTurbulence;
             float gustLeadingEdge;
             vec2 windDir = sampleDynamicWind(
-                    windPos.xz,
+                    motionPosition,
                     localGustStrength,
                     localTurbulence,
                     gustLeadingEdge
@@ -452,11 +463,11 @@ void main() {
             // displacement, but must not re-project world coordinates and jump the wave phase.
             vec2 phaseDir = normalize(vec2(0.82, 0.57));
             vec2 phaseCross = vec2(-phaseDir.y, phaseDir.x);
-            float along = dot(windPos.xz, phaseDir);
-            float across = dot(windPos.xz, phaseCross);
+            float along = dot(motionPosition, phaseDir);
+            float across = dot(motionPosition, phaseCross);
             float plantWind = isPlantWindAlpha(Color.a) ? 1.0 : 0.0;
-            vec2 gustCell = floor(windPos.xz * 0.58);
-            vec2 bladeCell = floor(windPos.xz * 2.7);
+            vec2 gustCell = floor(motionPosition * 0.58);
+            vec2 bladeCell = floor(motionPosition * 2.7);
             float gustSeed = grassVariationSeed(gustCell, vec2(127.1, 311.7));
             float bladeSeed = grassVariationSeed(bladeCell, vec2(269.5, 183.3));
             float localPhase = plantWind * ((gustSeed - 0.5) * 1.7 + (bladeSeed - 0.5) * 0.16);
@@ -500,7 +511,7 @@ void main() {
                     1.0 - precipitationLoad * 0.12,
                     plantWind
             );
-            float shimmer = sin(windPos.x * 2.17 + windPos.z * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8);
+            float shimmer = sin(motionPosition.x * 2.17 + motionPosition.y * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8);
             float broadSway = mix(0.145, 0.225, plantWind);
             float fineSway = mix(0.055, 0.020, plantWind);
             float originalSway = 0.014 + wave * broadSway * amplitudeDrift
