@@ -15,7 +15,7 @@ public abstract class SodiumShaderLoaderMixin {
         String source = cir.getReturnValue();
         if (source == null
                 || !SodiumFoliageShaderSource.isSodiumTerrainVertexShader(name, source)
-                || !ResponsiveFoliageShaders.shouldPatchSodiumShaders()) {
+                || !ResponsiveFoliageShaders.shouldPrepareSodiumShaders()) {
             return;
         }
 

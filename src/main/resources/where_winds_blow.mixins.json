@@ -13,6 +13,9 @@
     "client.LevelRendererMixin",
     "client.ParticleEngineMixin",
     "client.WaterDropParticleMixin",
+    "client.compat.acedium.AcediumCompactChunkVertexMixin",
+    "client.compat.acedium.AcediumShaderLoaderMixin",
+    "client.compat.acedium.AcediumShaderMixin",
     "client.compat.sodium.SodiumShaderLoaderMixin",
     "client.compat.sodium.SodiumShaderChunkRendererMixin"
   ],

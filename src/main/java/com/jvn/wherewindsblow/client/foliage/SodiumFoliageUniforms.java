@@ -62,7 +62,18 @@ public final class SodiumFoliageUniforms {
     }
 
     public static void uploadActiveProgramUniforms() {
-        if (!ResponsiveFoliageShaders.shouldPatchSodiumShaders()) {
+        uploadActiveProgramUniforms(false);
+    }
+
+    public static void uploadActiveAcediumProgramUniforms() {
+        uploadActiveProgramUniforms(true);
+    }
+
+    private static void uploadActiveProgramUniforms(boolean acedium) {
+        boolean shouldUpload = acedium
+                ? ResponsiveFoliageShaders.shouldPatchAcediumShaders()
+                : ResponsiveFoliageShaders.shouldPatchSodiumShaders();
+        if (!shouldUpload) {
             return;
         }
 
@@ -72,8 +83,12 @@ public final class SodiumFoliageUniforms {
                 return;
             }
 
-            ResponsiveFoliagePhysics.updateShaderInteractors();
             refreshUniformLocations(program);
+            if (windTimeUniform < 0) {
+                return;
+            }
+
+            ResponsiveFoliagePhysics.updateShaderInteractors();
             GlobalWindState windState = DynamicWindManager.currentState();
             uploadUniform(windTimeUniform, DynamicWindManager.simulationTime());
             uploadUniform(ambientWindStrengthUniform, DynamicWindManager.visualStrength(windState.ambientStrength()));
@@ -99,7 +114,17 @@ public final class SodiumFoliageUniforms {
                     cameraPosition
             );
         } catch (RuntimeException exception) {
-            ResponsiveFoliageShaders.disableSodiumShaderPatch("Failed to upload Sodium foliage shader uniforms.", exception);
+            if (acedium) {
+                ResponsiveFoliageShaders.disableAcediumShaderPatch(
+                        "Failed to upload Acedium foliage shader uniforms.",
+                        exception
+                );
+            } else {
+                ResponsiveFoliageShaders.disableSodiumShaderPatch(
+                        "Failed to upload Sodium foliage shader uniforms.",
+                        exception
+                );
+            }
         }
     }
 

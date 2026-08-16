@@ -47,6 +47,7 @@ Every major visual effect can be adjusted or turned off.
 - Fabric 1.21.1 is planned with NO time-frame, it will be ported when I want to
 - [ToucanLib](https://modrinth.com/mod/toucan) and [YetAnotherConfigLib](https://modrinth.com/mod/yacl) are required
 - The standard renderer and Sodium support the complete feature set
+- Acedium Sodiumized 0.4.1 is directly supported when its NVIDIA renderer is active; the Compatibility config can target Automatic, Sodium, or Acedium / Nvidium without enabling or disabling either renderer mod
 - Iris has full support while no shader pack is active
 - With an Iris shader pack active, weather, wind streaks, drifting leaves and petals, smoke, banners, signs, world generation, and local foliage interaction remain available. Foliage sway, wind sheen, and lantern or chain sway are disabled to avoid terrain-shader conflicts
 - Responsive foliage profiles are included for Bountiful Fares, Farmer's Delight, No Man's Land, Regions Unexplored, and Sweety's Garden

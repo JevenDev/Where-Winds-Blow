@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 
 public final class ResponsiveFoliageShaders {
     private static final String IRIS_API_CLASS_NAME = "net.irisshaders.iris.api.v0.IrisApi";
+    private static final String ACEDIUM_MOD_ID = "acedium";
     private static final String SODIUM_MOD_ID = "sodium";
     private static final String[] SHADER_RENDERER_MOD_IDS = {"iris", "oculus"};
     private static final String[] INCOMPATIBLE_RENDERER_MOD_IDS = {"chunksfadein"};
@@ -39,6 +40,7 @@ public final class ResponsiveFoliageShaders {
     private static boolean externalShaderPackActive;
     private static volatile boolean customShaderDisabled;
     private static volatile boolean sodiumShaderPatchDisabled;
+    private static volatile boolean acediumShaderPatchDisabled;
     private static boolean incompatibleRendererWarningLogged;
     private static int foliageInteractorCount;
     // Interactor: center x, min y, center z, radius. Motion: max y, trailing x/z, strength.
@@ -77,10 +79,33 @@ public final class ResponsiveFoliageShaders {
         return !isExternalShaderPackActive();
     }
 
-    public static boolean shouldPatchSodiumShaders() {
+    public static boolean shouldPrepareSodiumShaders() {
         return shouldUseCustomFoliageShaders()
                 && ClientConfig.ENABLE_SODIUM_SHADER_PATCH.getAsBoolean()
                 && !sodiumShaderPatchDisabled;
+    }
+
+    public static boolean shouldPrepareAcediumShaders() {
+        return isModLoaded(ACEDIUM_MOD_ID)
+                && shouldUseCustomFoliageShaders()
+                && ClientConfig.ENABLE_SODIUM_SHADER_PATCH.getAsBoolean()
+                && !acediumShaderPatchDisabled;
+    }
+
+    public static boolean shouldPatchSodiumShaders() {
+        return shouldPrepareSodiumShaders()
+                && isTerrainRendererBackendEnabled(ClientConfig.TerrainRendererBackend.SODIUM);
+    }
+
+    public static boolean shouldPatchAcediumShaders() {
+        return shouldPrepareAcediumShaders()
+                && isTerrainRendererBackendEnabled(ClientConfig.TerrainRendererBackend.ACEDIUM);
+    }
+
+    private static boolean isTerrainRendererBackendEnabled(ClientConfig.TerrainRendererBackend backend) {
+        ClientConfig.TerrainRendererBackend configuredBackend = ClientConfig.TERRAIN_RENDERER_BACKEND.get();
+        return configuredBackend == ClientConfig.TerrainRendererBackend.AUTOMATIC
+                || configuredBackend == backend;
     }
 
     public static boolean shouldEncodeFoliageVertexMarkers() {
@@ -88,7 +113,9 @@ public final class ResponsiveFoliageShaders {
             return false;
         }
 
-        return !isModLoaded(SODIUM_MOD_ID) || shouldPatchSodiumShaders();
+        return !isModLoaded(SODIUM_MOD_ID)
+                || shouldPatchSodiumShaders()
+                || shouldPatchAcediumShaders();
     }
 
     public static void setFoliageInteractors(int interactorCount, FoliageInteractorWriter writer) {
@@ -147,6 +174,19 @@ public final class ResponsiveFoliageShaders {
             WhereWindsBlow.LOGGER.warn("{} Sodium terrain shader patch has been disabled until restart.", reason);
         } else {
             WhereWindsBlow.LOGGER.warn(reason + " Sodium terrain shader patch has been disabled until restart.", throwable);
+        }
+    }
+
+    public static void disableAcediumShaderPatch(String reason, @Nullable Throwable throwable) {
+        if (acediumShaderPatchDisabled) {
+            return;
+        }
+
+        acediumShaderPatchDisabled = true;
+        if (throwable == null) {
+            WhereWindsBlow.LOGGER.warn("{} Acedium terrain shader patch has been disabled until restart.", reason);
+        } else {
+            WhereWindsBlow.LOGGER.warn(reason + " Acedium terrain shader patch has been disabled until restart.", throwable);
         }
     }
 

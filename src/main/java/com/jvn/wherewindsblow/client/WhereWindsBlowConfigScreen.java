@@ -640,7 +640,12 @@ public final class WhereWindsBlowConfigScreen {
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.compatibility"))
                         .description(description("group.compatibility.description"))
-                        .option(booleanOption(ClientConfig.ENABLE_SODIUM_SHADER_PATCH))
+                        .option(booleanOption(ClientConfig.ENABLE_SODIUM_SHADER_PATCH, WhereWindsBlowConfigScreen::rebuildFoliage))
+                        .option(enumOption(
+                                ClientConfig.TERRAIN_RENDERER_BACKEND,
+                                ClientConfig.TerrainRendererBackend.class,
+                                WhereWindsBlowConfigScreen::rebuildFoliage
+                        ))
                         .build())
                 .build();
     }

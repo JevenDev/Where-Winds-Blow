@@ -15,7 +15,7 @@ public final class SodiumFoliageShaderSource {
     private static final Pattern SHINE_BASE_COLOR_LINE_PATTERN = Pattern.compile("(?m)^\\s*v_Color\\s*=\\s*_vert_color\\s*\\*\\s*texture\\s*\\(\\s*u_LightTex\\s*,\\s*shineLightCoord\\s*\\)\\s*;.*$");
     private static final Pattern SHINE_COLORED_LIGHT_LINE_PATTERN = Pattern.compile("(?m)^\\s*v_Color\\s*=\\s*shine_apply_colored_light\\s*\\(\\s*position\\s*,\\s*v_Color\\s*,\\s*shineLightCoord\\s*\\)\\s*;.*$");
 
-    private static final String WIND_UNIFORMS = """
+    static final String WIND_UNIFORMS = """
 
             uniform float u_WwbTime;
             uniform float u_WwbAmbientWindStrength;
@@ -78,7 +78,7 @@ public final class SodiumFoliageShaderSource {
             uniform vec4 u_WwbInteractorMotion15;
             """;
 
-    private static final String WIND_FUNCTIONS = """
+    static final String WIND_FUNCTIONS = """
 
             bool wwb_is_plant_wind_vertex(float alpha) {
                 float encoded = alpha * 255.0;

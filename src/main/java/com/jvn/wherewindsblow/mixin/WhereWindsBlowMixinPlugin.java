@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 public final class WhereWindsBlowMixinPlugin implements IMixinConfigPlugin {
+    private static final String ACEDIUM_MOD_ID = "acedium";
     private static final String CHUNKS_FADE_IN_MOD_ID = "chunksfadein";
 
     @Override
@@ -23,6 +24,10 @@ public final class WhereWindsBlowMixinPlugin implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName.contains(".compat.") && isModLoaded(CHUNKS_FADE_IN_MOD_ID)) {
             return false;
+        }
+
+        if (mixinClassName.contains(".compat.acedium.")) {
+            return isModLoaded(ACEDIUM_MOD_ID) && classExists(targetClassName);
         }
 
         if (mixinClassName.contains(".compat.sodium.")) {

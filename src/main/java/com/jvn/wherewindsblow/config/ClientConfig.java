@@ -334,8 +334,12 @@ public final class ClientConfig {
             .define("enableStandaloneChainSway", false);
 
     public static final ModConfigSpec.BooleanValue ENABLE_SODIUM_SHADER_PATCH = BUILDER
-            .comment("Adds Where Winds Blow wind uniforms and source injections to Sodium's own terrain shader.")
+            .comment("Adds Where Winds Blow foliage effects to supported terrain renderer shaders.")
             .define("enableSodiumShaderPatch", true);
+
+    public static final ModConfigSpec.EnumValue<TerrainRendererBackend> TERRAIN_RENDERER_BACKEND = BUILDER
+            .comment("Chooses which supported terrain renderer Where Winds Blow integrates with.")
+            .defineEnum("terrainRendererBackend", TerrainRendererBackend.AUTOMATIC);
 
     public static final ModConfigSpec.BooleanValue IRIS_WARNING_SHOWN = BUILDER
             .comment("Tracks whether the one-time client-side Iris compatibility warning has been shown.")
@@ -547,6 +551,12 @@ public final class ClientConfig {
             .defineInRange("blizzardIntensity", 1.0D, BLIZZARD_INTENSITY_MIN, BLIZZARD_INTENSITY_MAX);
 
     public static final ModConfigSpec SPEC = BUILDER.build();
+
+    public enum TerrainRendererBackend {
+        AUTOMATIC,
+        SODIUM,
+        ACEDIUM
+    }
 
     public enum WindDirectionMode {
         DYNAMIC,
