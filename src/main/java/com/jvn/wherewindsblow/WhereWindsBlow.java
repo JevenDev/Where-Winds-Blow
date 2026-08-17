@@ -2,6 +2,7 @@ package com.jvn.wherewindsblow;
 
 import com.jvn.toucanlib.neoforge.event.ToucanEventBuses;
 import com.jvn.toucanlib.util.ToucanIds;
+import com.jvn.wherewindsblow.block.GrassBonemealHandler;
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.mojang.logging.LogUtils;
 import com.jvn.wherewindsblow.config.CommonConfig;
@@ -26,6 +27,7 @@ public class WhereWindsBlow {
     public WhereWindsBlow(IEventBus modEventBus, ModContainer modContainer) {
         ToucanEventBuses.on(modEventBus).listener(this::commonSetup);
         ToucanEventBuses.game().listener(this::addServerReloadListeners);
+        ToucanEventBuses.game().listener(GrassBonemealHandler::onBonemeal);
 
         ModBlocks.register(modEventBus);
         ModFeatures.register(modEventBus);

@@ -6,7 +6,6 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.TallGrassBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
@@ -28,9 +27,9 @@ public final class ModBlocks {
                     .sound(SoundType.GRASS)
     );
 
-    public static final DeferredBlock<TallGrassBlock> FLAT_GRASS = BLOCKS.registerBlock(
+    public static final DeferredBlock<FlatGrassBlock> FLAT_GRASS = BLOCKS.registerBlock(
             "flat_grass",
-            TallGrassBlock::new,
+            FlatGrassBlock::new,
             BlockBehaviour.Properties.ofFullCopy(Blocks.SHORT_GRASS)
                     .replaceable()
                     .noCollission()
