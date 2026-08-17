@@ -50,6 +50,7 @@ public final class DynamicWindManager {
     private static ResourceKey<Level> activeDimension;
     private static GlobalWindState state = STILL_STATE;
     private static long lastUpdateMillis;
+    private static boolean wasWindowActive;
     private static float simulationTimeSeconds;
     private static float simulationSpeed = 1.0F;
     private static long simulationSeed;
@@ -190,7 +191,11 @@ public final class DynamicWindManager {
     public static float simulationTime() {
         ensureLifecycle();
         Minecraft minecraft = Minecraft.getInstance();
-        if (activeLevel == null || minecraft.isPaused() || lastUpdateMillis == 0L) {
+        if (activeLevel == null
+                || minecraft.isPaused()
+                || !minecraft.isWindowActive()
+                || !wasWindowActive
+                || lastUpdateMillis == 0L) {
             return simulationTimeSeconds;
         }
 
@@ -289,12 +294,14 @@ public final class DynamicWindManager {
         ensureLifecycle();
         refreshProfileRevision();
         Minecraft minecraft = Minecraft.getInstance();
-        if (activeLevel == null || minecraft.isPaused()) {
-            lastUpdateMillis = Util.getMillis();
+        long now = Util.getMillis();
+        boolean windowActive = minecraft.isWindowActive();
+        if (activeLevel == null || minecraft.isPaused() || !windowActive || !wasWindowActive) {
+            lastUpdateMillis = now;
+            wasWindowActive = windowActive;
             return;
         }
 
-        long now = Util.getMillis();
         if (lastUpdateMillis == 0L) {
             lastUpdateMillis = now;
             return;
@@ -416,6 +423,7 @@ public final class DynamicWindManager {
         activeLevel = level;
         activeDimension = level == null ? null : level.dimension();
         lastUpdateMillis = Util.getMillis();
+        wasWindowActive = Minecraft.getInstance().isWindowActive();
         simulationSpeed = 1.0F;
         prevailingDirectionDegrees = configuredDirectionDegrees();
         directionStartDegrees = prevailingDirectionDegrees;
