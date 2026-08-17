@@ -1,8 +1,11 @@
 package com.jvn.wherewindsblow.client.foliage;
 
+import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.GlobalWindState;
 import com.jvn.wherewindsblow.client.wind.WindExposureCache;
+import java.lang.reflect.Field;
+import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -16,6 +19,8 @@ import net.neoforged.neoforge.client.event.ModelEvent;
 
 public final class ResponsiveFoliage {
     private static final int MAX_MODELED_COLUMN_HEIGHT = 32;
+    private static final String CONTINUITY_MODEL_PACKAGE = "me.pepperbell.continuity.";
+    private static boolean continuityWrappingWarningLogged;
 
     private ResponsiveFoliage() {
     }
@@ -108,9 +113,80 @@ public final class ResponsiveFoliage {
                     || BuiltInRegistries.BLOCK.getOptional(location.id()).isEmpty()) {
                 return model;
             }
-            // Profiles and server block tags can change after model baking. A lightweight
-            // pass-through wrapper lets each block resolve the current profile at chunk build time.
-            return new ResponsiveFoliageModel(model);
+            // Profiles and server block tags can change after model baking
+            return wrapModel(model);
         });
+    }
+
+    private static BakedModel wrapModel(BakedModel model) {
+        if (!isContinuityModel(model)) {
+            return new ResponsiveFoliageModel(model);
+        }
+
+        // Continuity emits connected and emissive quads from its own model wrappers.
+        BakedModel continuityModel = model;
+        try {
+            while (true) {
+                Field wrappedModelField = findWrappedModelField(continuityModel.getClass());
+                if (wrappedModelField == null) {
+                    warnContinuityWrappingFailure(null);
+                    return model;
+                }
+
+                wrappedModelField.setAccessible(true);
+                Object wrapped = wrappedModelField.get(continuityModel);
+                if (!(wrapped instanceof BakedModel wrappedModel)) {
+                    warnContinuityWrappingFailure(null);
+                    return model;
+                }
+                if (isContinuityModel(wrappedModel)) {
+                    continuityModel = wrappedModel;
+                    continue;
+                }
+                if (!(wrappedModel instanceof ResponsiveFoliageModel)) {
+                    wrappedModelField.set(continuityModel, new ResponsiveFoliageModel(wrappedModel));
+                }
+                return model;
+            }
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            warnContinuityWrappingFailure(exception);
+            return model;
+        }
+    }
+
+    private static Field findWrappedModelField(Class<?> modelClass) {
+        for (Class<?> type = modelClass; type != null; type = type.getSuperclass()) {
+            try {
+                Field field = type.getDeclaredField("wrapped");
+                if (BakedModel.class.isAssignableFrom(field.getType())) {
+                    return field;
+                }
+            } catch (NoSuchFieldException ignored) {
+                // Continue through Continuity's forwarding-model hierarchy.
+            }
+        }
+        return null;
+    }
+
+    private static boolean isContinuityModel(Object model) {
+        for (Class<?> type = model.getClass(); type != null; type = type.getSuperclass()) {
+            if (type.getName().startsWith(CONTINUITY_MODEL_PACKAGE)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void warnContinuityWrappingFailure(Exception exception) {
+        if (continuityWrappingWarningLogged) {
+            return;
+        }
+        continuityWrappingWarningLogged = true;
+        String message = "Could not compose responsive foliage with Continuity's model wrapper; preserving Continuity rendering.";
+        if (exception == null) {
+            WhereWindsBlow.LOGGER.warn(message);
+        } else {
+            WhereWindsBlow.LOGGER.warn(message, exception);
+        }
     }
 }
