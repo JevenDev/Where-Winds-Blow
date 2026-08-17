@@ -1,14 +1,10 @@
 {
   "replace": false,
   "values": [
-    "minecraft:taiga",
-    "minecraft:old_growth_pine_taiga",
-    "minecraft:old_growth_spruce_taiga",
+    "#c:is_taiga",
     "minecraft:windswept_forest",
     "minecraft:windswept_hills",
     "minecraft:windswept_gravelly_hills",
-    "minecraft:windswept_savanna",
-    "minecraft:jungle",
-    "minecraft:bamboo_jungle"
+    "minecraft:windswept_savanna"
   ]
 }

@@ -27,6 +27,13 @@ ordering="NONE"
 side="BOTH"
 
 [[dependencies."${mod_id}"]]
+modId="architectury"
+type="required"
+versionRange="[${architectury_version},)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies."${mod_id}"]]
 modId="toucanlib"
 type="required"
 versionRange="[${toucanlib_version},)"

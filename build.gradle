@@ -107,6 +107,7 @@ configurations {
 }
 
 dependencies {
+    runtimeOnly "dev.architectury:architectury-neoforge:${architectury_version}"
     if (useLocalToucanLib) {
         implementation "com.jvn.toucanlib:toucanlib-neoforge-${minecraft_version}:${toucanlib_version}"
     } else {
@@ -121,6 +122,7 @@ var replaceProperties = [
         minecraft_version      : minecraft_version,
         minecraft_version_range: minecraft_version_range,
         yacl_version           : yacl_version,
+        architectury_version   : architectury_version,
         toucanlib_version      : toucanlib_version,
         sodium_version_range: sodium_version_range,
         acedium_version_range: acedium_version_range,

@@ -1,8 +1,8 @@
 {
   "replace": false,
   "values": [
-    "minecraft:swamp",
-    "minecraft:mangrove_swamp",
-    "minecraft:river"
+    "#c:is_swamp",
+    "#c:is_river",
+    "minecraft:flower_forest"
   ]
 }

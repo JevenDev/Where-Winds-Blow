@@ -12,6 +12,7 @@ These are the tags you should target going forward:
 - `#where_winds_blow:has_medium_short_grass`
 - `#where_winds_blow:has_sparse_short_grass`
 - `#where_winds_blow:has_tall_grass`
+- `#where_winds_blow:has_tall_grass_fields`
 - `#where_winds_blow:has_fern_accents`
 - `#where_winds_blow:has_overgrown_grass`
 - `#where_winds_blow:has_overgrown_grass_fields`
@@ -21,6 +22,8 @@ These are the tags you should target going forward:
 - `#where_winds_blow:has_wild_wheat` (currently unused in base mod)
 
 Legacy tag names still exist as aliases for compatibility, but new datapacks should prefer the canonical names above.
+
+The built-in tags reference NeoForge's `c:` biome convention tags. Modded plains, forests, jungles, savannas, taigas, swamps, deserts, and badlands therefore inherit the matching grass profile when their biome mod supplies the conventional tag.
 
 ## File layout
 
@@ -47,6 +50,7 @@ Surface rules for dry and dead grasses live in:
 - Medium short grass: `has_medium_short_grass` -> `where_winds_blow_medium_grass.json`
 - Sparse short grass: `has_sparse_short_grass` -> `where_winds_blow_sparse_grass.json`
 - Tall grass: `has_tall_grass` -> `where_winds_blow_tall_grass.json`
+- Rarer tall grass in open fields: `has_tall_grass_fields` -> `where_winds_blow_tall_grass_fields.json`
 - Fern accents: `has_fern_accents` -> `where_winds_blow_fern_accents.json`
 - Overgrown grass: `has_overgrown_grass` -> `where_winds_blow_overgrown_grass.json`
 - Overgrown grass fields: `has_overgrown_grass_fields` -> `where_winds_blow_overgrown_grass_fields.json`
@@ -57,6 +61,10 @@ Surface rules for dry and dead grasses live in:
 
 ## Mixed-variant notes
 
+- Plains-like biomes use medium short-grass coverage and field variants that thin tall-grass passes to 25% and overgrown passes to 12.5% of their configured frequency.
+- Forest-like biomes retain regular medium short-grass and tall-grass placement.
+- Jungle-like biomes use dense short grass together with regular tall-grass and fern placement.
+- Each short-grass profile starts with a light, per-column scatter pass using the no-leaves heightmap; later passes add clusters. This keeps forest floors and uneven terrain from developing large accidental gaps.
 - Tall-grass and fern-accent placement uses terrain noise so plants gather into broad, coherent regions instead of evenly scattered spots.
 - Tall-grass patches now form irregular clustered interiors with a short-grass fringe. Overgrown patches step down from height-graded cores through tall grass into mixed short grass.
 - Fern accents place the vanilla `fern` block, the feature changes composition without replacing its model or texture.

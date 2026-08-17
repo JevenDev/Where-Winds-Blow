@@ -2,14 +2,14 @@
   "type": "where_winds_blow:configurable_grass",
   "biomes": "#where_winds_blow:has_dense_short_grass",
   "features": [
+    "where_winds_blow:dense_short_grass_scatter",
     "where_winds_blow:dense_short_grass_patch",
     "where_winds_blow:dense_short_grass_patch_2",
     "where_winds_blow:dense_short_grass_patch_3",
     "where_winds_blow:dense_short_grass_patch_4",
     "where_winds_blow:dense_short_grass_patch_5",
     "where_winds_blow:dense_short_grass_patch_6",
-    "where_winds_blow:dense_short_grass_patch_7",
-    "where_winds_blow:dense_short_grass_patch_8"
+    "where_winds_blow:dense_short_grass_patch_7"
   ],
   "density": "dense_short_grass",
   "step": "vegetal_decoration"
