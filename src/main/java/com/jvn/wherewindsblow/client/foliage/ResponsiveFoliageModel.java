@@ -16,6 +16,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.client.ChunkRenderTypeSet;
 import net.neoforged.neoforge.client.model.BakedModelWrapper;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import org.jetbrains.annotations.Nullable;
@@ -52,11 +53,23 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
         ModelData originalData = originalModel.getModelData(level, pos, state, modelData);
         FoliageSwayProfile profile = FoliageSwayProfiles.resolve(state);
-        if (profile == null) {
+        ResponsiveFoliage.LeafSnowSupport leafSnowSupport = ResponsiveFoliage.leafSnowSupport(level, pos, state);
+        if (profile == null && leafSnowSupport == null) {
             return originalData;
         }
 
         boolean encodeVertexMarkers = ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers();
+        if (leafSnowSupport != null) {
+            if (!encodeVertexMarkers) {
+                return originalData;
+            }
+            float exposure = quantizeExposure(ResponsiveFoliage.windExposure(level, leafSnowSupport.pos()))
+                    * leafSnowSupport.profile().swayStrengthMultiplier();
+            return originalData.derive()
+                    .with(FoliageModelData.LEAF_SNOW_WIND_EXPOSURE, exposure)
+                    .build();
+        }
+
         boolean plantFoliage = profile.type().isPlant();
         FoliageModelData.InteractionImpulse interactionImpulse = plantFoliage && profile.interactive() && !encodeVertexMarkers
                 ? ResponsiveFoliagePhysics.interactionAt(pos)
@@ -80,18 +93,46 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     }
 
     @Override
+    public ChunkRenderTypeSet getRenderTypes(BlockState state, RandomSource rand, ModelData data) {
+        if (ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers()
+                && hasLeafSnowSupport(state, data)) {
+            return ChunkRenderTypeSet.of(RenderType.cutoutMipped());
+        }
+        return originalModel.getRenderTypes(state, rand, data);
+    }
+
+    @Override
     public List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, RandomSource rand, ModelData extraData, @Nullable RenderType renderType) {
         List<BakedQuad> quads = originalModel.getQuads(state, side, rand, extraData, renderType);
         if (state == null) {
             return quads;
         }
+
+        boolean encodeVertexMarkers = ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers();
+        float leafSnowWindExposure = encodeVertexMarkers ? leafSnowWindExposure(state, extraData) : 0.0F;
+        if (leafSnowWindExposure > 0.0F) {
+            List<BakedQuad> transformed = new ArrayList<>(quads.size());
+            for (BakedQuad quad : quads) {
+                transformed.add(leafQuadCache().computeIfAbsent(
+                        new LeafQuadKey(quad, Float.floatToIntBits(leafSnowWindExposure), true),
+                        ResponsiveFoliageModel::transformLeafQuad
+                ));
+            }
+            return transformed;
+        }
+
         FoliageSwayProfile profile = FoliageSwayProfiles.resolve(state);
         if (profile == null) {
             return quads;
         }
 
-        boolean encodeVertexMarkers = ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers();
         FoliageModelData.InteractionImpulse interactionImpulse = interactionImpulse(extraData);
+        if (!encodeVertexMarkers && interactionImpulse == null && profile.type().isPlant() && profile.interactive()) {
+            SnowRealMagicCompat.RenderContext context = SnowRealMagicCompat.currentRender();
+            if (context != null) {
+                interactionImpulse = ResponsiveFoliagePhysics.interactionAt(context.pos());
+            }
+        }
         if (!encodeVertexMarkers && interactionImpulse == null) {
             return quads;
         }
@@ -106,7 +147,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             float leafWindExposure = windExposure * profile.swayStrengthMultiplier();
             for (BakedQuad quad : quads) {
                 transformed.add(leafQuadCache().computeIfAbsent(
-                        new LeafQuadKey(quad, Float.floatToIntBits(leafWindExposure)),
+                        new LeafQuadKey(quad, Float.floatToIntBits(leafWindExposure), false),
                         ResponsiveFoliageModel::transformLeafQuad
                 ));
             }
@@ -114,7 +155,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             return transformed;
         }
 
-        if (!extraData.has(FoliageModelData.COLUMN_SEGMENT)) {
+        FoliageModelData.ColumnSegment segment = columnSegment(extraData, state, profile);
+        if (segment == null) {
             return quads;
         }
         boolean encodeInteractionMarker = encodeVertexMarkers
@@ -124,7 +166,6 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             return quads;
         }
 
-        FoliageModelData.ColumnSegment segment = extraData.get(FoliageModelData.COLUMN_SEGMENT);
         int swayStartHeightBits = Float.floatToIntBits(
                 plantSwayStartHeight() * profile.swayStartHeightMultiplier()
         );
@@ -256,7 +297,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * stride;
             float x = Float.intBitsToFloat(vertices[offset]);
-            float y = Float.intBitsToFloat(vertices[offset + 1]);
+            float y = key.topSurface() ? 1.0F : Float.intBitsToFloat(vertices[offset + 1]);
             float z = Float.intBitsToFloat(vertices[offset + 2]);
             float bendWeight = leafBendWeight(x, y, z) * windExposure;
             vertices[offset + 3] = packLeafWindAlpha(vertices[offset + 3], bendWeight);
@@ -328,9 +369,56 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     }
 
     private static float windExposure(ModelData extraData) {
-        return extraData.has(FoliageModelData.WIND_EXPOSURE)
-                ? Mth.clamp(extraData.get(FoliageModelData.WIND_EXPOSURE), 0.0F, 1.0F)
+        if (extraData.has(FoliageModelData.WIND_EXPOSURE)) {
+            return Mth.clamp(extraData.get(FoliageModelData.WIND_EXPOSURE), 0.0F, 1.0F);
+        }
+        SnowRealMagicCompat.RenderContext context = SnowRealMagicCompat.currentRender();
+        return context != null
+                ? quantizeExposure(ResponsiveFoliage.windExposure(context.level(), context.pos()))
                 : 1.0F;
+    }
+
+    private static boolean hasLeafSnowSupport(BlockState state, ModelData extraData) {
+        if (extraData.has(FoliageModelData.LEAF_SNOW_WIND_EXPOSURE)) {
+            return true;
+        }
+        SnowRealMagicCompat.RenderContext context = SnowRealMagicCompat.currentRender();
+        return context != null
+                && ResponsiveFoliage.leafSnowSupport(context.level(), context.pos(), state) != null;
+    }
+
+    private static float leafSnowWindExposure(BlockState state, ModelData extraData) {
+        if (extraData.has(FoliageModelData.LEAF_SNOW_WIND_EXPOSURE)) {
+            return Math.max(0.0F, extraData.get(FoliageModelData.LEAF_SNOW_WIND_EXPOSURE));
+        }
+        SnowRealMagicCompat.RenderContext context = SnowRealMagicCompat.currentRender();
+        if (context == null) {
+            return 0.0F;
+        }
+        ResponsiveFoliage.LeafSnowSupport support = ResponsiveFoliage.leafSnowSupport(
+                context.level(),
+                context.pos(),
+                state
+        );
+        return support != null
+                ? quantizeExposure(ResponsiveFoliage.windExposure(context.level(), support.pos()))
+                        * support.profile().swayStrengthMultiplier()
+                : 0.0F;
+    }
+
+    @Nullable
+    private static FoliageModelData.ColumnSegment columnSegment(
+            ModelData extraData,
+            BlockState state,
+            FoliageSwayProfile profile
+    ) {
+        if (extraData.has(FoliageModelData.COLUMN_SEGMENT)) {
+            return extraData.get(FoliageModelData.COLUMN_SEGMENT);
+        }
+        SnowRealMagicCompat.RenderContext context = SnowRealMagicCompat.currentRender();
+        return context != null
+                ? ResponsiveFoliage.columnSegment(context.level(), context.pos(), state, profile)
+                : null;
     }
 
     private static float quantizeExposure(float exposure) {
@@ -376,7 +464,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 : null;
     }
 
-    private record LeafQuadKey(BakedQuad quad, int windExposureBits) {
+    private record LeafQuadKey(BakedQuad quad, int windExposureBits, boolean topSurface) {
     }
 
     private record PlantQuadKey(

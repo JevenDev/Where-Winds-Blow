@@ -37,6 +37,10 @@ repositories {
         url = 'https://maven.architectury.dev/'
     }
     maven {
+        name = 'Sinytra'
+        url = 'https://maven.sinytra.org/'
+    }
+    maven {
         name = 'Modrinth'
         url = 'https://api.modrinth.com/maven'
         content {
@@ -115,6 +119,7 @@ dependencies {
     }
     implementation "dev.isxander:yet-another-config-lib:${yacl_version}"
     compileOnly "net.caffeinemc:sodium-neoforge-mod:${sodium_compile_version}"
+    compileOnly "org.sinytra.forgified-fabric-api:fabric-renderer-api-v1:${fabric_renderer_api_compile_version}"
     compileOnly "maven.modrinth:acedium-sodiumized:${acedium_compile_version}"
 }
 

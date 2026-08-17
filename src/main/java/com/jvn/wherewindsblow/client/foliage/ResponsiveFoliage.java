@@ -5,6 +5,7 @@ import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.GlobalWindState;
 import com.jvn.wherewindsblow.client.wind.WindExposureCache;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.BlockPos;
@@ -12,6 +13,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.PinkPetalsBlock;
+import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
@@ -21,6 +23,7 @@ public final class ResponsiveFoliage {
     private static final int MAX_MODELED_COLUMN_HEIGHT = 32;
     private static final String CONTINUITY_MODEL_PACKAGE = "me.pepperbell.continuity.";
     private static boolean continuityWrappingWarningLogged;
+    private static boolean snowRealMagicWrappingWarningLogged;
 
     private ResponsiveFoliage() {
     }
@@ -77,14 +80,14 @@ public final class ResponsiveFoliage {
         BlockPos root = pos;
         int distanceToRoot = 0;
         while (distanceToRoot < MAX_MODELED_COLUMN_HEIGHT - 1
-                && sameProfile(level.getBlockState(hangsFromTop ? root.above() : root.below()), profile)) {
+                && sameProfile(level, hangsFromTop ? root.above() : root.below(), profile)) {
             root = hangsFromTop ? root.above() : root.below();
             distanceToRoot++;
         }
 
         int height = 0;
         while (height < MAX_MODELED_COLUMN_HEIGHT
-                && sameProfile(level.getBlockState(hangsFromTop ? root.below(height) : root.above(height)), profile)) {
+                && sameProfile(level, hangsFromTop ? root.below(height) : root.above(height), profile)) {
             height++;
         }
 
@@ -92,9 +95,36 @@ public final class ResponsiveFoliage {
         return new FoliageModelData.ColumnSegment(root, offset, height, hangsFromTop, profile.heightScale());
     }
 
-    private static boolean sameProfile(BlockState state, FoliageSwayProfile profile) {
-        FoliageSwayProfile other = FoliageSwayProfiles.resolve(state);
+    private static boolean sameProfile(BlockAndTintGetter level, BlockPos pos, FoliageSwayProfile profile) {
+        FoliageSwayProfile other = FoliageSwayProfiles.resolve(SnowRealMagicCompat.effectiveState(level, pos));
         return other != null && other.id().equals(profile.id());
+    }
+
+    static LeafSnowSupport leafSnowSupport(
+            BlockAndTintGetter level,
+            BlockPos pos,
+            BlockState renderedState
+    ) {
+        if (!(renderedState.getBlock() instanceof SnowLayerBlock)) {
+            return null;
+        }
+
+        BlockState actualState = level.getBlockState(pos);
+        BlockState containedState = SnowRealMagicCompat.effectiveState(level, pos);
+        if (containedState != actualState) {
+            FoliageSwayProfile containedProfile = FoliageSwayProfiles.resolve(containedState);
+            if (containedProfile != null && containedProfile.type().isLeaves()) {
+                return new LeafSnowSupport(pos, containedProfile);
+            }
+        }
+
+        BlockPos supportPos = pos.below();
+        FoliageSwayProfile supportProfile = FoliageSwayProfiles.resolve(
+                SnowRealMagicCompat.effectiveState(level, supportPos)
+        );
+        return supportProfile != null && supportProfile.type().isLeaves()
+                ? new LeafSnowSupport(supportPos, supportProfile)
+                : null;
     }
 
     public static boolean isWindExposed(BlockAndTintGetter level, BlockPos pos) {
@@ -118,7 +148,15 @@ public final class ResponsiveFoliage {
         });
     }
 
+    public static BakedModel wrapSnowRealMagicVariant(BakedModel model) {
+        return model instanceof ResponsiveFoliageModel ? model : wrapModel(model);
+    }
+
     private static BakedModel wrapModel(BakedModel model) {
+        if (SnowRealMagicCompat.isModel(model)) {
+            return wrapSnowRealMagicModel(model);
+        }
+
         if (!isContinuityModel(model)) {
             return new ResponsiveFoliageModel(model);
         }
@@ -150,6 +188,38 @@ public final class ResponsiveFoliage {
             }
         } catch (ReflectiveOperationException | RuntimeException exception) {
             warnContinuityWrappingFailure(exception);
+            return model;
+        }
+    }
+
+    private static BakedModel wrapSnowRealMagicModel(BakedModel model) {
+        boolean foundWrappedModel = false;
+        try {
+            for (Class<?> type = model.getClass(); type != null; type = type.getSuperclass()) {
+                for (Field field : type.getDeclaredFields()) {
+                    if (Modifier.isStatic(field.getModifiers())
+                            || !BakedModel.class.isAssignableFrom(field.getType())) {
+                        continue;
+                    }
+
+                    field.setAccessible(true);
+                    Object value = field.get(model);
+                    if (!(value instanceof BakedModel wrappedModel)) {
+                        continue;
+                    }
+                    foundWrappedModel = true;
+                    if (!(wrappedModel instanceof ResponsiveFoliageModel)) {
+                        field.set(model, wrapModel(wrappedModel));
+                    }
+                }
+            }
+
+            if (!foundWrappedModel) {
+                warnSnowRealMagicWrappingFailure(null);
+            }
+            return model;
+        } catch (ReflectiveOperationException | RuntimeException exception) {
+            warnSnowRealMagicWrappingFailure(exception);
             return model;
         }
     }
@@ -187,6 +257,26 @@ public final class ResponsiveFoliage {
             WhereWindsBlow.LOGGER.warn(message);
         } else {
             WhereWindsBlow.LOGGER.warn(message, exception);
+        }
+    }
+
+    private static void warnSnowRealMagicWrappingFailure(Exception exception) {
+        if (snowRealMagicWrappingWarningLogged) {
+            return;
+        }
+        snowRealMagicWrappingWarningLogged = true;
+        String message = "Could not compose responsive foliage with Snow Real Magic's model wrapper; "
+                + "preserving Snow Real Magic rendering.";
+        if (exception == null) {
+            WhereWindsBlow.LOGGER.warn(message);
+        } else {
+            WhereWindsBlow.LOGGER.warn(message, exception);
+        }
+    }
+
+    record LeafSnowSupport(BlockPos pos, FoliageSwayProfile profile) {
+        LeafSnowSupport {
+            pos = pos.immutable();
         }
     }
 }

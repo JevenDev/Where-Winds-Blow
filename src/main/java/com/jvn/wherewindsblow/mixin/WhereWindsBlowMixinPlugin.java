@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 public final class WhereWindsBlowMixinPlugin implements IMixinConfigPlugin {
     private static final String ACEDIUM_MOD_ID = "acedium";
     private static final String CHUNKS_FADE_IN_MOD_ID = "chunksfadein";
+    private static final String SNOW_REAL_MAGIC_MOD_ID = "snowrealmagic";
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -32,6 +33,10 @@ public final class WhereWindsBlowMixinPlugin implements IMixinConfigPlugin {
 
         if (mixinClassName.contains(".compat.sodium.")) {
             return isModLoaded("sodium") && classExists(targetClassName);
+        }
+
+        if (mixinClassName.contains(".compat.snowrealmagic.")) {
+            return isModLoaded(SNOW_REAL_MAGIC_MOD_ID) && classExists(targetClassName);
         }
 
         return true;

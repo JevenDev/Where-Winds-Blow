@@ -6,6 +6,7 @@ import net.neoforged.neoforge.client.model.data.ModelProperty;
 public final class FoliageModelData {
     public static final ModelProperty<ColumnSegment> COLUMN_SEGMENT = new ModelProperty<>(ColumnSegment.class::isInstance);
     public static final ModelProperty<Float> WIND_EXPOSURE = new ModelProperty<>(Float.class::isInstance);
+    public static final ModelProperty<Float> LEAF_SNOW_WIND_EXPOSURE = new ModelProperty<>(Float.class::isInstance);
     public static final ModelProperty<InteractionImpulse> INTERACTION_IMPULSE = new ModelProperty<>(InteractionImpulse.class::isInstance);
 
     private FoliageModelData() {

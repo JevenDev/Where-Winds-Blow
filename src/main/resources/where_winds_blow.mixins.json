@@ -17,7 +17,9 @@
     "client.compat.acedium.AcediumShaderLoaderMixin",
     "client.compat.acedium.AcediumShaderMixin",
     "client.compat.sodium.SodiumShaderLoaderMixin",
-    "client.compat.sodium.SodiumShaderChunkRendererMixin"
+    "client.compat.sodium.SodiumShaderChunkRendererMixin",
+    "client.compat.snowrealmagic.SnowRealMagicRenderApiMixin",
+    "client.compat.snowrealmagic.SnowRealMagicVariantModelMixin"
   ],
   "injectors": {
     "defaultRequire": 0
