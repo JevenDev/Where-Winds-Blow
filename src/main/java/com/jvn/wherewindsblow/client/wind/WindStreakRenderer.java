@@ -17,6 +17,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
@@ -100,6 +101,8 @@ public final class WindStreakRenderer {
     private static final ByteBufferBuilder LINE_BUFFER = new ByteBufferBuilder(65536);
     private static final ByteBufferBuilder LEAF_BUFFER = new ByteBufferBuilder(65536);
     private static final Map<Double, RenderType> LINE_RENDER_TYPES = new HashMap<>();
+    private static final RenderStateShard.ShaderStateShard PARTICLE_SHADER =
+            new RenderStateShard.ShaderStateShard(GameRenderer::getParticleShader);
 
     static {
         for (int index = 0; index < STREAKS.length; index++) {
@@ -441,13 +444,13 @@ public final class WindStreakRenderer {
     private static RenderType windLeafTexture(ResourceLocation texture) {
         return RenderType.create(
                 "where_winds_blow_wind_leaf_" + texture.getPath().replace('/', '_').replace('.', '_'),
-                DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP,
+                DefaultVertexFormat.PARTICLE,
                 VertexFormat.Mode.QUADS,
                 65536,
                 false,
                 true,
                 RenderType.CompositeState.builder()
-                        .setShaderState(RenderStateShard.POSITION_COLOR_TEX_LIGHTMAP_SHADER)
+                        .setShaderState(PARTICLE_SHADER)
                         .setTextureState(new RenderStateShard.TextureStateShard(texture, false, false))
                         .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
                         .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)

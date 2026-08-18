@@ -20,7 +20,8 @@
     "client.compat.sodium.SodiumShaderLoaderMixin",
     "client.compat.sodium.SodiumShaderChunkRendererMixin",
     "client.compat.snowrealmagic.SnowRealMagicRenderApiMixin",
-    "client.compat.snowrealmagic.SnowRealMagicVariantModelMixin"
+    "client.compat.snowrealmagic.SnowRealMagicVariantModelMixin",
+    "client.SynchedEntityDataAccessorMixin"
   ],
   "injectors": {
     "defaultRequire": 0
