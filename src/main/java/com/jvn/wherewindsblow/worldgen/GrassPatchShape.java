@@ -50,7 +50,7 @@ final class GrassPatchShape {
         return valueNoise(worldX, worldZ, seed ^ 0x6A09E667F3BCC909L);
     }
 
-    private static double valueNoise(int x, int z, long seed) {
+    static double valueNoise(int x, int z, long seed) {
         int cellX = Math.floorDiv(x, NOISE_SCALE);
         int cellZ = Math.floorDiv(z, NOISE_SCALE);
         double fractionX = Math.floorMod(x, NOISE_SCALE) / (double) NOISE_SCALE;

@@ -11,6 +11,11 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class ModFeatures {
     private static final DeferredRegister<Feature<?>> FEATURES = DeferredRegister.create(BuiltInRegistries.FEATURE, WhereWindsBlow.MOD_ID);
 
+    public static final DeferredHolder<Feature<?>, GrassCoverFeature> GRASS_COVER = FEATURES.register(
+            "grass_cover",
+            () -> new GrassCoverFeature(GrassCoverConfiguration.CODEC)
+    );
+
     public static final DeferredHolder<Feature<?>, OvergrownGrassPatchFeature> OVERGROWN_GRASS_PATCH = FEATURES.register(
             "overgrown_grass_patch",
             () -> new OvergrownGrassPatchFeature(NoneFeatureConfiguration.CODEC)

@@ -1,0 +1,8 @@
+{
+  "feature": "where_winds_blow:sparse_grass_cover",
+  "placement": [
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

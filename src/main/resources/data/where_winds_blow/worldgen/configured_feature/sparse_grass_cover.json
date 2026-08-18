@@ -1,0 +1,24 @@
+{
+  "type": "where_winds_blow:grass_cover",
+  "config": {
+    "density": "sparse_short_grass",
+    "coverage_per_pass": 0.035,
+    "to_place": {
+      "type": "minecraft:weighted_state_provider",
+      "entries": [
+        {
+          "data": {
+            "Name": "minecraft:short_grass"
+          },
+          "weight": 5
+        },
+        {
+          "data": {
+            "Name": "where_winds_blow:flat_grass"
+          },
+          "weight": 2
+        }
+      ]
+    }
+  }
+}
