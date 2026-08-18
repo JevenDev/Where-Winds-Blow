@@ -6,6 +6,7 @@
   "client": [
     "client.CampfireBlockEntityMixin",
     "client.CampfireSmokeParticleMixin",
+    "client.ClientLevelMixin",
     "client.ClientPacketListenerMixin",
     "client.BannerRendererMixin",
     "client.GameRendererMixin",
