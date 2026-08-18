@@ -6,6 +6,7 @@ import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
+import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -20,10 +21,12 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.QuartPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FastColor;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.joml.Vector3f;
 
@@ -38,7 +41,8 @@ public final class GpuSnowfallRenderer {
     private static final ResourceLocation HEIGHT_TEXTURE = WhereWindsBlow.IDS.id("dynamic/gpu_snowfall_height");
     private static final int HEIGHT_MAP_RADIUS = 20;
     private static final int HEIGHT_MAP_SIZE = HEIGHT_MAP_RADIUS * 2 + 1;
-    private static final int HEIGHT_REFRESH_TICKS = 5;
+    private static final int MAX_COLUMN_CACHE_SIZE = 8192;
+    private static final int MAX_BIOME_CACHE_SIZE = 4096;
     private static final int SNOW_BAND_COUNT = 8;
     private static final int SNOW_BAND_HEIGHT = 3;
     private static final int SNOW_BAND_BELOW_CAMERA = 12;
@@ -46,12 +50,14 @@ public final class GpuSnowfallRenderer {
     private static final SnowMesh FANCY_MESH = new SnowMesh(12, 12, 22.0F);
     private static final SnowMesh FAST_MESH = new SnowMesh(7, 6, 14.0F);
 
+    private static final Long2ObjectLinkedOpenHashMap<ColumnSample> COLUMN_CACHE = new Long2ObjectLinkedOpenHashMap<>();
+    private static final Long2ObjectLinkedOpenHashMap<Biome> BIOME_CACHE = new Long2ObjectLinkedOpenHashMap<>();
     private static DynamicTexture heightTexture;
     private static ClientLevel cachedLevel;
     private static int cachedCenterX = Integer.MIN_VALUE;
     private static int cachedCenterY = Integer.MIN_VALUE;
     private static int cachedCenterZ = Integer.MIN_VALUE;
-    private static long lastHeightRefreshTick = Long.MIN_VALUE;
+    private static boolean heightTextureDirty = true;
     private static final ToucanScaledAnimationClock SNOWFALL_ANIMATION_CLOCK =
             new ToucanScaledAnimationClock(5.0D);
     private static boolean gpuDisabled;
@@ -204,13 +210,16 @@ public final class GpuSnowfallRenderer {
             minecraft.getTextureManager().register(HEIGHT_TEXTURE, heightTexture);
         }
 
-        long gameTime = level.getGameTime();
+        if (cachedLevel != level) {
+            COLUMN_CACHE.clear();
+            BIOME_CACHE.clear();
+            heightTextureDirty = true;
+        }
         boolean cacheFresh = cachedLevel == level
                 && cachedCenterX == centerX
                 && cachedCenterY == centerY
                 && cachedCenterZ == centerZ
-                && gameTime >= lastHeightRefreshTick
-                && gameTime - lastHeightRefreshTick < HEIGHT_REFRESH_TICKS;
+                && !heightTextureDirty;
         if (cacheFresh) {
             return true;
         }
@@ -226,18 +235,10 @@ public final class GpuSnowfallRenderer {
             int z = centerZ + textureZ - HEIGHT_MAP_RADIUS;
             for (int textureX = 0; textureX < HEIGHT_MAP_SIZE; textureX++) {
                 int x = centerX + textureX - HEIGHT_MAP_RADIUS;
-                int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
-                int snowMask = 0;
                 int snowBandBase = centerY - SNOW_BAND_BELOW_CAMERA;
-                for (int band = 0; band < SNOW_BAND_COUNT; band++) {
-                    int sampleY = snowBandBase + band * SNOW_BAND_HEIGHT + SNOW_BAND_HEIGHT / 2;
-                    biomePos.set(x, sampleY, z);
-                    Biome biome = level.getBiome(biomePos).value();
-                    if (biome.hasPrecipitation()
-                            && biome.getPrecipitationAt(biomePos) == Biome.Precipitation.SNOW) {
-                        snowMask |= 1 << band;
-                    }
-                }
+                ColumnSample sample = columnSample(level, x, z, snowBandBase, biomePos);
+                int surfaceY = sample.surfaceY();
+                int snowMask = sample.snowMask();
                 int encodedHeight = Mth.clamp(surfaceY - minimumHeight, 0, 65535);
                 int low = encodedHeight & 255;
                 int high = encodedHeight >>> 8 & 255;
@@ -253,8 +254,94 @@ public final class GpuSnowfallRenderer {
         cachedCenterX = centerX;
         cachedCenterY = centerY;
         cachedCenterZ = centerZ;
-        lastHeightRefreshTick = gameTime;
+        heightTextureDirty = false;
         return true;
+    }
+
+    public static void invalidateColumn(BlockPos pos) {
+        COLUMN_CACHE.remove(columnKey(pos.getX(), pos.getZ()));
+        markDirtyIfVisible(pos.getX(), pos.getZ());
+    }
+
+    public static void invalidateChunk(LevelChunk chunk) {
+        int minX = chunk.getPos().getMinBlockX();
+        int minZ = chunk.getPos().getMinBlockZ();
+        for (int z = minZ; z < minZ + 16; z++) {
+            for (int x = minX; x < minX + 16; x++) {
+                COLUMN_CACHE.remove(columnKey(x, z));
+            }
+        }
+        if (cachedCenterX >= minX - HEIGHT_MAP_RADIUS
+                && cachedCenterX <= minX + 15 + HEIGHT_MAP_RADIUS
+                && cachedCenterZ >= minZ - HEIGHT_MAP_RADIUS
+                && cachedCenterZ <= minZ + 15 + HEIGHT_MAP_RADIUS) {
+            heightTextureDirty = true;
+        }
+    }
+
+    private static ColumnSample columnSample(
+            ClientLevel level,
+            int x,
+            int z,
+            int snowBandBase,
+            BlockPos.MutableBlockPos biomePos
+    ) {
+        long key = columnKey(x, z);
+        ColumnSample cached = COLUMN_CACHE.get(key);
+        if (cached != null && cached.snowBandBase() == snowBandBase) {
+            return cached;
+        }
+
+        int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+        int snowMask = 0;
+        for (int band = 0; band < SNOW_BAND_COUNT; band++) {
+            int sampleY = snowBandBase + band * SNOW_BAND_HEIGHT + SNOW_BAND_HEIGHT / 2;
+            biomePos.set(x, sampleY, z);
+            Biome biome = biomeAt(level, biomePos);
+            if (biome.hasPrecipitation()
+                    && biome.getPrecipitationAt(biomePos) == Biome.Precipitation.SNOW) {
+                snowMask |= 1 << band;
+            }
+        }
+
+        ColumnSample sample = new ColumnSample(snowBandBase, surfaceY, snowMask);
+        if (COLUMN_CACHE.size() >= MAX_COLUMN_CACHE_SIZE) {
+            COLUMN_CACHE.removeFirst();
+        }
+        COLUMN_CACHE.put(key, sample);
+        return sample;
+    }
+
+    private static Biome biomeAt(ClientLevel level, BlockPos pos) {
+        int quartX = QuartPos.fromBlock(pos.getX());
+        int quartY = QuartPos.fromBlock(pos.getY());
+        int quartZ = QuartPos.fromBlock(pos.getZ());
+        long key = BlockPos.asLong(quartX, quartY, quartZ);
+        Biome cached = BIOME_CACHE.get(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        Biome biome = level.getBiome(pos).value();
+        if (BIOME_CACHE.size() >= MAX_BIOME_CACHE_SIZE) {
+            BIOME_CACHE.removeFirst();
+        }
+        BIOME_CACHE.put(key, biome);
+        return biome;
+    }
+
+    private static void markDirtyIfVisible(int x, int z) {
+        if (Math.abs(x - cachedCenterX) <= HEIGHT_MAP_RADIUS
+                && Math.abs(z - cachedCenterZ) <= HEIGHT_MAP_RADIUS) {
+            heightTextureDirty = true;
+        }
+    }
+
+    private static long columnKey(int x, int z) {
+        return (long) x & 0xFFFFFFFFL | ((long) z & 0xFFFFFFFFL) << 32;
+    }
+
+    private record ColumnSample(int snowBandBase, int surfaceY, int snowMask) {
     }
 
     private static final class SnowMesh {

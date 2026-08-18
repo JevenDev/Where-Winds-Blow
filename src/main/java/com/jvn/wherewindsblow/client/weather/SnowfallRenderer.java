@@ -36,11 +36,12 @@ import org.joml.Vector3f;
 public final class SnowfallRenderer {
     private static final ResourceLocation SNOW_TEXTURE =
             ResourceLocation.withDefaultNamespace("textures/environment/snow.png");
-    private static final int FANCY_RADIUS = 12;
-    private static final int FAST_RADIUS = 7;
-    private static final int FANCY_FLAKES_PER_COLUMN = 12;
-    private static final int FAST_FLAKES_PER_COLUMN = 6;
-    private static final float FANCY_VERTICAL_SPAN = 22.0F;
+    // Conservative fallback values used only when the persistent GPU snowfall path is unavailable.
+    private static final int FANCY_RADIUS = 10;
+    private static final int FAST_RADIUS = 6;
+    private static final int FANCY_FLAKES_PER_COLUMN = 8;
+    private static final int FAST_FLAKES_PER_COLUMN = 4;
+    private static final float FANCY_VERTICAL_SPAN = 20.0F;
     private static final float FAST_VERTICAL_SPAN = 14.0F;
     private static final float EDGE_FADE_START = 0.72F;
     private static final float VERTICAL_FADE_DEPTH = 2.0F;
