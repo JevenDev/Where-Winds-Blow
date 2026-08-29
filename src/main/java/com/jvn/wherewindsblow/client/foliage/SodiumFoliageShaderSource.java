@@ -82,12 +82,12 @@ public final class SodiumFoliageShaderSource {
 
             bool wwb_is_plant_wind_vertex(float alpha) {
                 float encoded = alpha * 255.0;
-                return (encoded >= 16.5 && encoded <= 44.5) || (encoded >= 104.5 && encoded <= 132.5);
+                return (encoded >= 16.5 && encoded <= 44.5) || (encoded >= 104.5 && encoded <= 216.5);
             }
 
-            bool wwb_is_column_wind_vertex(float alpha) {
+            bool wwb_is_coherent_plant_wind_vertex(float alpha) {
                 float encoded = alpha * 255.0;
-                return encoded >= 104.5 && encoded <= 132.5;
+                return encoded >= 104.5 && encoded <= 216.5;
             }
 
             bool wwb_is_leaf_wind_vertex(float alpha) {
@@ -110,8 +110,11 @@ public final class SodiumFoliageShaderSource {
             }
 
             float wwb_plant_alpha_code(float alpha) {
-                float alphaMin = wwb_is_column_wind_vertex(alpha) ? 105.0 : 17.0;
-                return clamp(floor(alpha * 255.0 + 0.5) - alphaMin, 0.0, 27.0);
+                float code = floor(alpha * 255.0 + 0.5)
+                        - (wwb_is_coherent_plant_wind_vertex(alpha) ? 105.0 : 17.0);
+                return wwb_is_coherent_plant_wind_vertex(alpha)
+                        ? mod(code, 28.0)
+                        : clamp(code, 0.0, 27.0);
             }
 
             float wwb_decode_plant_wind_alpha(float alpha) {
@@ -173,9 +176,28 @@ public final class SodiumFoliageShaderSource {
                 return wwb_smooth_curve(1.0 - (progress - releaseStart) / max(1.0 - releaseStart, 0.001));
             }
 
+            float wwb_cell_with_parity(float coordinate, float expectedParity) {
+                float cell = floor(coordinate);
+                if (mod(cell, 2.0) != expectedParity) {
+                    cell += fract(coordinate) < 0.5 ? -1.0 : 1.0;
+                }
+                return cell;
+            }
+
             vec2 wwb_foliage_motion_position(vec3 position, float alpha) {
                 vec2 worldPosition = position.xz + u_WwbCameraPosition.xz;
-                return wwb_is_column_wind_vertex(alpha) ? floor(worldPosition) + vec2(0.5) : worldPosition;
+                if (!wwb_is_coherent_plant_wind_vertex(alpha)) {
+                    return worldPosition;
+                }
+
+                float parityCode = floor(
+                        (floor(alpha * 255.0 + 0.5) - 105.0) / 28.0
+                );
+                vec2 expectedParity = vec2(mod(parityCode, 2.0), floor(parityCode / 2.0));
+                return vec2(
+                        wwb_cell_with_parity(worldPosition.x, expectedParity.x),
+                        wwb_cell_with_parity(worldPosition.y, expectedParity.y)
+                ) + vec2(0.5);
             }
 
             vec2 wwb_sample_dynamic_wind(vec2 worldPosition, out float gustStrength, out float turbulence, out float leadingEdge) {
@@ -407,9 +429,7 @@ public final class SodiumFoliageShaderSource {
                         continue;
                     }
 
-                    vec2 direction = horizontalDistance > 0.001
-                            ? delta / horizontalDistance
-                            : (trailLengthSqr > 0.000001 ? -normalize(trail) : vec2(1.0, 0.0));
+                    vec2 direction = delta / max(horizontalDistance, 0.001);
                     totalOffset += direction * horizontalInfluence * verticalInfluence * motion.w;
                 }
 
@@ -590,8 +610,8 @@ public final class SodiumFoliageShaderSource {
                 float wwbLocalTurbulence = u_WwbWindTurbulence;
                 float wwbGustLeadingEdge = 0.0;
                 vec2 wwbLocalWindDirection = normalize(u_WwbWindDirection);
+                vec2 wwbMotionPosition = wwb_foliage_motion_position(position, wwbFoliageAlpha);
                 if (wwb_should_apply_foliage_wind(wwbFoliageAlpha)) {
-                    vec2 wwbMotionPosition = wwb_foliage_motion_position(position, wwbFoliageAlpha);
                     wwbLocalWindDirection = wwb_sample_dynamic_wind(
                             wwbMotionPosition,
                             wwbLocalGustStrength,
@@ -607,10 +627,8 @@ public final class SodiumFoliageShaderSource {
                         wwbLocalTurbulence,
                         wwbGustLeadingEdge
                 );
-                // Use the displaced vertex itself for interaction sampling. Flooring randomized
-                // model positions can assign vertices from one plant to different block cells.
-                vec2 wwbInteractionSample = position.xz;
-                vec2 wwbPlantAnchor = floor(_vert_position.xz) + vec2(0.5) + (position.xz - _vert_position.xz);
+                vec2 wwbInteractionAnchor = wwbMotionPosition - u_WwbCameraPosition.xz;
+                vec2 wwbPlantAnchor = wwbInteractionAnchor;
                 vec3 wwbFoliageBase = position;
                 position = wwb_apply_foliage_wind(
                         position,
@@ -621,7 +639,7 @@ public final class SodiumFoliageShaderSource {
                         wwbGustLeadingEdge
                 );
                 position = wwb_apply_lantern_wind(position, wwbFoliageAlpha);
-                position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbInteractionSample, wwbFoliageAlpha);""";
+                position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbInteractionAnchor, wwbFoliageAlpha);""";
 
     private static final String WIND_COLOR_INJECTION = """
                 if (wwb_is_plant_wind_vertex(wwbFoliageAlpha) && u_WwbFoliageColorVariationStrength > 0.0) {

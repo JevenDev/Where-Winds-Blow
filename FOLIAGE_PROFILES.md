@@ -14,16 +14,13 @@ They can be supplied by a mod or a client resource pack. Reload resources with `
 
 ```json
 {
-  "type": "foliage",
+  "type": "flower",
   "priority": 100,
   "interactive": true,
   "sway_start_height_multiplier": 0.8,
   "sway_strength_multiplier": 0.9,
   "interaction_strength_multiplier": 1.0,
-  "blocks": [
-    "examplemod:blue_flower",
-    "#examplemod:soft_shrubs"
-  ]
+  "blocks": "examplemod:blue_flower"
 }
 ```
 
@@ -34,15 +31,16 @@ They can be supplied by a mod or a client resource pack. Reload resources with `
 | Type | Anchor and motion | Typical use |
 | --- | --- | --- |
 | `grass` | Bottom-rooted, single block | Grass, ferns, small ground cover |
-| `foliage` | Bottom-rooted, single block | Flowers, saplings, decorative foliage |
+| `flower` | Bottom-rooted, coherent single-block cutout | Flowers whose planes should stay together |
+| `foliage` | Bottom-rooted, single block | Saplings and decorative foliage |
 | `crop` | Bottom-rooted, single block | Crops and stems |
 | `tall_foliage` | Bottom-rooted, profile-wide vertical column | Tall grass, reeds, upward vines |
-| `rigid_column` | Bottom-rooted column with one shared wind sample per block | Sugar cane and other rigid stalks |
+| `rigid_column` | Bottom-rooted, coherent rigid column | Sugar cane and other rigid stalks |
 | `hanging_foliage` | Top-rooted, profile-wide vertical column | Hanging roots and downward vines |
 | `leaves` | Distributed movement across leaf-block geometry | Tree leaves |
 | `none` | No sway or interaction | Explicit opt-out override |
 
-Blocks in the same `tall_foliage`, `rigid_column`, or `hanging_foliage` profile are treated as one continuous column. Put related head and body blocks in the same file. Use `rigid_column` when all vertices in a stalk should share one wind phase and direction instead of flexing independently.
+The `flower` type uses one horizontal wind and interaction anchor per block so the planes of a cutout model stay together. Other flexible plant types retain per-vertex motion. Blocks in the same `tall_foliage`, `rigid_column`, or `hanging_foliage` profile are treated as one continuous vertical column. Put related head and body blocks in the same file. Use `rigid_column` for straight stalks such as sugar cane.
 
 ## Fields
 
@@ -71,4 +69,4 @@ A high-priority `none` profile prevents a block from inheriting a broader tag-ba
 }
 ```
 
-Where Winds Blow ships separate default profiles for leaves, grass, general foliage, crops, tall foliage, rigid stalks, and hanging foliage under `assets/where_winds_blow/where_winds_blow/foliage_profiles/`.
+Where Winds Blow ships separate default profiles for leaves, grass, flowers, general foliage, crops, tall foliage, rigid stalks, and hanging foliage under `assets/where_winds_blow/where_winds_blow/foliage_profiles/`.

@@ -2,24 +2,25 @@ package com.jvn.wherewindsblow.client.foliage;
 
 enum ResponsiveFoliageType {
     NONE(false, false, false, false),
-    GRASS(false, false, false, false),
-    FOLIAGE(false, false, false, false),
-    CROP(false, false, false, false),
-    TALL_FOLIAGE(false, true, false, false),
+    GRASS(false, false, false, true),
+    FLOWER(false, false, false, true),
+    FOLIAGE(false, false, false, true),
+    CROP(false, false, false, true),
+    TALL_FOLIAGE(false, true, false, true),
     RIGID_COLUMN(false, true, false, true),
-    HANGING_FOLIAGE(false, true, true, false),
+    HANGING_FOLIAGE(false, true, true, true),
     LEAVES(true, false, false, false);
 
     private final boolean leaves;
     private final boolean column;
     private final boolean hangsFromTop;
-    private final boolean coherentColumnMotion;
+    private final boolean coherentCutoutMotion;
 
-    ResponsiveFoliageType(boolean leaves, boolean column, boolean hangsFromTop, boolean coherentColumnMotion) {
+    ResponsiveFoliageType(boolean leaves, boolean column, boolean hangsFromTop, boolean coherentCutoutMotion) {
         this.leaves = leaves;
         this.column = column;
         this.hangsFromTop = hangsFromTop;
-        this.coherentColumnMotion = coherentColumnMotion;
+        this.coherentCutoutMotion = coherentCutoutMotion;
     }
 
     boolean isLeaves() {
@@ -38,7 +39,7 @@ enum ResponsiveFoliageType {
         return hangsFromTop;
     }
 
-    boolean usesCoherentColumnMotion() {
-        return coherentColumnMotion;
+    boolean usesCoherentCutoutMotion() {
+        return coherentCutoutMotion;
     }
 }

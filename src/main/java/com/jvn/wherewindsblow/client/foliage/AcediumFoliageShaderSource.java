@@ -40,14 +40,13 @@ public final class AcediumFoliageShaderSource {
     private static final String WIND_POSITION_INJECTION = """
                 _material_params = decodeVertexMaterial(V);
                 float wwbFoliageAlpha = wwb_decode_acedium_marker(V);
-                vec3 wwbDecodedPosition = decodeVertexPosition(V);
                 pos += subchunkOffset.xyz;
                 float wwbLocalGustStrength = 0.0;
                 float wwbLocalTurbulence = u_WwbWindTurbulence;
                 float wwbGustLeadingEdge = 0.0;
                 vec2 wwbLocalWindDirection = normalize(u_WwbWindDirection);
+                vec2 wwbMotionPosition = wwb_foliage_motion_position(pos, wwbFoliageAlpha);
                 if (wwb_should_apply_foliage_wind(wwbFoliageAlpha)) {
-                    vec2 wwbMotionPosition = wwb_foliage_motion_position(pos, wwbFoliageAlpha);
                     wwbLocalWindDirection = wwb_sample_dynamic_wind(
                             wwbMotionPosition,
                             wwbLocalGustStrength,
@@ -63,8 +62,8 @@ public final class AcediumFoliageShaderSource {
                         wwbLocalTurbulence,
                         wwbGustLeadingEdge
                 );
-                vec2 wwbInteractionSample = pos.xz;
-                vec2 wwbPlantAnchor = floor(wwbDecodedPosition.xz) + vec2(0.5) + (pos.xz - wwbDecodedPosition.xz);
+                vec2 wwbInteractionAnchor = wwbMotionPosition - u_WwbCameraPosition.xz;
+                vec2 wwbPlantAnchor = wwbInteractionAnchor;
                 vec3 wwbFoliageBase = pos;
                 pos = wwb_apply_foliage_wind(
                         pos,
@@ -75,7 +74,7 @@ public final class AcediumFoliageShaderSource {
                         wwbGustLeadingEdge
                 );
                 pos = wwb_apply_lantern_wind(pos, wwbFoliageAlpha);
-                pos = wwb_apply_foliage_interaction(pos, wwbFoliageBase, wwbInteractionSample, wwbFoliageAlpha);
+                pos = wwb_apply_foliage_interaction(pos, wwbFoliageBase, wwbInteractionAnchor, wwbFoliageAlpha);
                 pos -= subchunkOffset.xyz;""";
 
     private static final String WIND_COLOR_INJECTION = """

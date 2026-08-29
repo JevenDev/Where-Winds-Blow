@@ -82,12 +82,12 @@ out float windSheen;
 
 bool isPlantWindAlpha(float alpha) {
     float encoded = alpha * 255.0;
-    return (encoded >= 16.5 && encoded <= 44.5) || (encoded >= 104.5 && encoded <= 132.5);
+    return (encoded >= 16.5 && encoded <= 44.5) || (encoded >= 104.5 && encoded <= 216.5);
 }
 
-bool isColumnWindAlpha(float alpha) {
+bool isCoherentPlantWindAlpha(float alpha) {
     float encoded = alpha * 255.0;
-    return encoded >= 104.5 && encoded <= 132.5;
+    return encoded >= 104.5 && encoded <= 216.5;
 }
 
 bool isLeafWindAlpha(float alpha) {
@@ -110,8 +110,11 @@ bool isFoliageWindVertex(float alpha) {
 }
 
 float plantAlphaCode(float alpha) {
-    float alphaMin = isColumnWindAlpha(alpha) ? 105.0 : 17.0;
-    return clamp(floor(alpha * 255.0 + 0.5) - alphaMin, 0.0, 27.0);
+    float code = floor(alpha * 255.0 + 0.5)
+            - (isCoherentPlantWindAlpha(alpha) ? 105.0 : 17.0);
+    return isCoherentPlantWindAlpha(alpha)
+            ? mod(code, 28.0)
+            : clamp(code, 0.0, 27.0);
 }
 
 float decodePlantInteractionAlpha(float alpha) {
@@ -182,9 +185,28 @@ float gustEnvelope(float progress, float attackEnd, float releaseStart) {
     return smoothCurve(1.0 - (progress - releaseStart) / max(1.0 - releaseStart, 0.001));
 }
 
+float cellWithParity(float coordinate, float expectedParity) {
+    float cell = floor(coordinate);
+    if (mod(cell, 2.0) != expectedParity) {
+        cell += fract(coordinate) < 0.5 ? -1.0 : 1.0;
+    }
+    return cell;
+}
+
 vec2 foliageMotionPosition(vec3 position, float alpha) {
     vec2 worldPosition = position.xz + CameraPosition.xz;
-    return isColumnWindAlpha(alpha) ? floor(worldPosition) + vec2(0.5) : worldPosition;
+    if (!isCoherentPlantWindAlpha(alpha)) {
+        return worldPosition;
+    }
+
+    float parityCode = floor(
+            (floor(alpha * 255.0 + 0.5) - 105.0) / 28.0
+    );
+    vec2 expectedParity = vec2(mod(parityCode, 2.0), floor(parityCode / 2.0));
+    return vec2(
+            cellWithParity(worldPosition.x, expectedParity.x),
+            cellWithParity(worldPosition.y, expectedParity.y)
+    ) + vec2(0.5);
 }
 
 vec2 sampleDynamicWind(vec2 worldPosition, out float gustStrength, out float turbulence, out float leadingEdge) {
@@ -310,9 +332,7 @@ vec3 foliageInteractionOffset(vec3 pos, vec2 anchor, float bend) {
             continue;
         }
 
-        vec2 direction = horizontalDistance > 0.001
-                ? delta / horizontalDistance
-                : (trailLengthSqr > 0.000001 ? -normalize(trail) : vec2(1.0, 0.0));
+        vec2 direction = delta / max(horizontalDistance, 0.001);
         totalOffset += direction * horizontalInfluence * verticalInfluence * motion.w;
     }
 
@@ -540,10 +560,9 @@ void main() {
         }
 
         if (interactionMarker) {
-            // Randomized model offsets can place vertices from one plant on opposite sides of
-            // a block boundary. Sample continuously so flooring cannot split the quad.
+            vec2 interactionAnchor = foliageMotionPosition(basePos, Color.a);
             vec3 interaction = foliageInteractionOffset(
-                    worldBasePos, worldBasePos.xz, interactionBend);
+                    worldBasePos, interactionAnchor, interactionBend);
             vec2 windOffset = pos.xz - basePos.xz;
             float windKeep = mix(1.0, 0.18, interaction.z);
             pos.xz = basePos.xz + interaction.xy + windOffset * windKeep;
@@ -556,7 +575,7 @@ void main() {
     vec4 lightmapColor = minecraft_sample_lightmap(Sampler2, UV2);
     vertexColor = vec4(Color.rgb, 1.0) * lightmapColor;
     if (isPlantWindAlpha(Color.a) && FoliageColorVariationStrength > 0.0) {
-        vec2 colorAnchor = floor((Position + ChunkOffset).xz + CameraPosition.xz) + vec2(0.5);
+        vec2 colorAnchor = foliageMotionPosition(Position + ChunkOffset, Color.a);
         float variation = clamp(
                 foliageColorVariation(colorAnchor) * FoliageColorVariationStrength,
                 -0.26,

@@ -6,7 +6,6 @@
   "sway_strength_multiplier": 0.9,
   "interaction_strength_multiplier": 0.8,
   "blocks": [
-    "#minecraft:small_flowers",
     "#minecraft:saplings",
     "minecraft:pink_petals"
   ]
