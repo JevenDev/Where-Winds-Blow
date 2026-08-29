@@ -434,7 +434,7 @@ public final class WhereWindsBlowConfigScreen {
                 .group(OptionGroup.createBuilder()
                         .name(translatable("group.interactivity"))
                         .description(description("group.interactivity.description"))
-                        .option(booleanOption(ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY))
+                        .option(booleanOption(ClientConfig.ENABLE_FOLIAGE_INTERACTIVITY, DynamicWindManager::reloadConfiguration))
                         .option(doubleOption(
                                 ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH,
                                 ClientConfig.FOLIAGE_INTERACTIVITY_STRENGTH_MIN,

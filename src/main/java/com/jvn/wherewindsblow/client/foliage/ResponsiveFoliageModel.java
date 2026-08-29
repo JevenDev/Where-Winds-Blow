@@ -2,6 +2,7 @@ package com.jvn.wherewindsblow.client.foliage;
 
 import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.toucanlib.util.ToucanBoundedCache;
+import com.jvn.wherewindsblow.client.wind.WindExposureCache;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,6 +58,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         if (profile == null && leafSnowSupport == null) {
             return originalData;
         }
+        WindExposureCache.trackSection(pos);
 
         boolean encodeVertexMarkers = ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers();
         if (leafSnowSupport != null) {

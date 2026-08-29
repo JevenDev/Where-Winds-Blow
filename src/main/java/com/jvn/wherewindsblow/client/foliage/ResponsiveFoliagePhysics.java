@@ -394,9 +394,19 @@ public final class ResponsiveFoliagePhysics {
         double directionX = surfaceDeltaX;
         double directionZ = surfaceDeltaZ;
         double directionLength = Math.sqrt(directionX * directionX + directionZ * directionZ);
-        double directionDivisor = Math.max(directionLength, 0.001D);
-        directionX /= directionDivisor;
-        directionZ /= directionDivisor;
+        if (directionLength > 0.001D) {
+            directionX /= directionLength;
+            directionZ /= directionLength;
+        } else {
+            double trailLength = Math.sqrt(trailLengthSqr);
+            if (trailLength > 0.001D) {
+                directionX = -shape.trailX() / trailLength;
+                directionZ = -shape.trailZ() / trailLength;
+            } else {
+                directionX = 1.0D;
+                directionZ = 0.0D;
+            }
+        }
 
         BlockPos key = pos.immutable();
         FoliageImpulse impulse = FoliageImpulse.create((float) directionX * offset, (float) directionZ * offset, nowMillis);

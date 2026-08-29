@@ -4,8 +4,12 @@ import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.toucanlib.util.ToucanBoundedCache;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.config.ClientConfig;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import net.minecraft.Util;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.LightLayer;
@@ -20,8 +24,10 @@ public final class WindExposureCache {
     private static final int CELL_SIZE = 2;
     private static final int DIRECTION_BUCKETS = 16;
     private static final int MAX_ENTRIES = 4096;
-    private static final long ENTRY_TTL_MILLIS = 3000L;
+    private static final int MAX_TRACKED_SECTIONS = 32768;
+    static final long STALE_AFTER_MILLIS = 3000L;
     private static final ToucanBoundedCache<Long, Entry> CACHE = new ToucanBoundedCache<>(256, MAX_ENTRIES);
+    private static final Set<Long> TRACKED_SECTIONS = new LinkedHashSet<>();
 
     private WindExposureCache() {
     }
@@ -40,7 +46,7 @@ public final class WindExposureCache {
         long now = Util.getMillis();
         synchronized (CACHE) {
             Entry cached = CACHE.get(key);
-            if (cached != null && now - cached.createdAtMillis() <= ENTRY_TTL_MILLIS) {
+            if (cached != null && now - cached.createdAtMillis() <= STALE_AFTER_MILLIS) {
                 return cached.exposure();
             }
         }
@@ -69,9 +75,38 @@ public final class WindExposureCache {
         return 1.0F + exposedHeight * influence * 0.25F;
     }
 
+    public static void trackSection(BlockPos pos) {
+        long section = SectionPos.asLong(pos);
+        synchronized (CACHE) {
+            TRACKED_SECTIONS.remove(section);
+            TRACKED_SECTIONS.add(section);
+            if (TRACKED_SECTIONS.size() > MAX_TRACKED_SECTIONS) {
+                TRACKED_SECTIONS.remove(TRACKED_SECTIONS.iterator().next());
+            }
+        }
+    }
+
+    static void invalidateSamples() {
+        synchronized (CACHE) {
+            CACHE.clear();
+        }
+    }
+
+    static void invalidateTrackedSections(LevelRenderer levelRenderer) {
+        Set<Long> sections;
+        synchronized (CACHE) {
+            CACHE.clear();
+            sections = Set.copyOf(TRACKED_SECTIONS);
+        }
+        for (long section : sections) {
+            levelRenderer.setSectionDirty(SectionPos.x(section), SectionPos.y(section), SectionPos.z(section));
+        }
+    }
+
     public static void clear() {
         synchronized (CACHE) {
             CACHE.clear();
+            TRACKED_SECTIONS.clear();
         }
     }
 
@@ -164,7 +199,7 @@ public final class WindExposureCache {
         return Mth.clamp(level.getBrightness(LightLayer.SKY, pos) / 15.0F, 0.0F, 1.0F);
     }
 
-    private static int directionBucket(float windX, float windZ) {
+    static int directionBucket(float windX, float windZ) {
         float angle = (float) Math.atan2(windZ, windX);
         return Math.floorMod(Math.round(angle * DIRECTION_BUCKETS / Mth.TWO_PI), DIRECTION_BUCKETS);
     }

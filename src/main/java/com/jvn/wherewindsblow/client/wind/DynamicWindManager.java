@@ -78,6 +78,8 @@ public final class DynamicWindManager {
     private static boolean appliedDynamicWindMode;
     private static ClientConfig.WindDirectionMode appliedDirectionMode;
     private static boolean configModeInitialized;
+    private static int renderedExposureDirectionBucket = -1;
+    private static long lastExposureRebuildMillis;
 
     private DynamicWindManager() {
     }
@@ -257,6 +259,12 @@ public final class DynamicWindManager {
 
     public static void reloadConfiguration() {
         WindReactiveBannerRenderer.reset();
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level != null) {
+            WindExposureCache.invalidateTrackedSections(minecraft.levelRenderer);
+        } else {
+            WindExposureCache.invalidateSamples();
+        }
         boolean dynamicWindMode = ClientConfig.ENABLE_DYNAMIC_WIND.getAsBoolean();
         ClientConfig.WindDirectionMode directionMode = ClientConfig.WIND_DIRECTION_MODE.get();
         boolean modeChanged = configModeInitialized
@@ -269,7 +277,6 @@ public final class DynamicWindManager {
             return;
         }
 
-        WindExposureCache.clear();
         float maximumHoldTime = (float) ClientConfig.MAX_DIRECTION_HOLD_TIME.getAsDouble();
         directionChangeCountdown = Math.min(directionChangeCountdown, maximumHoldTime);
         if (!ClientConfig.ENABLE_WIND_LULLS.getAsBoolean()) {
@@ -399,6 +406,7 @@ public final class DynamicWindManager {
                 transitionProgress,
                 activeProfile.id()
         );
+        refreshBakedWindExposure(direction, now);
     }
 
     private static void ensureLifecycle() {
@@ -445,6 +453,8 @@ public final class DynamicWindManager {
         gustSpawnCountdown = 0.0F;
         clearGusts();
         WindExposureCache.clear();
+        renderedExposureDirectionBucket = -1;
+        lastExposureRebuildMillis = 0L;
 
         if (level == null) {
             state = STILL_STATE;
@@ -457,6 +467,8 @@ public final class DynamicWindManager {
         }
 
         Direction direction = directionFromDegrees(prevailingDirectionDegrees);
+        renderedExposureDirectionBucket = WindExposureCache.directionBucket(direction.x(), direction.z());
+        lastExposureRebuildMillis = lastUpdateMillis;
         float weatherPower = targetWeatherWindPower(level);
         ambientStrength = weatherPower * (float) ClientConfig.OVERALL_WIND_STRENGTH.getAsDouble();
         simulationSeed = mix64(level.dimension().location().hashCode());
@@ -501,6 +513,7 @@ public final class DynamicWindManager {
         CampfireSmokePlumes.reset();
         WindStreakRenderer.reset();
         WindReactiveBannerRenderer.reset();
+        TumbleweedRenderer.reset();
     }
 
     private static float targetWeatherWindPower(ClientLevel level) {
@@ -563,8 +576,24 @@ public final class DynamicWindManager {
             return;
         }
         appliedProfileRevision = revision;
-        WindExposureCache.clear();
+        WindExposureCache.invalidateSamples();
         gustSpawnCountdown = Math.min(gustSpawnCountdown, 1.0F);
+    }
+
+    private static void refreshBakedWindExposure(Direction direction, long nowMillis) {
+        if (activeLevel == null || !ClientConfig.ENABLE_LOCAL_WIND_EXPOSURE.getAsBoolean()) {
+            return;
+        }
+
+        int directionBucket = WindExposureCache.directionBucket(direction.x(), direction.z());
+        if (directionBucket == renderedExposureDirectionBucket
+                || nowMillis - lastExposureRebuildMillis < WindExposureCache.STALE_AFTER_MILLIS) {
+            return;
+        }
+
+        renderedExposureDirectionBucket = directionBucket;
+        lastExposureRebuildMillis = nowMillis;
+        WindExposureCache.invalidateTrackedSections(Minecraft.getInstance().levelRenderer);
     }
 
     private static Direction updateDirection(
