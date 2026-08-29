@@ -47,6 +47,9 @@ public final class GrassCoverFeature extends Feature<GrassCoverConfiguration> {
 
                 int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
                 pos.set(x, y, z);
+                if (!configuration.biomes().contains(level.getBiome(pos))) {
+                    continue;
+                }
                 if (!level.getBlockState(pos).isAir() || !level.getFluidState(pos).isEmpty()) {
                     continue;
                 }

@@ -1,6 +1,7 @@
 {
   "type": "where_winds_blow:grass_cover",
   "config": {
+    "biomes": "#where_winds_blow:has_medium_short_grass",
     "density": "medium_short_grass",
     "coverage_per_pass": 0.065,
     "to_place": {
