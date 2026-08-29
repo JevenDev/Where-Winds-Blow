@@ -108,7 +108,8 @@ public final class DynamicWindManager {
             double y,
             double z
     ) {
-        GlobalWindState current = currentState();
+        ensureLifecycle();
+        GlobalWindState current = state;
         BiomeWindProfile profile = level != null && pos != null ? profileAt(pos) : activeProfile;
         boolean useEffectiveProfile = profile.id().equals(activeProfile.id());
         float baseStrengthMultiplier = useEffectiveProfile
@@ -121,7 +122,7 @@ public final class DynamicWindManager {
                 ? effectiveTurbulenceMultiplier
                 : profile.turbulenceMultiplier();
         MutableGustContribution gust = GUST_SCRATCH.get();
-        sampleGustContribution(x, z, simulationTime(), gust);
+        sampleGustContribution(x, z, simulationTimeUnchecked(), gust);
         float localAmbient = level != null
                 ? ambientStrength * baseStrengthMultiplier
                 : current.ambientStrength();
@@ -192,6 +193,10 @@ public final class DynamicWindManager {
      */
     public static float simulationTime() {
         ensureLifecycle();
+        return simulationTimeUnchecked();
+    }
+
+    private static float simulationTimeUnchecked() {
         Minecraft minecraft = Minecraft.getInstance();
         if (activeLevel == null
                 || minecraft.isPaused()
@@ -212,11 +217,6 @@ public final class DynamicWindManager {
     public static long simulationSeed() {
         ensureLifecycle();
         return simulationSeed;
-    }
-
-    public static BiomeWindProfile activeBiomeProfile() {
-        currentState();
-        return activeProfile;
     }
 
     public static float effectiveGustStrengthMultiplier() {
@@ -380,8 +380,8 @@ public final class DynamicWindManager {
                 ? (0.035F + rainLevel * 0.075F + thunderLevel * 0.24F)
                         * (float) ClientConfig.TURBULENCE_STRENGTH.getAsDouble()
                 : 0.0F;
-        double sampleX = Minecraft.getInstance().player == null ? 0.0D : Minecraft.getInstance().player.getX();
-        double sampleZ = Minecraft.getInstance().player == null ? 0.0D : Minecraft.getInstance().player.getZ();
+        double sampleX = minecraft.player == null ? 0.0D : minecraft.player.getX();
+        double sampleZ = minecraft.player == null ? 0.0D : minecraft.player.getZ();
         MutableGustContribution localGust = GUST_SCRATCH.get();
         sampleGustContribution(sampleX, sampleZ, simulationTimeSeconds, localGust);
         float profiledAmbient = ambientStrength * effectiveBaseStrengthMultiplier;
@@ -428,10 +428,11 @@ public final class DynamicWindManager {
     private static void reset(@Nullable ClientLevel level) {
         boolean hadLevel = activeLevel != null;
         resetConsumers();
+        Minecraft minecraft = Minecraft.getInstance();
         activeLevel = level;
         activeDimension = level == null ? null : level.dimension();
         lastUpdateMillis = Util.getMillis();
-        wasWindowActive = Minecraft.getInstance().isWindowActive();
+        wasWindowActive = minecraft.isWindowActive();
         simulationSpeed = 1.0F;
         prevailingDirectionDegrees = configuredDirectionDegrees();
         directionStartDegrees = prevailingDirectionDegrees;
@@ -562,12 +563,15 @@ public final class DynamicWindManager {
         if (!ClientConfig.ENABLE_BIOME_WIND_PROFILES.getAsBoolean()) {
             return BiomeWindProfiles.neutral();
         }
-        ClientLevel clientLevel = activeLevel != null ? activeLevel : Minecraft.getInstance().level;
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientLevel clientLevel = activeLevel != null ? activeLevel : minecraft.level;
         if (clientLevel == null) {
             return BiomeWindProfiles.neutral();
         }
-        boolean preferServerProfiles = Minecraft.getInstance().getSingleplayerServer() != null;
-        return BiomeWindProfiles.resolve(clientLevel.getBiome(pos), preferServerProfiles);
+        return BiomeWindProfiles.resolve(
+                clientLevel.getBiome(pos),
+                minecraft.getSingleplayerServer() != null
+        );
     }
 
     private static void refreshProfileRevision() {

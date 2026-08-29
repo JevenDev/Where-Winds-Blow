@@ -127,10 +127,6 @@ public final class ResponsiveFoliage {
                 : null;
     }
 
-    public static boolean isWindExposed(BlockAndTintGetter level, BlockPos pos) {
-        return windExposure(level, pos) >= 0.5F;
-    }
-
     public static float windExposure(BlockAndTintGetter level, BlockPos pos) {
         GlobalWindState wind = DynamicWindManager.currentState();
         return WindExposureCache.exposureAt(level, pos, wind.directionX(), wind.directionZ());

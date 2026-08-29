@@ -115,15 +115,6 @@ public final class SwingingLanternAssemblyRenderer {
         bufferSource.endBatch();
     }
 
-    public static boolean ownsLanternAssembly(BlockState state, @javax.annotation.Nullable net.minecraft.world.level.BlockAndTintGetter level, @javax.annotation.Nullable BlockPos pos) {
-        return ClientConfig.ENABLE_WIND_LANTERN_SWAY.getAsBoolean()
-                && ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()
-                && level != null
-                && pos != null
-                && isHangingLantern(state)
-                && chainHeightAbove(level, pos) > 0;
-    }
-
     public static boolean ownsChainAssembly(LanternModelData.ChainSegment segment) {
         return ClientConfig.ENABLE_WIND_LANTERN_SWAY.getAsBoolean()
                 && ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()

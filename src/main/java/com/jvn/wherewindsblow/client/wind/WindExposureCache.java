@@ -110,12 +110,6 @@ public final class WindExposureCache {
         }
     }
 
-    public static int size() {
-        synchronized (CACHE) {
-            return CACHE.size();
-        }
-    }
-
     private static float calculateExposure(
             BlockAndTintGetter level,
             BlockPos origin,
