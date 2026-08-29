@@ -77,21 +77,33 @@ public final class ResponsiveFoliage {
             FoliageSwayProfile profile
     ) {
         boolean hangsFromTop = profile.type().hangsFromTop();
-        BlockPos root = pos;
+        int x = pos.getX();
+        int z = pos.getZ();
+        int rootY = pos.getY();
+        int rootStep = hangsFromTop ? 1 : -1;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int distanceToRoot = 0;
-        while (distanceToRoot < MAX_MODELED_COLUMN_HEIGHT - 1
-                && sameProfile(level, hangsFromTop ? root.above() : root.below(), profile)) {
-            root = hangsFromTop ? root.above() : root.below();
+        while (distanceToRoot < MAX_MODELED_COLUMN_HEIGHT - 1) {
+            cursor.set(x, rootY + rootStep, z);
+            if (!sameProfile(level, cursor, profile)) {
+                break;
+            }
+            rootY += rootStep;
             distanceToRoot++;
         }
 
+        int heightStep = hangsFromTop ? -1 : 1;
         int height = 0;
-        while (height < MAX_MODELED_COLUMN_HEIGHT
-                && sameProfile(level, hangsFromTop ? root.below(height) : root.above(height), profile)) {
+        while (height < MAX_MODELED_COLUMN_HEIGHT) {
+            cursor.set(x, rootY + height * heightStep, z);
+            if (!sameProfile(level, cursor, profile)) {
+                break;
+            }
             height++;
         }
 
-        int offset = hangsFromTop ? root.getY() - pos.getY() : pos.getY() - root.getY();
+        BlockPos root = new BlockPos(x, rootY, z);
+        int offset = hangsFromTop ? rootY - pos.getY() : pos.getY() - rootY;
         return new FoliageModelData.ColumnSegment(root, offset, height, hangsFromTop, profile.heightScale());
     }
 

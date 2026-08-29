@@ -28,6 +28,7 @@ public final class WindExposureCache {
     static final long STALE_AFTER_MILLIS = 3000L;
     private static final ToucanBoundedCache<Long, Entry> CACHE = new ToucanBoundedCache<>(256, MAX_ENTRIES);
     private static final Set<Long> TRACKED_SECTIONS = new LinkedHashSet<>();
+    private static long lastTrackedSection = Long.MIN_VALUE;
 
     private WindExposureCache() {
     }
@@ -78,11 +79,15 @@ public final class WindExposureCache {
     public static void trackSection(BlockPos pos) {
         long section = SectionPos.asLong(pos);
         synchronized (CACHE) {
+            if (section == lastTrackedSection) {
+                return;
+            }
             TRACKED_SECTIONS.remove(section);
             TRACKED_SECTIONS.add(section);
             if (TRACKED_SECTIONS.size() > MAX_TRACKED_SECTIONS) {
                 TRACKED_SECTIONS.remove(TRACKED_SECTIONS.iterator().next());
             }
+            lastTrackedSection = section;
         }
     }
 
@@ -107,6 +112,7 @@ public final class WindExposureCache {
         synchronized (CACHE) {
             CACHE.clear();
             TRACKED_SECTIONS.clear();
+            lastTrackedSection = Long.MIN_VALUE;
         }
     }
 

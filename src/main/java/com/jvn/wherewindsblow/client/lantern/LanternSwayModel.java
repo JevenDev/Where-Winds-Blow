@@ -179,19 +179,27 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
     }
 
     private static LanternModelData.ChainSegment chainSegment(BlockAndTintGetter level, BlockPos pos) {
-        BlockPos top = pos;
-        while (isVerticalChain(level.getBlockState(top.above()))) {
-            top = top.above();
+        int x = pos.getX();
+        int z = pos.getZ();
+        int topY = pos.getY();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        cursor.set(x, topY + 1, z);
+        while (isVerticalChain(level.getBlockState(cursor))) {
+            topY++;
+            cursor.setY(topY + 1);
         }
 
         int height = 0;
-        while (isVerticalChain(level.getBlockState(top.below(height)))) {
+        cursor.setY(topY);
+        while (isVerticalChain(level.getBlockState(cursor))) {
             height++;
+            cursor.setY(topY - height);
         }
 
+        BlockPos top = new BlockPos(x, topY, z);
         return new LanternModelData.ChainSegment(
                 top,
-                top.getY() - pos.getY(),
+                topY - pos.getY(),
                 height,
                 hasHangingLanternBelow(level, top, height),
                 ResponsiveFoliage.windExposure(level, pos)

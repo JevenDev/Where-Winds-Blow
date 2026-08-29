@@ -202,13 +202,18 @@ public final class SwingingLanternAssemblyRenderer {
         );
 
         float previousBend = 0.0F;
+        BlockPos.MutableBlockPos chainPos = new BlockPos.MutableBlockPos();
         for (int chainIndex = chainHeight - 1; chainIndex >= 0; chainIndex--) {
             float progress = (float) (chainHeight - chainIndex) / (float) chainHeight;
             float bend = chainBend(progress, chainHeight);
             applySwingPose(poseStack, swing, bend - previousBend);
             previousBend = bend;
 
-            BlockPos chainPos = lanternPos.above(chainIndex + 1);
+            chainPos.set(
+                    lanternPos.getX(),
+                    lanternPos.getY() + chainIndex + 1,
+                    lanternPos.getZ()
+            );
             BlockState chainState = level.getBlockState(chainPos);
             if (isVerticalChain(chainState)) {
                 poseStack.pushPose();
@@ -505,7 +510,16 @@ public final class SwingingLanternAssemblyRenderer {
 
     private static int chainHeightAbove(net.minecraft.world.level.BlockAndTintGetter level, BlockPos lanternPos) {
         int height = 0;
-        while (height < MAX_CHAIN_HEIGHT && isVerticalChain(level.getBlockState(lanternPos.above(height + 1)))) {
+        BlockPos.MutableBlockPos chainPos = new BlockPos.MutableBlockPos();
+        while (height < MAX_CHAIN_HEIGHT) {
+            chainPos.set(
+                    lanternPos.getX(),
+                    lanternPos.getY() + height + 1,
+                    lanternPos.getZ()
+            );
+            if (!isVerticalChain(level.getBlockState(chainPos))) {
+                break;
+            }
             height++;
         }
 
