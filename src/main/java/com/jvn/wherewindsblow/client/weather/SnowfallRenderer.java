@@ -47,6 +47,9 @@ public final class SnowfallRenderer {
     private static final float VERTICAL_FADE_DEPTH = 2.0F;
     private static final ToucanScaledAnimationClock SNOWFALL_ANIMATION_CLOCK =
             new ToucanScaledAnimationClock(5.0D);
+    private static final int MAX_SURFACE_CACHE_RADIUS = FANCY_RADIUS + 6;
+    private static final int MAX_SURFACE_CACHE_SIZE = MAX_SURFACE_CACHE_RADIUS * 2 + 1;
+    private static final int[] SURFACE_HEIGHT_CACHE = new int[MAX_SURFACE_CACHE_SIZE * MAX_SURFACE_CACHE_SIZE];
     private static final FlakeUv[] FLAKE_UVS = {
             flakeUv(30, 45),
             flakeUv(25, 54),
@@ -93,16 +96,20 @@ public final class SnowfallRenderer {
         int centerZ = Mth.floor(camZ);
         int surfaceCacheRadius = radius + 6;
         int surfaceCacheSize = surfaceCacheRadius * 2 + 1;
-        int[] surfaceCache = new int[surfaceCacheSize * surfaceCacheSize];
-        Arrays.fill(surfaceCache, Integer.MIN_VALUE);
+        int[] surfaceCache = SURFACE_HEIGHT_CACHE;
+        Arrays.fill(surfaceCache, 0, surfaceCacheSize * surfaceCacheSize, Integer.MIN_VALUE);
         boolean windDriven = ClientConfig.ENABLE_WIND_DRIVEN_SNOW.getAsBoolean();
         boolean dynamicSqualls = ClientConfig.ENABLE_DYNAMIC_RAIN_SQUALLS.getAsBoolean();
         float squallStrength = (float) ClientConfig.RAIN_SQUALL_STRENGTH.getAsDouble();
+        boolean desertStormEffects = ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean();
         float stormActivity = BlizzardWeatherEffects.blizzardActivity(thunder);
         SnowfallProfile profile = configuredProfile(stormActivity);
         float lull = dynamicSqualls
                 ? DynamicWindManager.currentState().lullAmount() * stormActivity
                 : 0.0F;
+        float lullFade = dynamicSqualls ? ToucanEasing.smoothstep(lull) * squallStrength : 0.0F;
+        double minimumY = camY - halfVerticalSpan;
+        float flutterTime = (float) animationTime * 0.055F;
         double flakeAnimationTime = SNOWFALL_ANIMATION_CLOCK.advance(
                 animationTime,
                 (1.0F + thunder * 0.16F) * profile.speedScale(),
@@ -128,7 +135,7 @@ public final class SnowfallRenderer {
             for (int x = centerX - radius - 2; x <= centerX + radius + 2; x++) {
                 samplePos.set(x, camY, z);
                 Holder<Biome> biomeHolder = level.getBiome(samplePos);
-                if (ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean()
+                if (desertStormEffects
                         && (biomeHolder.is(Tags.Biomes.IS_DESERT)
                                 || biomeHolder.is(Tags.Biomes.IS_BADLANDS))) {
                     continue;
@@ -145,7 +152,6 @@ public final class SnowfallRenderer {
                         ? ToucanEasing.smoothstep(Mth.clamp(wind.gustStrength() * 2.4F, 0.0F, 1.0F))
                                 * squallStrength * stormActivity
                         : 0.0F;
-                float lullFade = dynamicSqualls ? ToucanEasing.smoothstep(lull) * squallStrength : 0.0F;
                 float baseDensity = Mth.clamp(
                         0.68F + rainLevel * 0.20F + thunder * 0.08F
                                 + squall * 0.12F - lullFade * 0.18F,
@@ -154,6 +160,9 @@ public final class SnowfallRenderer {
                 );
                 float density = Mth.clamp(baseDensity * profile.densityScale(), 0.0F, 1.0F);
                 float opacity = Math.max(0.52F, 1.0F + squall * 0.16F - lullFade * 0.28F);
+                float driftRange = windDriven
+                        ? 0.45F + windStrength * 2.3F + thunder * 0.85F + squall * 0.75F
+                        : 0.0F;
 
                 for (int lane = 0; lane < flakesPerColumn; lane++) {
                     long hash = flakeHash(x, z, lane);
@@ -170,7 +179,6 @@ public final class SnowfallRenderer {
                     );
                     double rawY = unitFloat(hash ^ 0x1D8E4E27C47D124FL) * verticalSpan
                             - flakeAnimationTime * fallSpeed;
-                    double minimumY = camY - halfVerticalSpan;
                     double flakeY = minimumY + positiveModulo(
                             rawY - minimumY,
                             verticalSpan
@@ -181,11 +189,8 @@ public final class SnowfallRenderer {
                             1.0F
                     );
 
-                    float driftRange = windDriven
-                            ? 0.45F + windStrength * 2.3F + thunder * 0.85F + squall * 0.75F
-                            : 0.0F;
                     float centeredFall = phase - 0.5F;
-                    float flutterPhase = (float) animationTime * 0.055F
+                    float flutterPhase = flutterTime
                             + unitFloat(hash ^ 0xEB44ACCAB455D165L) * Mth.TWO_PI;
                     float flutter = windDriven
                             ? Mth.sin(flutterPhase)

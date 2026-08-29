@@ -233,9 +233,9 @@ public final class DesertStormRenderer {
         BlockPos.MutableBlockPos surfacePos = new BlockPos.MutableBlockPos();
         for (int textureZ = 0; textureZ < TERRAIN_SIZE; textureZ++) {
             int z = centerZ + textureZ - TERRAIN_RADIUS;
+            int previousZ = textureZ + deltaZ;
             for (int textureX = 0; textureX < TERRAIN_SIZE; textureX++) {
                 int previousX = textureX + deltaX;
-                int previousZ = textureZ + deltaZ;
                 if (canShift
                         && previousX >= 0 && previousX < TERRAIN_SIZE
                         && previousZ >= 0 && previousZ < TERRAIN_SIZE) {

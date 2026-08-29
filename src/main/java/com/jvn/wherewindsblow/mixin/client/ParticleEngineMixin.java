@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -53,13 +54,16 @@ public abstract class ParticleEngineMixin {
             Predicate<ParticleRenderType> renderTypePredicate
     ) {
         Particle first = particles.peek();
-        if (first == null || first.getRenderType() != CampfireSmokeRenderTypes.MERGED_PLUME) {
+        if (first == null
+                || first.getRenderType() != CampfireSmokeRenderTypes.MERGED_PLUME
+                || particles.size() < 2) {
             return particles.iterator();
         }
 
+        Vec3 cameraPosition = camera.getPosition();
         List<Particle> sorted = new ArrayList<>(particles);
         sorted.sort(Comparator.comparingDouble(
-                (Particle particle) -> particle.getPos().distanceToSqr(camera.getPosition())
+                (Particle particle) -> particle.getPos().distanceToSqr(cameraPosition)
         ).reversed());
         return sorted.iterator();
     }

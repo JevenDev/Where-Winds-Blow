@@ -231,11 +231,11 @@ public final class GpuSnowfallRenderer {
 
         BlockPos.MutableBlockPos biomePos = new BlockPos.MutableBlockPos();
         int minimumHeight = level.getMinBuildHeight();
+        int snowBandBase = centerY - SNOW_BAND_BELOW_CAMERA;
         for (int textureZ = 0; textureZ < HEIGHT_MAP_SIZE; textureZ++) {
             int z = centerZ + textureZ - HEIGHT_MAP_RADIUS;
             for (int textureX = 0; textureX < HEIGHT_MAP_SIZE; textureX++) {
                 int x = centerX + textureX - HEIGHT_MAP_RADIUS;
-                int snowBandBase = centerY - SNOW_BAND_BELOW_CAMERA;
                 ColumnSample sample = columnSample(level, x, z, snowBandBase, biomePos);
                 int surfaceY = sample.surfaceY();
                 int snowMask = sample.snowMask();

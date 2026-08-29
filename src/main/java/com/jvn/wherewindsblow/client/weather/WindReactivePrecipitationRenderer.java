@@ -75,11 +75,15 @@ public final class WindReactivePrecipitationRenderer {
         );
         boolean dynamicRainSqualls = ClientConfig.ENABLE_DYNAMIC_RAIN_SQUALLS.getAsBoolean();
         float squallStrength = (float) ClientConfig.RAIN_SQUALL_STRENGTH.getAsDouble();
+        boolean desertStormEffects = ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean();
+        boolean rainEffects = ClientConfig.ENABLE_RAIN_EFFECTS.getAsBoolean();
+        boolean slantedRain = ClientConfig.ENABLE_SLANTED_RAIN.getAsBoolean();
         float lullAmount = dynamicRainSqualls ? DynamicWindManager.currentState().lullAmount() : 0.0F;
         int centerX = Mth.floor(camX);
         int centerY = Mth.floor(camY);
         int centerZ = Mth.floor(camZ);
         int radius = Minecraft.useFancyGraphics() ? 10 : 5;
+        double radiusSquared = radius * (double) radius;
 
         Tesselator tesselator = Tesselator.getInstance();
         PrecipitationResponse cameraWeatherResponse = precipitationResponse(
@@ -101,6 +105,9 @@ public final class WindReactivePrecipitationRenderer {
                 level, lightTexture, rainLevel, thunder,
                 animationTime, camX, camY, camZ
         );
+        if (!rainEffects) {
+            return;
+        }
 
         // The dedicated weather passes restore render state, so configure the rain stream state
         // afterward rather than relying on state set before them.
@@ -123,7 +130,7 @@ public final class WindReactivePrecipitationRenderer {
                     double widthZ = rainSizeZ[sizeIndex] * 0.5D;
                     pos.set(x, camY, z);
                     Holder<Biome> biomeHolder = level.getBiome(pos);
-                    if (ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean()
+                    if (desertStormEffects
                             && (biomeHolder.is(Tags.Biomes.IS_DESERT)
                                     || biomeHolder.is(Tags.Biomes.IS_BADLANDS))) {
                         continue;
@@ -147,9 +154,6 @@ public final class WindReactivePrecipitationRenderer {
                     }
                     long hash = precipitationHash(x, z);
                     if (precipitation == Biome.Precipitation.RAIN) {
-                        if (!ClientConfig.ENABLE_RAIN_EFFECTS.getAsBoolean()) {
-                            continue;
-                        }
                         WindSample wind = DynamicWindManager.sampleWind(level, pos);
                         float windStrength = Mth.clamp(wind.strength(), 0.0F, 3.0F);
                         PrecipitationResponse weatherResponse = precipitationResponse(
@@ -182,8 +186,10 @@ public final class WindReactivePrecipitationRenderer {
                         float scrollSpeed = 2.8F
                                 + unitFloat(hash ^ 0x243F6A8885A308D3L) * 1.8F;
                         float scroll = (float) (-((precipitationAnimationTime + (hash & 255L)) / 32.0D * scrollSpeed) % 32.0D);
-                        float distance = horizontalDistance(x, z, camX, camZ) / radius;
-                        float alpha = ((1.0F - distance * distance) * 0.5F + 0.5F) * rainLevel;
+                        float normalizedDistanceSquared = (float) (
+                                horizontalDistanceSquared(x, z, camX, camZ) / radiusSquared
+                        );
+                        float alpha = ((1.0F - normalizedDistanceSquared) * 0.5F + 0.5F) * rainLevel;
                         alpha *= Mth.lerp(thunder, 0.68F, 0.96F);
                         alpha *= Mth.lerp(unitFloat(hash ^ 0xA4093822299F31D0L), 0.86F, 1.08F);
                         alpha *= weatherResponse.opacityMultiplier();
@@ -193,7 +199,7 @@ public final class WindReactivePrecipitationRenderer {
 
                         if (primaryVisibility > 0.01F) {
                             float widthScale = Mth.lerp(unitFloat(hash ^ 0x082EFA98EC4E6C89L), 0.78F, 1.22F);
-                            RainDrift primaryDrift = ClientConfig.ENABLE_SLANTED_RAIN.getAsBoolean()
+                            RainDrift primaryDrift = slantedRain
                                     ? rainDrift(
                                             wind, windStrength, thunder,
                                             rainAngleVariation * weatherResponse.angleVariationMultiplier(),
@@ -206,7 +212,7 @@ public final class WindReactivePrecipitationRenderer {
                         }
 
                         if (secondaryVisibility > 0.01F) {
-                            RainDrift secondaryDrift = ClientConfig.ENABLE_SLANTED_RAIN.getAsBoolean()
+                            RainDrift secondaryDrift = slantedRain
                                     ? rainDrift(
                                             wind, windStrength, thunder,
                                             rainAngleVariation * weatherResponse.angleVariationMultiplier(),
@@ -248,10 +254,10 @@ public final class WindReactivePrecipitationRenderer {
         buffer.addVertex(leftX, bottom, leftZ).setUv(0.0F, topY * 0.25F + scroll).setColor(0.82F, 0.86F, 0.72F, alpha).setLight(light);
     }
 
-    private static float horizontalDistance(int x, int z, double camX, double camZ) {
+    private static double horizontalDistanceSquared(int x, int z, double camX, double camZ) {
         double dx = x + 0.5D - camX;
         double dz = z + 0.5D - camZ;
-        return (float) Math.sqrt(dx * dx + dz * dz);
+        return dx * dx + dz * dz;
     }
 
     private static long precipitationHash(int x, int z) {
