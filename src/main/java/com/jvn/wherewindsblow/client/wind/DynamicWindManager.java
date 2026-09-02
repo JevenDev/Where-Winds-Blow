@@ -28,7 +28,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class DynamicWindManager {
     public static final int MAX_ACTIVE_GUSTS = 3;
-    private static final float MAX_UPDATE_DELTA_SECONDS = 0.25F;
+    private static final float MAX_UPDATE_DELTA_SECONDS = 0.05F;
+    private static final float SHADER_TIME_PERIOD_SECONDS = (float) (Math.PI * 2000.0D);
     private static final GlobalWindState STILL_STATE = new GlobalWindState(
             0.0F, -1.0F,
             0.0F, -1.0F,
@@ -52,6 +53,7 @@ public final class DynamicWindManager {
     private static long lastUpdateMillis;
     private static boolean wasWindowActive;
     private static float simulationTimeSeconds;
+    private static double elapsedSimulationTimeSeconds;
     private static float simulationSpeed = 1.0F;
     private static long simulationSeed;
     private static long randomState;
@@ -345,7 +347,7 @@ public final class DynamicWindManager {
         // Wind power controls force, not the rate at which every oscillator and gust clock runs.
         // Coupling these made stronger ambient wind visibly accelerate foliage rocking.
         simulationSpeed = 1.0F;
-        simulationTimeSeconds += deltaSeconds * simulationSpeed;
+        advanceSimulationClock(deltaSeconds * simulationSpeed);
 
         boolean dynamicWind = ClientConfig.ENABLE_DYNAMIC_WIND.getAsBoolean();
         Direction direction = updateDirection(
@@ -460,6 +462,7 @@ public final class DynamicWindManager {
         if (level == null) {
             state = STILL_STATE;
             simulationTimeSeconds = 0.0F;
+            elapsedSimulationTimeSeconds = 0.0D;
             simulationSeed = 0L;
             if (hadLevel) {
                 WhereWindsBlow.LOGGER.debug("Reset client wind simulation after leaving the world.");
@@ -495,11 +498,10 @@ public final class DynamicWindManager {
                 1.0F,
                 activeProfile.id()
         );
-        // This clock is uploaded to shaders as a float. Seeding it from total world game time
-        // eventually destroys sub-frame precision in older worlds and makes sine-based foliage
-        // motion snap between poses. All gust records reset with the manager, so a small local
-        // clock is both sufficient and stable.
+        // Keep the shader clock local to this client session. Total world time can already be too
+        // large for smooth float animation when a world is first loaded.
         simulationTimeSeconds = 0.0F;
+        elapsedSimulationTimeSeconds = 0.0D;
         WhereWindsBlow.LOGGER.debug(
                 "Initialized client wind simulation for {} with seed {}.",
                 level.dimension().location(),
@@ -515,6 +517,24 @@ public final class DynamicWindManager {
         WindStreakRenderer.reset();
         WindReactiveBannerRenderer.reset();
         TumbleweedRenderer.reset();
+    }
+
+    private static void advanceSimulationClock(float deltaSeconds) {
+        simulationTimeSeconds += deltaSeconds;
+        elapsedSimulationTimeSeconds += deltaSeconds;
+        if (simulationTimeSeconds < SHADER_TIME_PERIOD_SECONDS) {
+            return;
+        }
+
+        // Every shader oscillator uses a frequency in thousandths. This shared period rebases the
+        // float clock without changing their phases and keeps sub-frame precision bounded.
+        simulationTimeSeconds -= SHADER_TIME_PERIOD_SECONDS;
+        for (int index = 0; index < ACTIVE_GUSTS.length; index++) {
+            GustFrontState gust = ACTIVE_GUSTS[index];
+            if (gust != null) {
+                ACTIVE_GUSTS[index] = gust.shiftStartTime(-SHADER_TIME_PERIOD_SECONDS);
+            }
+        }
     }
 
     private static float targetWeatherWindPower(ClientLevel level) {
@@ -706,8 +726,10 @@ public final class DynamicWindManager {
         }
 
         float seedPhase = (simulationSeed & 0xffffL) * (Mth.TWO_PI / 65535.0F);
-        float slowRise = Mth.sin(simulationTimeSeconds * 0.014F + seedPhase) * 0.12F;
-        float broadDrift = Mth.sin(simulationTimeSeconds * 0.0063F + seedPhase * 1.73F) * 0.08F;
+        float slowRise = (float) Math.sin(elapsedSimulationTimeSeconds * 0.014D + seedPhase) * 0.12F;
+        float broadDrift = (float) Math.sin(
+                elapsedSimulationTimeSeconds * 0.0063D + seedPhase * 1.73F
+        ) * 0.08F;
         float baseline = weatherPower * (1.0F + slowRise + broadDrift);
         float lullFloor = (float) ClientConfig.WIND_LULL_STRENGTH.getAsDouble();
         float lullMultiplier = Mth.lerp(lullAmount, 1.0F, lullFloor);

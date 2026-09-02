@@ -28,6 +28,25 @@ public record GustFrontState(
         return age >= 0.0F && age < duration;
     }
 
+    public GustFrontState shiftStartTime(float offset) {
+        return new GustFrontState(
+                startTime + offset,
+                duration,
+                attackFraction,
+                releaseStartFraction,
+                originX,
+                originZ,
+                directionX,
+                directionZ,
+                speed,
+                width,
+                peakStrength,
+                turbulence,
+                noisePhase,
+                crossDrift
+        );
+    }
+
     public float strengthAt(double x, double z, float simulationTime) {
         float age = simulationTime - startTime;
         if (age < 0.0F || age >= duration) {
