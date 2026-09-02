@@ -189,7 +189,7 @@ public final class SwingingLanternAssemblyRenderer {
     ) {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         float tickTime = level.getGameTime() + partialTick;
-        float windTime = DynamicWindManager.simulationTime();
+        double windTime = DynamicWindManager.simulationTime();
         WindSample wind = DynamicWindManager.sampleWind(level, lanternPos);
         Swing targetSwing = windSwingFor(lanternPos, chainHeight, windTime, wind);
         Swing swing = updateSwingState(level, lanternPos, chainHeight, targetSwing, tickTime);
@@ -236,7 +236,7 @@ public final class SwingingLanternAssemblyRenderer {
         poseStack.popPose();
     }
 
-    private static Swing windSwingFor(BlockPos lanternPos, int chainHeight, float windTime, WindSample wind) {
+    private static Swing windSwingFor(BlockPos lanternPos, int chainHeight, double windTime, WindSample wind) {
         float windPower = wind.strength();
         float strength = (float) ClientConfig.WIND_LANTERN_SWAY_STRENGTH.getAsDouble()
                 * Mth.lerp(wind.exposure(), ENCLOSED_SWAY_SCALE, 1.0F);
@@ -250,11 +250,11 @@ public final class SwingingLanternAssemblyRenderer {
         float along = lanternPos.getX() * windX + lanternPos.getZ() * windZ;
         float across = lanternPos.getX() * crossX + lanternPos.getZ() * crossZ;
         float phase = randomPhase(lanternPos);
-        float t = windTime * speedScale;
+        double t = windTime * speedScale;
 
-        float flutter = Mth.sin(t * 1.17F + across * 0.11F + phase * 1.71F);
+        float flutter = (float) Math.sin(t * 1.17F + across * 0.11F + phase * 1.71F);
         float windForce = 0.82F + flutter * Mth.clamp(wind.turbulence(), 0.0F, 1.0F) * 0.16F;
-        float directionNoise = Mth.sin(across * 0.12F + t * 0.31F + phase)
+        float directionNoise = (float) Math.sin(across * 0.12F + t * 0.31F + phase)
                 * (0.07F + wind.turbulence() * 0.12F);
         float baseX = windX + crossX * directionNoise;
         float baseZ = windZ + crossZ * directionNoise;
@@ -264,7 +264,7 @@ public final class SwingingLanternAssemblyRenderer {
             baseZ /= baseLength;
         }
 
-        float crossDrift = Mth.sin(t * 0.73F + across * 0.09F + phase * 1.37F)
+        float crossDrift = (float) Math.sin(t * 0.73F + across * 0.09F + phase * 1.37F)
                 * (0.05F + wind.turbulence() * 0.11F);
         float swingX = baseX + crossX * crossDrift;
         float swingZ = baseZ + crossZ * crossDrift;
@@ -273,7 +273,7 @@ public final class SwingingLanternAssemblyRenderer {
                 0.0F,
                 MAX_TARGET_SWAY_DEGREES
         );
-        float yaw = Mth.sin(t * 0.49F + phase * 2.3F + across * 0.05F)
+        float yaw = (float) Math.sin(t * 0.49F + phase * 2.3F + across * 0.05F)
                 * (0.10F + windPower * 0.32F + wind.turbulence() * 0.45F)
                 * strength;
         return new Swing(swingX, swingZ, angle, yaw);

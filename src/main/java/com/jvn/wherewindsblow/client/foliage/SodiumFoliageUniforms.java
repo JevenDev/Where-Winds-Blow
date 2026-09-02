@@ -90,7 +90,7 @@ public final class SodiumFoliageUniforms {
 
             ResponsiveFoliagePhysics.updateShaderInteractors();
             GlobalWindState windState = DynamicWindManager.currentState();
-            uploadUniform(windTimeUniform, DynamicWindManager.simulationTime());
+            uploadUniform(windTimeUniform, DynamicWindManager.shaderTime());
             uploadUniform(ambientWindStrengthUniform, DynamicWindManager.visualStrength(windState.ambientStrength()));
             uploadUniform(windTurbulenceUniform, windState.ambientTurbulence());
             uploadVector3Uniform(weatherStateUniform, windState.rainLevel(), windState.thunderLevel(), windState.lullAmount());
@@ -213,7 +213,7 @@ public final class SodiumFoliageUniforms {
                     gustOriginTimeUniforms[index],
                     ResponsiveFoliageShaders.wrapShaderCoordinate(gust.originX()),
                     ResponsiveFoliageShaders.wrapShaderCoordinate(gust.originZ()),
-                    gust.startTime(),
+                    DynamicWindManager.shaderTimeFor(gust.startTime()),
                     gust.duration()
             );
             uploadVector4Uniform(

@@ -52,8 +52,8 @@ public final class DynamicWindManager {
     private static GlobalWindState state = STILL_STATE;
     private static long lastUpdateMillis;
     private static boolean wasWindowActive;
-    private static float simulationTimeSeconds;
-    private static double elapsedSimulationTimeSeconds;
+    private static float shaderTimeSeconds;
+    private static double simulationTimeSeconds;
     private static float simulationSpeed = 1.0F;
     private static long simulationSeed;
     private static long randomState;
@@ -193,19 +193,33 @@ public final class DynamicWindManager {
     /**
      * Returns the tick-owned simulation clock plus a bounded render interpolation remainder.
      */
-    public static float simulationTime() {
+    public static double simulationTime() {
         ensureLifecycle();
         return simulationTimeUnchecked();
     }
 
-    private static float simulationTimeUnchecked() {
+    public static float shaderTime() {
+        ensureLifecycle();
+        return shaderTimeSeconds + renderRemainderSeconds() * simulationSpeed;
+    }
+
+    public static float shaderTimeFor(double simulationTime) {
+        ensureLifecycle();
+        return shaderTimeSeconds - (float) (simulationTimeSeconds - simulationTime);
+    }
+
+    private static double simulationTimeUnchecked() {
+        return simulationTimeSeconds + renderRemainderSeconds() * simulationSpeed;
+    }
+
+    private static float renderRemainderSeconds() {
         Minecraft minecraft = Minecraft.getInstance();
         if (activeLevel == null
                 || minecraft.isPaused()
                 || !minecraft.isWindowActive()
                 || !wasWindowActive
                 || lastUpdateMillis == 0L) {
-            return simulationTimeSeconds;
+            return 0.0F;
         }
 
         float remainder = Mth.clamp(
@@ -213,7 +227,7 @@ public final class DynamicWindManager {
                 0.0F,
                 0.05F
         );
-        return simulationTimeSeconds + remainder * simulationSpeed;
+        return remainder;
     }
 
     public static long simulationSeed() {
@@ -461,8 +475,8 @@ public final class DynamicWindManager {
 
         if (level == null) {
             state = STILL_STATE;
+            shaderTimeSeconds = 0.0F;
             simulationTimeSeconds = 0.0F;
-            elapsedSimulationTimeSeconds = 0.0D;
             simulationSeed = 0L;
             if (hadLevel) {
                 WhereWindsBlow.LOGGER.debug("Reset client wind simulation after leaving the world.");
@@ -500,8 +514,8 @@ public final class DynamicWindManager {
         );
         // Keep the shader clock local to this client session. Total world time can already be too
         // large for smooth float animation when a world is first loaded.
-        simulationTimeSeconds = 0.0F;
-        elapsedSimulationTimeSeconds = 0.0D;
+        shaderTimeSeconds = 0.0F;
+        simulationTimeSeconds = 0.0D;
         WhereWindsBlow.LOGGER.debug(
                 "Initialized client wind simulation for {} with seed {}.",
                 level.dimension().location(),
@@ -520,21 +534,15 @@ public final class DynamicWindManager {
     }
 
     private static void advanceSimulationClock(float deltaSeconds) {
+        shaderTimeSeconds += deltaSeconds;
         simulationTimeSeconds += deltaSeconds;
-        elapsedSimulationTimeSeconds += deltaSeconds;
-        if (simulationTimeSeconds < SHADER_TIME_PERIOD_SECONDS) {
+        if (shaderTimeSeconds < SHADER_TIME_PERIOD_SECONDS) {
             return;
         }
 
         // Every shader oscillator uses a frequency in thousandths. This shared period rebases the
         // float clock without changing their phases and keeps sub-frame precision bounded.
-        simulationTimeSeconds -= SHADER_TIME_PERIOD_SECONDS;
-        for (int index = 0; index < ACTIVE_GUSTS.length; index++) {
-            GustFrontState gust = ACTIVE_GUSTS[index];
-            if (gust != null) {
-                ACTIVE_GUSTS[index] = gust.shiftStartTime(-SHADER_TIME_PERIOD_SECONDS);
-            }
-        }
+        shaderTimeSeconds -= SHADER_TIME_PERIOD_SECONDS;
     }
 
     private static float targetWeatherWindPower(ClientLevel level) {
@@ -726,9 +734,9 @@ public final class DynamicWindManager {
         }
 
         float seedPhase = (simulationSeed & 0xffffL) * (Mth.TWO_PI / 65535.0F);
-        float slowRise = (float) Math.sin(elapsedSimulationTimeSeconds * 0.014D + seedPhase) * 0.12F;
+        float slowRise = (float) Math.sin(simulationTimeSeconds * 0.014D + seedPhase) * 0.12F;
         float broadDrift = (float) Math.sin(
-                elapsedSimulationTimeSeconds * 0.0063D + seedPhase * 1.73F
+                simulationTimeSeconds * 0.0063D + seedPhase * 1.73F
         ) * 0.08F;
         float baseline = weatherPower * (1.0F + slowRise + broadDrift);
         float lullFloor = (float) ClientConfig.WIND_LULL_STRENGTH.getAsDouble();
@@ -744,7 +752,7 @@ public final class DynamicWindManager {
             float profileFrequency,
             boolean dynamicWind
     ) {
-        float time = simulationTimeSeconds;
+        double time = simulationTimeSeconds;
         activeGustCount = 0;
         for (int index = 0; index < ACTIVE_GUSTS.length; index++) {
             GustFrontState gust = ACTIVE_GUSTS[index];
@@ -828,7 +836,7 @@ public final class DynamicWindManager {
         activeGustCount++;
     }
 
-    private static void sampleGustContribution(double x, double z, float time, MutableGustContribution result) {
+    private static void sampleGustContribution(double x, double z, double time, MutableGustContribution result) {
         float strength = 0.0F;
         float directionX = 0.0F;
         float directionZ = 0.0F;

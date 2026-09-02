@@ -139,7 +139,7 @@ public abstract class CampfireSmokeParticleMixin extends TextureSheetParticle {
 
         wherewindsblow$captureVisualState(false);
 
-        float windTime = DynamicWindManager.simulationTime();
+        double windTime = DynamicWindManager.simulationTime();
         WindSample wind = CampfireSmokePlumes.windSampleAt(
                 this.level,
                 this.wherewindsblow$plumeContext,

@@ -8,7 +8,7 @@ import net.minecraft.util.Mth;
  * CPU sampling and shader uniform uploads.
  */
 public record GustFrontState(
-        float startTime,
+        double startTime,
         float duration,
         float attackFraction,
         float releaseStartFraction,
@@ -23,32 +23,13 @@ public record GustFrontState(
         float noisePhase,
         float crossDrift
 ) {
-    public boolean isAlive(float simulationTime) {
-        float age = simulationTime - startTime;
+    public boolean isAlive(double simulationTime) {
+        double age = simulationTime - startTime;
         return age >= 0.0F && age < duration;
     }
 
-    public GustFrontState shiftStartTime(float offset) {
-        return new GustFrontState(
-                startTime + offset,
-                duration,
-                attackFraction,
-                releaseStartFraction,
-                originX,
-                originZ,
-                directionX,
-                directionZ,
-                speed,
-                width,
-                peakStrength,
-                turbulence,
-                noisePhase,
-                crossDrift
-        );
-    }
-
-    public float strengthAt(double x, double z, float simulationTime) {
-        float age = simulationTime - startTime;
+    public float strengthAt(double x, double z, double simulationTime) {
+        float age = (float) (simulationTime - startTime);
         if (age < 0.0F || age >= duration) {
             return 0.0F;
         }
@@ -68,11 +49,11 @@ public record GustFrontState(
         return peakStrength * temporalEnvelope(age / duration) * spatialEnvelope * Mth.clamp(pocket, 0.62F, 1.12F);
     }
 
-    public float crossVariation(double x, double z, float simulationTime) {
+    public float crossVariation(double x, double z, double simulationTime) {
         float relativeX = (float) (x - originX);
         float relativeZ = (float) (z - originZ);
         float across = relativeX * -directionZ + relativeZ * directionX;
-        float age = simulationTime - startTime;
+        float age = (float) (simulationTime - startTime);
         return Mth.sin(across * 0.069F + age * 0.18F + noisePhase) * crossDrift;
     }
 

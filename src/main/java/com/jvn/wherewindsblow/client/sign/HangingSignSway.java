@@ -37,7 +37,7 @@ public final class HangingSignSway {
         BlockPos pos = blockEntity.getBlockPos();
         WindSample wind = DynamicWindManager.sampleWind(level, pos);
         float exposureScale = Mth.lerp(wind.exposure(), ENCLOSED_SWAY_SCALE, 1.0F);
-        float windTime = DynamicWindManager.simulationTime();
+        double windTime = DynamicWindManager.simulationTime();
 
         float yRotation = -signBlock.getYRotationDegrees(state);
         float yRadians = yRotation * Mth.DEG_TO_RAD;
@@ -51,9 +51,9 @@ public final class HangingSignSway {
 
         float alongWind = pos.getX() * wind.directionX() + pos.getZ() * wind.directionZ();
         float phase = randomPhase(pos);
-        float time = windTime * 0.9F;
-        float primary = Mth.sin(time + alongWind * 0.12F + phase);
-        float secondary = Mth.sin(time * 1.67F + phase * 1.83F)
+        double time = windTime * 0.9F;
+        float primary = (float) Math.sin(time + alongWind * 0.12F + phase);
+        float secondary = (float) Math.sin(time * 1.67F + phase * 1.83F)
                 * (0.10F + Mth.clamp(wind.turbulence(), 0.0F, 1.0F) * 0.42F);
         float amplitude = (0.12F + wind.ambientStrength() * 1.8F + wind.gustStrength() * 3.0F)
                 * configuredStrength

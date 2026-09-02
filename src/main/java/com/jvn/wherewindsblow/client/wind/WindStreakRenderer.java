@@ -232,7 +232,7 @@ public final class WindStreakRenderer {
             float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
             BlizzardWeatherEffects.BlizzardFogProfile blizzardFog =
                     BlizzardWeatherEffects.fogProfile(camera, partialTick);
-            float windTime = DynamicWindManager.simulationTime();
+            double windTime = DynamicWindManager.simulationTime();
             Matrix4f pose = event.getPoseStack().last().pose();
 
             if (lineOpacity > 0.0F) {
@@ -1095,7 +1095,7 @@ public final class WindStreakRenderer {
             WindStreak streak,
             Vec3 cameraPos,
             float partialTick,
-            float windTime,
+            double windTime,
             float opacity,
             BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
     ) {
@@ -1146,7 +1146,7 @@ public final class WindStreakRenderer {
             Matrix4f pose,
             Vec3 cameraPos,
             float partialTick,
-            float windTime,
+            double windTime,
             float opacity,
             BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
     ) {
@@ -1162,7 +1162,7 @@ public final class WindStreakRenderer {
             Matrix4f pose,
             Vec3 cameraPos,
             float partialTick,
-            float windTime,
+            double windTime,
             float opacity,
             BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
     ) {
@@ -1178,7 +1178,7 @@ public final class WindStreakRenderer {
             Matrix4f pose,
             Vec3 cameraPos,
             float partialTick,
-            float windTime,
+            double windTime,
             float opacity,
             WindLeaf[] particles,
             RenderType[] renderTypes,
@@ -1210,7 +1210,7 @@ public final class WindStreakRenderer {
             Camera camera,
             Vec3 cameraPos,
             float partialTick,
-            float windTime,
+            double windTime,
             float opacity,
             BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
     ) {
@@ -1298,7 +1298,7 @@ public final class WindStreakRenderer {
             double baseZ,
             float t0,
             float t1,
-            float windTime,
+            double windTime,
             float brushPosition,
             float alpha,
             BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
@@ -1336,7 +1336,7 @@ public final class WindStreakRenderer {
         );
     }
 
-    private static Point pointOnBody(WindStreak streak, double baseX, double baseY, double baseZ, float t, float windTime) {
+    private static Point pointOnBody(WindStreak streak, double baseX, double baseY, double baseZ, float t, double windTime) {
         double along = t * streak.length;
         double flow = streak.seed + windTime * (0.12D + streak.turbulence * 0.08D);
         double pathEnvelope = Math.sin(t * Math.PI);
@@ -1361,25 +1361,25 @@ public final class WindStreakRenderer {
         return new Point(x, y, z);
     }
 
-    private static float motionTaper(WindStreak streak, float t, float windTime, float brushPosition) {
+    private static float motionTaper(WindStreak streak, float t, double windTime, float brushPosition) {
         float shapeFade = smoothFade(Mth.clamp(t / 0.12F, 0.0F, 1.0F))
                 * smoothFade(Mth.clamp((1.0F - t) / 0.2F, 0.0F, 1.0F));
         float leadingEdge = movingBrush(t, brushPosition, (float) streak.brushWidth);
         float trailingWake = trailingWake(t, brushPosition, (float) streak.wakeLength);
         float curveBoost = Mth.sin(t * Mth.PI) * 0.06F;
         float shimmer = (float) (1.0D - streak.shimmerStrength
-                + streak.shimmerStrength * Mth.sin((float) streak.seed + windTime * 1.8F + t * Mth.PI * 3.0F));
+                + streak.shimmerStrength * (float) Math.sin(streak.seed + windTime * 1.8F + t * Mth.PI * 3.0F));
         float fineBreakup = 0.965F
-                + 0.035F * Mth.sin((float) streak.ripplePhase + windTime * 2.4F + t * Mth.PI * 6.0F);
+                + 0.035F * (float) Math.sin(streak.ripplePhase + windTime * 2.4F + t * Mth.PI * 6.0F);
         float flowingStroke = Math.max(leadingEdge, trailingWake * (0.68F + curveBoost));
         return shapeFade * shimmer * fineBreakup * flowingStroke;
     }
 
-    private static boolean streakBodyHitsCollision(ClientLevel level, WindStreak streak, float windTime) {
+    private static boolean streakBodyHitsCollision(ClientLevel level, WindStreak streak, double windTime) {
         return streakBodyHitsCollision(level, streak, streak.x, streak.y, streak.z, windTime);
     }
 
-    private static boolean streakBodyHitsCollision(ClientLevel level, WindStreak streak, double baseX, double baseY, double baseZ, float windTime) {
+    private static boolean streakBodyHitsCollision(ClientLevel level, WindStreak streak, double baseX, double baseY, double baseZ, double windTime) {
         Point previous = pointOnBody(streak, baseX, baseY, baseZ, 0.0F, windTime);
         for (int segment = 1; segment <= BODY_SEGMENTS; segment++) {
             float t = (float) segment / (float) BODY_SEGMENTS;

@@ -50,7 +50,7 @@ public final class BannerWindStateCache {
             return;
         }
 
-        float simulationTime = DynamicWindManager.simulationTime();
+        double simulationTime = DynamicWindManager.simulationTime();
         tickStates(STANDING_STATES, level, simulationTime, false);
         tickStates(WALL_STATES, level, simulationTime, true);
     }
@@ -71,13 +71,13 @@ public final class BannerWindStateCache {
     private static void tickStates(
             Long2ObjectLinkedOpenHashMap<State> states,
             ClientLevel level,
-            float simulationTime,
+            double simulationTime,
             boolean wall
     ) {
         var iterator = states.long2ObjectEntrySet().fastIterator();
         while (iterator.hasNext()) {
             State state = iterator.next().getValue();
-            float unseenTime = simulationTime - state.lastRenderedTime;
+            double unseenTime = simulationTime - state.lastRenderedTime;
             if (unseenTime > EXPIRE_AFTER_SECONDS) {
                 iterator.remove();
                 continue;
@@ -100,9 +100,9 @@ public final class BannerWindStateCache {
         private final BlockPos pos;
         private final float phase;
         private float rendererYawDegrees;
-        private float lastRenderedTime;
-        private float lastSampleTime = Float.NEGATIVE_INFINITY;
-        private float lastTickTime = Float.NaN;
+        private double lastRenderedTime;
+        private double lastSampleTime = Double.NEGATIVE_INFINITY;
+        private double lastTickTime = Double.NaN;
         private float previousExtension;
         private float extension;
         private float previousTrailingExtension;
@@ -136,10 +136,10 @@ public final class BannerWindStateCache {
             this.phase = phase;
         }
 
-        private void tick(ClientLevel level, float simulationTime, boolean wall) {
-            float deltaSeconds = Float.isNaN(this.lastTickTime)
+        private void tick(ClientLevel level, double simulationTime, boolean wall) {
+            float deltaSeconds = Double.isNaN(this.lastTickTime)
                     ? 0.05F
-                    : Mth.clamp(simulationTime - this.lastTickTime, 0.0F, 0.1F);
+                    : (float) Mth.clamp(simulationTime - this.lastTickTime, 0.0D, 0.1D);
             this.lastTickTime = simulationTime;
             copyPrevious();
 
