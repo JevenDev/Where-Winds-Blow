@@ -62,8 +62,10 @@ public final class AcediumFoliageShaderSource {
                         wwbLocalTurbulence,
                         wwbGustLeadingEdge
                 );
-                vec2 wwbInteractionAnchor = wwbMotionPosition - u_WwbCameraPosition.xz;
-                vec2 wwbPlantAnchor = wwbInteractionAnchor;
+                vec2 wwbInteractionAnchor = wwb_wrapped_world_delta(
+                        wwbMotionPosition - u_WwbCameraPosition.xz
+                );
+                vec2 wwbPlantAnchor = wwbMotionPosition;
                 vec3 wwbFoliageBase = pos;
                 pos = wwb_apply_foliage_wind(
                         pos,
@@ -80,7 +82,7 @@ public final class AcediumFoliageShaderSource {
     private static final String WIND_COLOR_INJECTION = """
                 if (wwb_is_plant_wind_vertex(wwbFoliageAlpha) && u_WwbFoliageColorVariationStrength > 0.0) {
                     float wwbVariation = clamp(
-                            wwb_foliage_color_variation(wwbPlantAnchor + u_WwbCameraPosition.xz) * u_WwbFoliageColorVariationStrength,
+                            wwb_foliage_color_variation(wwbPlantAnchor) * u_WwbFoliageColorVariationStrength,
                             -0.26,
                             0.32
                     );

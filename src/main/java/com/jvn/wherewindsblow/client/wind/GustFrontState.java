@@ -12,8 +12,8 @@ public record GustFrontState(
         float duration,
         float attackFraction,
         float releaseStartFraction,
-        float originX,
-        float originZ,
+        double originX,
+        double originZ,
         float directionX,
         float directionZ,
         float speed,
@@ -53,8 +53,8 @@ public record GustFrontState(
             return 0.0F;
         }
 
-        float relativeX = (float) x - originX;
-        float relativeZ = (float) z - originZ;
+        float relativeX = (float) (x - originX);
+        float relativeZ = (float) (z - originZ);
         float along = relativeX * directionX + relativeZ * directionZ;
         float across = relativeX * -directionZ + relativeZ * directionX;
         float edgeNoise = Mth.sin(across * 0.055F + noisePhase) * width * 0.17F
@@ -69,8 +69,8 @@ public record GustFrontState(
     }
 
     public float crossVariation(double x, double z, float simulationTime) {
-        float relativeX = (float) x - originX;
-        float relativeZ = (float) z - originZ;
+        float relativeX = (float) (x - originX);
+        float relativeZ = (float) (z - originZ);
         float across = relativeX * -directionZ + relativeZ * directionX;
         float age = simulationTime - startTime;
         return Mth.sin(across * 0.069F + age * 0.18F + noisePhase) * crossDrift;

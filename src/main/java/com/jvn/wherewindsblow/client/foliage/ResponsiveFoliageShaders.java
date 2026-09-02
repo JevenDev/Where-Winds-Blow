@@ -26,6 +26,7 @@ public final class ResponsiveFoliageShaders {
     private static final String[] SHADER_RENDERER_MOD_IDS = {"iris", "oculus"};
     private static final String[] INCOMPATIBLE_RENDERER_MOD_IDS = {"chunksfadein"};
     private static final long SHADER_PACK_STATE_CACHE_MILLIS = 250L;
+    private static final double SHADER_WORLD_POSITION_PERIOD = 8192.0D;
     private static final float LEAF_WIND_SWAY_SCALE = 0.35F;
     public static final int MAX_FOLIAGE_INTERACTORS = 16;
     private static final ResourceLocation WIND_SHADER = WhereWindsBlow.IDS.id("rendertype_responsive_foliage_cutout");
@@ -44,8 +45,8 @@ public final class ResponsiveFoliageShaders {
     private static boolean incompatibleRendererWarningLogged;
     private static int foliageInteractorCount;
     // Interactor: center x, min y, center z, radius. Motion: max y, trailing x/z, strength.
-    private static final float[] foliageInteractors = new float[MAX_FOLIAGE_INTERACTORS * 4];
-    private static final float[] foliageInteractorMotions = new float[MAX_FOLIAGE_INTERACTORS * 4];
+    private static final double[] foliageInteractors = new double[MAX_FOLIAGE_INTERACTORS * 4];
+    private static final double[] foliageInteractorMotions = new double[MAX_FOLIAGE_INTERACTORS * 4];
 
     private ResponsiveFoliageShaders() {
     }
@@ -143,11 +144,11 @@ public final class ResponsiveFoliageShaders {
         return foliageInteractorCount;
     }
 
-    public static float[] foliageInteractors() {
+    public static double[] foliageInteractors() {
         return foliageInteractors;
     }
 
-    public static float[] foliageInteractorMotions() {
+    public static double[] foliageInteractorMotions() {
         return foliageInteractorMotions;
     }
 
@@ -209,11 +210,15 @@ public final class ResponsiveFoliageShaders {
         shader.safeGetUniform("FoliageColorVariationStrength").set(foliageColorVariationStrength());
         shader.safeGetUniform("FoliageAnimationStepRate").set(foliageAnimationStepRate());
         shader.safeGetUniform("WindDirection").set(windState.directionX(), windState.directionZ());
-        uploadGustUniforms(shader);
         Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-        shader.safeGetUniform("CameraPosition").set((float) cameraPosition.x, (float) cameraPosition.y, (float) cameraPosition.z);
+        uploadGustUniforms(shader);
+        shader.safeGetUniform("CameraPosition").set(
+                wrapShaderCoordinate(cameraPosition.x),
+                (float) cameraPosition.y,
+                wrapShaderCoordinate(cameraPosition.z)
+        );
         shader.safeGetUniform("FoliageInteractorCount").set(foliageInteractorCount);
-        uploadFoliageInteractorUniforms(shader);
+        uploadFoliageInteractorUniforms(shader, cameraPosition);
     }
 
     private static void uploadGustUniforms(ShaderInstance shader) {
@@ -229,8 +234,8 @@ public final class ResponsiveFoliageShaders {
                 continue;
             }
             shader.safeGetUniform("GustOriginTime" + index).set(
-                    gust.originX(),
-                    gust.originZ(),
+                    wrapShaderCoordinate(gust.originX()),
+                    wrapShaderCoordinate(gust.originZ()),
                     gust.startTime(),
                     gust.duration()
             );
@@ -257,22 +262,27 @@ public final class ResponsiveFoliageShaders {
         }
     }
 
-    private static void uploadFoliageInteractorUniforms(ShaderInstance shader) {
+    private static void uploadFoliageInteractorUniforms(ShaderInstance shader, Vec3 cameraPosition) {
         for (int index = 0; index < foliageInteractorCount; index++) {
             int offset = index * 4;
             shader.safeGetUniform("FoliageInteractor" + index).set(
-                    foliageInteractors[offset],
-                    foliageInteractors[offset + 1],
-                    foliageInteractors[offset + 2],
-                    foliageInteractors[offset + 3]
+                    (float) (foliageInteractors[offset] - cameraPosition.x),
+                    (float) (foliageInteractors[offset + 1] - cameraPosition.y),
+                    (float) (foliageInteractors[offset + 2] - cameraPosition.z),
+                    (float) foliageInteractors[offset + 3]
             );
             shader.safeGetUniform("FoliageInteractorMotion" + index).set(
-                    foliageInteractorMotions[offset],
-                    foliageInteractorMotions[offset + 1],
-                    foliageInteractorMotions[offset + 2],
-                    foliageInteractorMotions[offset + 3]
+                    (float) (foliageInteractorMotions[offset] - cameraPosition.y),
+                    (float) foliageInteractorMotions[offset + 1],
+                    (float) foliageInteractorMotions[offset + 2],
+                    (float) foliageInteractorMotions[offset + 3]
             );
         }
+    }
+
+    static float wrapShaderCoordinate(double coordinate) {
+        double wrapped = coordinate % SHADER_WORLD_POSITION_PERIOD;
+        return (float) (wrapped < 0.0D ? wrapped + SHADER_WORLD_POSITION_PERIOD : wrapped);
     }
 
     public static float windSwayStrength() {
@@ -423,6 +433,6 @@ public final class ResponsiveFoliageShaders {
 
     @FunctionalInterface
     public interface FoliageInteractorWriter {
-        void write(float[] interactors, float[] motions, int index);
+        void write(double[] interactors, double[] motions, int index);
     }
 }

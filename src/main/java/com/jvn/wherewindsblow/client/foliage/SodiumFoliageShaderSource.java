@@ -80,6 +80,8 @@ public final class SodiumFoliageShaderSource {
 
     static final String WIND_FUNCTIONS = """
 
+            const float WWB_WORLD_POSITION_PERIOD = 8192.0;
+
             bool wwb_is_plant_wind_vertex(float alpha) {
                 float encoded = alpha * 255.0;
                 return (encoded >= 16.5 && encoded <= 44.5) || (encoded >= 104.5 && encoded <= 216.5);
@@ -184,8 +186,17 @@ public final class SodiumFoliageShaderSource {
                 return cell;
             }
 
+            vec2 wwb_wrapped_world_position(vec2 position) {
+                return mod(mod(position, WWB_WORLD_POSITION_PERIOD) + WWB_WORLD_POSITION_PERIOD, WWB_WORLD_POSITION_PERIOD);
+            }
+
+            vec2 wwb_wrapped_world_delta(vec2 delta) {
+                return mod(delta + WWB_WORLD_POSITION_PERIOD * 0.5, WWB_WORLD_POSITION_PERIOD)
+                        - WWB_WORLD_POSITION_PERIOD * 0.5;
+            }
+
             vec2 wwb_foliage_motion_position(vec3 position, float alpha) {
-                vec2 worldPosition = position.xz + u_WwbCameraPosition.xz;
+                vec2 worldPosition = wwb_wrapped_world_position(position.xz + u_WwbCameraPosition.xz);
                 if (!wwb_is_coherent_plant_wind_vertex(alpha)) {
                     return worldPosition;
                 }
@@ -223,7 +234,7 @@ public final class SodiumFoliageShaderSource {
 
                     vec2 gustDirection = normalize(directionSpeed.xy);
                     vec2 gustCross = vec2(-gustDirection.y, gustDirection.x);
-                    vec2 relative = worldPosition - originTime.xy;
+                    vec2 relative = wwb_wrapped_world_delta(worldPosition - originTime.xy);
                     float along = dot(relative, gustDirection);
                     float across = dot(relative, gustCross);
                     float phase = strengthData.z;
@@ -550,7 +561,8 @@ public final class SodiumFoliageShaderSource {
                 float markerStrength = lanternMarker ? wwb_decode_lantern_wind_alpha(alpha) : wwb_decode_chain_wind_alpha(alpha);
 
                 float t = u_WwbTime;
-                vec3 windPosition = position + u_WwbCameraPosition;
+                vec2 wrappedPosition = wwb_wrapped_world_position(position.xz + u_WwbCameraPosition.xz);
+                vec3 windPosition = vec3(wrappedPosition.x, position.y + u_WwbCameraPosition.y, wrappedPosition.y);
                 vec2 windAnchor = floor(windPosition.xz) + vec2(0.5);
                 float gustStrength;
                 float turbulence;
@@ -627,8 +639,10 @@ public final class SodiumFoliageShaderSource {
                         wwbLocalTurbulence,
                         wwbGustLeadingEdge
                 );
-                vec2 wwbInteractionAnchor = wwbMotionPosition - u_WwbCameraPosition.xz;
-                vec2 wwbPlantAnchor = wwbInteractionAnchor;
+                vec2 wwbInteractionAnchor = wwb_wrapped_world_delta(
+                        wwbMotionPosition - u_WwbCameraPosition.xz
+                );
+                vec2 wwbPlantAnchor = wwbMotionPosition;
                 vec3 wwbFoliageBase = position;
                 position = wwb_apply_foliage_wind(
                         position,
@@ -644,7 +658,7 @@ public final class SodiumFoliageShaderSource {
     private static final String WIND_COLOR_INJECTION = """
                 if (wwb_is_plant_wind_vertex(wwbFoliageAlpha) && u_WwbFoliageColorVariationStrength > 0.0) {
                     float wwbVariation = clamp(
-                            wwb_foliage_color_variation(wwbPlantAnchor + u_WwbCameraPosition.xz) * u_WwbFoliageColorVariationStrength,
+                            wwb_foliage_color_variation(wwbPlantAnchor) * u_WwbFoliageColorVariationStrength,
                             -0.26,
                             0.32
                     );

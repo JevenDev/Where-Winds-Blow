@@ -176,7 +176,12 @@ public final class SodiumFoliageUniforms {
 
     private static void uploadCameraPositionUniform(int location, Vec3 cameraPosition) {
         if (location >= 0) {
-            GL20C.glUniform3f(location, (float) cameraPosition.x, (float) cameraPosition.y, (float) cameraPosition.z);
+            GL20C.glUniform3f(
+                    location,
+                    ResponsiveFoliageShaders.wrapShaderCoordinate(cameraPosition.x),
+                    (float) cameraPosition.y,
+                    ResponsiveFoliageShaders.wrapShaderCoordinate(cameraPosition.z)
+            );
         }
     }
 
@@ -206,8 +211,8 @@ public final class SodiumFoliageUniforms {
             }
             uploadVector4Uniform(
                     gustOriginTimeUniforms[index],
-                    gust.originX(),
-                    gust.originZ(),
+                    ResponsiveFoliageShaders.wrapShaderCoordinate(gust.originX()),
+                    ResponsiveFoliageShaders.wrapShaderCoordinate(gust.originZ()),
                     gust.startTime(),
                     gust.duration()
             );
@@ -243,7 +248,7 @@ public final class SodiumFoliageUniforms {
         }
     }
 
-    private static void uploadInteractorUniforms(float[] interactors, float[] motions, int interactorCount, Vec3 cameraPosition) {
+    private static void uploadInteractorUniforms(double[] interactors, double[] motions, int interactorCount, Vec3 cameraPosition) {
         for (int index = 0; index < interactorCount; index++) {
             int offset = index * 4;
             int location = interactorUniforms[index];
@@ -253,7 +258,7 @@ public final class SodiumFoliageUniforms {
                         (float) (interactors[offset] - cameraPosition.x),
                         (float) (interactors[offset + 1] - cameraPosition.y),
                         (float) (interactors[offset + 2] - cameraPosition.z),
-                        interactors[offset + 3]
+                        (float) interactors[offset + 3]
                 );
             }
 
@@ -262,9 +267,9 @@ public final class SodiumFoliageUniforms {
                 GL20C.glUniform4f(
                         motionLocation,
                         (float) (motions[offset] - cameraPosition.y),
-                        motions[offset + 1],
-                        motions[offset + 2],
-                        motions[offset + 3]
+                        (float) motions[offset + 1],
+                        (float) motions[offset + 2],
+                        (float) motions[offset + 3]
                 );
             }
         }

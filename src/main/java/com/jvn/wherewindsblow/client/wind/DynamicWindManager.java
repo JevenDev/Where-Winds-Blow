@@ -792,8 +792,8 @@ public final class DynamicWindManager {
         float crossZ = direction.x();
         float spawnDistance = 62.0F + nextRandomFloat() * 52.0F;
         float crossOffset = randomSigned() * 28.0F;
-        float originX = (float) minecraft.player.getX() - direction.x() * spawnDistance + crossX * crossOffset;
-        float originZ = (float) minecraft.player.getZ() - direction.z() * spawnDistance + crossZ * crossOffset;
+        double originX = minecraft.player.getX() - direction.x() * spawnDistance + crossX * crossOffset;
+        double originZ = minecraft.player.getZ() - direction.z() * spawnDistance + crossZ * crossOffset;
         float configuredSpeed = (float) ClientConfig.GUST_TRAVEL_SPEED.getAsDouble();
         float speed = configuredSpeed * (0.84F + nextRandomFloat() * 0.34F);
         float width = (float) ClientConfig.GUST_WIDTH.getAsDouble() * (0.82F + nextRandomFloat() * 0.36F);

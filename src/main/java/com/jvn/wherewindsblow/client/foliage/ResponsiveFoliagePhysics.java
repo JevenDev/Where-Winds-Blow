@@ -318,7 +318,7 @@ public final class ResponsiveFoliagePhysics {
         );
     }
 
-    private static void fillShaderInteractor(ShaderInteraction sample, float[] interactors, float[] motions, int index) {
+    private static void fillShaderInteractor(ShaderInteraction sample, double[] interactors, double[] motions, int index) {
         int offset = index * 4;
         interactors[offset] = sample.x();
         interactors[offset + 1] = sample.minY();
@@ -556,7 +556,7 @@ public final class ResponsiveFoliagePhysics {
                 * Mth.lerp(wakeStrength, STATIONARY_CONTACT_STRENGTH, MOVING_CONTACT_STRENGTH);
         float bodyRadius = (float) Math.max(bounds.getXsize(), bounds.getZsize()) * 0.5F;
         return new InteractionShape(
-                (float) entity.getX(), (float) bounds.minY, (float) bounds.maxY, (float) entity.getZ(),
+                entity.getX(), bounds.minY, bounds.maxY, entity.getZ(),
                 Mth.clamp(
                         (edgeInfluenceRadius(entity) + bodyRadius) * (1.0F + wakeStrength * 0.16F),
                         BASE_EDGE_INFLUENCE_RADIUS,
@@ -579,7 +579,7 @@ public final class ResponsiveFoliagePhysics {
         synchronized (TRANSIENT_FORCES) {
             pruneTransientForces(nowMillis);
             if (TRANSIENT_FORCES.size() >= MAX_TRANSIENT_FORCES) TRANSIENT_FORCES.remove(0);
-            TRANSIENT_FORCES.add(new TransientForce((float) x, (float) y, (float) z, radius, strength, nowMillis, lifetimeMillis));
+            TRANSIENT_FORCES.add(new TransientForce(x, y, z, radius, strength, nowMillis, lifetimeMillis));
         }
     }
 
@@ -614,7 +614,7 @@ public final class ResponsiveFoliagePhysics {
     private record ForceSample(double x, double z) {
     }
 
-    private record TransientForce(float x, float y, float z, float radius, float strength, long createdMillis, long lifetimeMillis) {
+    private record TransientForce(double x, double y, double z, float radius, float strength, long createdMillis, long lifetimeMillis) {
         private TransientForce shift(long millis) {
             return new TransientForce(x, y, z, radius, strength, createdMillis + millis, lifetimeMillis);
         }
@@ -639,12 +639,12 @@ public final class ResponsiveFoliagePhysics {
     }
 
     private record InteractionShape(
-            float x, float minY, float maxY, float z, float radius, float trailX, float trailZ, float strength
+            double x, double minY, double maxY, double z, float radius, float trailX, float trailZ, float strength
     ) {
     }
 
     private record ShaderInteraction(
-            float x, float minY, float maxY, float z, float radius, float trailX, float trailZ, float strength
+            double x, double minY, double maxY, double z, float radius, float trailX, float trailZ, float strength
     ) {
         private static ShaderInteraction fromContact(FoliageContact contact, long nowMillis) {
             ContactSample sample = contact.sample(nowMillis);
@@ -673,7 +673,7 @@ public final class ResponsiveFoliagePhysics {
     }
 
     private record ContactSample(
-            float x, float minY, float maxY, float z, float radius, float trailX, float trailZ, float strength
+            double x, double minY, double maxY, double z, float radius, float trailX, float trailZ, float strength
     ) {
     }
 

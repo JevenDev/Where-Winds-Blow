@@ -75,6 +75,8 @@ uniform vec4 FoliageInteractorMotion13;
 uniform vec4 FoliageInteractorMotion14;
 uniform vec4 FoliageInteractorMotion15;
 
+const float WORLD_POSITION_PERIOD = 8192.0;
+
 out float vertexDistance;
 out vec4 vertexColor;
 out vec2 texCoord0;
@@ -193,8 +195,16 @@ float cellWithParity(float coordinate, float expectedParity) {
     return cell;
 }
 
+vec2 wrappedWorldPosition(vec2 position) {
+    return mod(mod(position, WORLD_POSITION_PERIOD) + WORLD_POSITION_PERIOD, WORLD_POSITION_PERIOD);
+}
+
+vec2 wrappedWorldDelta(vec2 delta) {
+    return mod(delta + WORLD_POSITION_PERIOD * 0.5, WORLD_POSITION_PERIOD) - WORLD_POSITION_PERIOD * 0.5;
+}
+
 vec2 foliageMotionPosition(vec3 position, float alpha) {
-    vec2 worldPosition = position.xz + CameraPosition.xz;
+    vec2 worldPosition = wrappedWorldPosition(position.xz + CameraPosition.xz);
     if (!isCoherentPlantWindAlpha(alpha)) {
         return worldPosition;
     }
@@ -232,7 +242,7 @@ vec2 sampleDynamicWind(vec2 worldPosition, out float gustStrength, out float tur
 
         vec2 gustDirection = normalize(directionSpeed.xy);
         vec2 gustCross = vec2(-gustDirection.y, gustDirection.x);
-        vec2 relative = worldPosition - originTime.xy;
+        vec2 relative = wrappedWorldDelta(worldPosition - originTime.xy);
         float along = dot(relative, gustDirection);
         float across = dot(relative, gustCross);
         float phase = strengthData.z;
@@ -397,7 +407,8 @@ vec3 applyLanternWind(vec3 pos, float alpha) {
     float markerStrength = lanternMarker ? decodeLanternWindAlpha(alpha) : decodeChainWindAlpha(alpha);
 
     float t = WindTime;
-    vec3 windPos = pos + CameraPosition;
+    vec2 wrappedPosition = wrappedWorldPosition(pos.xz + CameraPosition.xz);
+    vec3 windPos = vec3(wrappedPosition.x, pos.y + CameraPosition.y, wrappedPosition.y);
     vec2 windAnchor = floor(windPos.xz) + vec2(0.5);
     float gustStrength;
     float turbulence;
@@ -461,8 +472,6 @@ void main() {
 
     if (windMarker || lanternWindMarker || interactionMarker) {
         vec3 basePos = pos;
-        vec3 worldBasePos = basePos + CameraPosition;
-
         if (windMarker) {
             float windBend = smoothCurve(decodeWindAlpha(Color.a));
             float swayStrength = windSwayStrengthForAlpha(Color.a);
@@ -560,9 +569,11 @@ void main() {
         }
 
         if (interactionMarker) {
-            vec2 interactionAnchor = foliageMotionPosition(basePos, Color.a);
+            vec2 interactionAnchor = wrappedWorldDelta(
+                    foliageMotionPosition(basePos, Color.a) - CameraPosition.xz
+            );
             vec3 interaction = foliageInteractionOffset(
-                    worldBasePos, interactionAnchor, interactionBend);
+                    basePos, interactionAnchor, interactionBend);
             vec2 windOffset = pos.xz - basePos.xz;
             float windKeep = mix(1.0, 0.18, interaction.z);
             pos.xz = basePos.xz + interaction.xy + windOffset * windKeep;
