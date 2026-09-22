@@ -123,7 +123,7 @@ public final class AcediumFoliageShaderSource {
         String patched = LIGHT_COORDINATE_PATTERN.matcher(source).replaceFirst(
                 "return vec2(light & uvec2(0xF8u, 0xFFu)) / 256.0;"
         );
-        patched = insertAfter(patched, LIGHT_SAMPLER_PATTERN, SodiumFoliageShaderSource.WIND_UNIFORMS);
+        patched = insertAfter(patched, LIGHT_SAMPLER_PATTERN, FoliageShaderSource.UNIFORMS);
         patched = insertBefore(
                 patched,
                 EMIT_VERTEX_PATTERN,

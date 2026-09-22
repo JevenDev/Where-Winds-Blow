@@ -15,569 +15,112 @@ uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
 uniform vec3 ChunkOffset;
 uniform int FogShape;
-uniform float WindTime;
-uniform float AmbientWindStrength;
-uniform float WindTurbulence;
-uniform vec3 WeatherState;
-uniform int ActiveGustCount;
-uniform vec4 GustOriginTime0;
-uniform vec4 GustDirectionSpeed0;
-uniform vec4 GustStrength0;
-uniform vec4 GustEnvelope0;
-uniform vec4 GustOriginTime1;
-uniform vec4 GustDirectionSpeed1;
-uniform vec4 GustStrength1;
-uniform vec4 GustEnvelope1;
-uniform vec4 GustOriginTime2;
-uniform vec4 GustDirectionSpeed2;
-uniform vec4 GustStrength2;
-uniform vec4 GustEnvelope2;
-uniform float PlantWindSwayStrength;
-uniform float LeafWindSwayStrength;
-uniform float LanternWindSwayStrength;
-uniform float PlantWindSheenStrength;
-uniform float LeafWindSheenStrength;
-uniform float FoliageColorVariationStrength;
-uniform float FoliageAnimationStepRate;
-uniform vec2 WindDirection;
-uniform vec3 CameraPosition;
-uniform int FoliageInteractorCount;
-uniform vec4 FoliageInteractor0;
-uniform vec4 FoliageInteractor1;
-uniform vec4 FoliageInteractor2;
-uniform vec4 FoliageInteractor3;
-uniform vec4 FoliageInteractor4;
-uniform vec4 FoliageInteractor5;
-uniform vec4 FoliageInteractor6;
-uniform vec4 FoliageInteractor7;
-uniform vec4 FoliageInteractor8;
-uniform vec4 FoliageInteractor9;
-uniform vec4 FoliageInteractor10;
-uniform vec4 FoliageInteractor11;
-uniform vec4 FoliageInteractor12;
-uniform vec4 FoliageInteractor13;
-uniform vec4 FoliageInteractor14;
-uniform vec4 FoliageInteractor15;
-uniform vec4 FoliageInteractorMotion0;
-uniform vec4 FoliageInteractorMotion1;
-uniform vec4 FoliageInteractorMotion2;
-uniform vec4 FoliageInteractorMotion3;
-uniform vec4 FoliageInteractorMotion4;
-uniform vec4 FoliageInteractorMotion5;
-uniform vec4 FoliageInteractorMotion6;
-uniform vec4 FoliageInteractorMotion7;
-uniform vec4 FoliageInteractorMotion8;
-uniform vec4 FoliageInteractorMotion9;
-uniform vec4 FoliageInteractorMotion10;
-uniform vec4 FoliageInteractorMotion11;
-uniform vec4 FoliageInteractorMotion12;
-uniform vec4 FoliageInteractorMotion13;
-uniform vec4 FoliageInteractorMotion14;
-uniform vec4 FoliageInteractorMotion15;
 
-const float WORLD_POSITION_PERIOD = 8192.0;
+#define u_WwbTime WindTime
+#define u_WwbAmbientWindStrength AmbientWindStrength
+#define u_WwbWindTurbulence WindTurbulence
+#define u_WwbWeatherState WeatherState
+#define u_WwbActiveGustCount ActiveGustCount
+#define u_WwbGustOriginTime0 GustOriginTime0
+#define u_WwbGustDirectionSpeed0 GustDirectionSpeed0
+#define u_WwbGustStrength0 GustStrength0
+#define u_WwbGustEnvelope0 GustEnvelope0
+#define u_WwbGustOriginTime1 GustOriginTime1
+#define u_WwbGustDirectionSpeed1 GustDirectionSpeed1
+#define u_WwbGustStrength1 GustStrength1
+#define u_WwbGustEnvelope1 GustEnvelope1
+#define u_WwbGustOriginTime2 GustOriginTime2
+#define u_WwbGustDirectionSpeed2 GustDirectionSpeed2
+#define u_WwbGustStrength2 GustStrength2
+#define u_WwbGustEnvelope2 GustEnvelope2
+#define u_WwbPlantSwayStrength PlantWindSwayStrength
+#define u_WwbLeafSwayStrength LeafWindSwayStrength
+#define u_WwbLanternSwayStrength LanternWindSwayStrength
+#define u_WwbPlantSheenStrength PlantWindSheenStrength
+#define u_WwbLeafSheenStrength LeafWindSheenStrength
+#define u_WwbFoliageColorVariationStrength FoliageColorVariationStrength
+#define u_WwbFoliageAnimationStepRate FoliageAnimationStepRate
+#define u_WwbWindDirection WindDirection
+#define u_WwbCameraPosition CameraPosition
+#define u_WwbInteractorCount FoliageInteractorCount
+#define u_WwbInteractor0 FoliageInteractor0
+#define u_WwbInteractor1 FoliageInteractor1
+#define u_WwbInteractor2 FoliageInteractor2
+#define u_WwbInteractor3 FoliageInteractor3
+#define u_WwbInteractor4 FoliageInteractor4
+#define u_WwbInteractor5 FoliageInteractor5
+#define u_WwbInteractor6 FoliageInteractor6
+#define u_WwbInteractor7 FoliageInteractor7
+#define u_WwbInteractor8 FoliageInteractor8
+#define u_WwbInteractor9 FoliageInteractor9
+#define u_WwbInteractor10 FoliageInteractor10
+#define u_WwbInteractor11 FoliageInteractor11
+#define u_WwbInteractor12 FoliageInteractor12
+#define u_WwbInteractor13 FoliageInteractor13
+#define u_WwbInteractor14 FoliageInteractor14
+#define u_WwbInteractor15 FoliageInteractor15
+#define u_WwbInteractorMotion0 FoliageInteractorMotion0
+#define u_WwbInteractorMotion1 FoliageInteractorMotion1
+#define u_WwbInteractorMotion2 FoliageInteractorMotion2
+#define u_WwbInteractorMotion3 FoliageInteractorMotion3
+#define u_WwbInteractorMotion4 FoliageInteractorMotion4
+#define u_WwbInteractorMotion5 FoliageInteractorMotion5
+#define u_WwbInteractorMotion6 FoliageInteractorMotion6
+#define u_WwbInteractorMotion7 FoliageInteractorMotion7
+#define u_WwbInteractorMotion8 FoliageInteractorMotion8
+#define u_WwbInteractorMotion9 FoliageInteractorMotion9
+#define u_WwbInteractorMotion10 FoliageInteractorMotion10
+#define u_WwbInteractorMotion11 FoliageInteractorMotion11
+#define u_WwbInteractorMotion12 FoliageInteractorMotion12
+#define u_WwbInteractorMotion13 FoliageInteractorMotion13
+#define u_WwbInteractorMotion14 FoliageInteractorMotion14
+#define u_WwbInteractorMotion15 FoliageInteractorMotion15
+#define WWB_HAS_FOLIAGE_MATERIAL true
+
+#moj_import <where_winds_blow:foliage_uniforms.glsl>
+#moj_import <where_winds_blow:foliage_wind.glsl>
 
 out float vertexDistance;
 out vec4 vertexColor;
 out vec2 texCoord0;
 out float windSheen;
 
-bool isPlantWindAlpha(float alpha) {
-    float encoded = alpha * 255.0;
-    return (encoded >= 16.5 && encoded <= 44.5) || (encoded >= 104.5 && encoded <= 216.5);
-}
-
-bool isCoherentPlantWindAlpha(float alpha) {
-    float encoded = alpha * 255.0;
-    return encoded >= 104.5 && encoded <= 216.5;
-}
-
-bool isLeafWindAlpha(float alpha) {
-    float encoded = alpha * 255.0;
-    return encoded >= 44.5 && encoded <= 72.5;
-}
-
-bool isLanternWindAlpha(float alpha) {
-    float encoded = alpha * 255.0;
-    return encoded >= 72.5 && encoded <= 88.5;
-}
-
-bool isChainWindAlpha(float alpha) {
-    float encoded = alpha * 255.0;
-    return encoded >= 88.5 && encoded <= 104.5;
-}
-
-bool isFoliageWindVertex(float alpha) {
-    return isPlantWindAlpha(alpha) || isLeafWindAlpha(alpha);
-}
-
-float plantAlphaCode(float alpha) {
-    float code = floor(alpha * 255.0 + 0.5)
-            - (isCoherentPlantWindAlpha(alpha) ? 105.0 : 17.0);
-    return isCoherentPlantWindAlpha(alpha)
-            ? mod(code, 28.0)
-            : clamp(code, 0.0, 27.0);
-}
-
-float decodePlantInteractionAlpha(float alpha) {
-    return floor(plantAlphaCode(alpha) / 7.0) / 3.0;
-}
-
-float decodeWindAlpha(float alpha) {
-    float encoded = alpha * 255.0;
-    if (isLeafWindAlpha(alpha)) {
-        return clamp((encoded - 45.0) / 27.0, 0.0, 1.0);
-    }
-
-    return mod(plantAlphaCode(alpha), 7.0) / 6.0;
-}
-
-float decodeLanternWindAlpha(float alpha) {
-    return clamp((floor(alpha * 255.0 + 0.5) - 73.0) / 15.0, 0.0, 1.0);
-}
-
-float decodeChainWindAlpha(float alpha) {
-    return clamp((floor(alpha * 255.0 + 0.5) - 89.0) / 15.0, 0.0, 1.0);
-}
-
-float windSwayStrengthForAlpha(float alpha) {
-    return isLeafWindAlpha(alpha) ? LeafWindSwayStrength : PlantWindSwayStrength;
-}
-
-float windSheenStrengthForAlpha(float alpha) {
-    return isLeafWindAlpha(alpha) ? LeafWindSheenStrength : PlantWindSheenStrength;
-}
-
-float smoothCurve(float value) {
-    value = clamp(value, 0.0, 1.0);
-    return value * value * (3.0 - 2.0 * value);
-}
-
-vec4 gustOriginTimeAt(int index) {
-    if (index == 0) return GustOriginTime0;
-    if (index == 1) return GustOriginTime1;
-    return GustOriginTime2;
-}
-
-vec4 gustDirectionSpeedAt(int index) {
-    if (index == 0) return GustDirectionSpeed0;
-    if (index == 1) return GustDirectionSpeed1;
-    return GustDirectionSpeed2;
-}
-
-vec4 gustStrengthAt(int index) {
-    if (index == 0) return GustStrength0;
-    if (index == 1) return GustStrength1;
-    return GustStrength2;
-}
-
-vec4 gustEnvelopeAt(int index) {
-    if (index == 0) return GustEnvelope0;
-    if (index == 1) return GustEnvelope1;
-    return GustEnvelope2;
-}
-
-float gustEnvelope(float progress, float attackEnd, float releaseStart) {
-    if (progress < attackEnd) {
-        return smoothCurve(progress / max(attackEnd, 0.001));
-    }
-    if (progress <= releaseStart) {
-        return 1.0;
-    }
-    return smoothCurve(1.0 - (progress - releaseStart) / max(1.0 - releaseStart, 0.001));
-}
-
-float cellWithParity(float coordinate, float expectedParity) {
-    float cell = floor(coordinate);
-    if (mod(cell, 2.0) != expectedParity) {
-        cell += fract(coordinate) < 0.5 ? -1.0 : 1.0;
-    }
-    return cell;
-}
-
-vec2 wrappedWorldPosition(vec2 position) {
-    return mod(mod(position, WORLD_POSITION_PERIOD) + WORLD_POSITION_PERIOD, WORLD_POSITION_PERIOD);
-}
-
-vec2 wrappedWorldDelta(vec2 delta) {
-    return mod(delta + WORLD_POSITION_PERIOD * 0.5, WORLD_POSITION_PERIOD) - WORLD_POSITION_PERIOD * 0.5;
-}
-
-vec2 foliageMotionPosition(vec3 position, float alpha) {
-    vec2 worldPosition = wrappedWorldPosition(position.xz + CameraPosition.xz);
-    if (!isCoherentPlantWindAlpha(alpha)) {
-        return worldPosition;
-    }
-
-    float parityCode = floor(
-            (floor(alpha * 255.0 + 0.5) - 105.0) / 28.0
-    );
-    vec2 expectedParity = vec2(mod(parityCode, 2.0), floor(parityCode / 2.0));
-    return vec2(
-            cellWithParity(worldPosition.x, expectedParity.x),
-            cellWithParity(worldPosition.y, expectedParity.y)
-    ) + vec2(0.5);
-}
-
-vec2 sampleDynamicWind(vec2 worldPosition, out float gustStrength, out float turbulence, out float leadingEdge) {
-    vec2 ambientDirection = normalize(WindDirection);
-    vec2 directionVector = ambientDirection * max(AmbientWindStrength, 0.02);
-    gustStrength = 0.0;
-    turbulence = WindTurbulence;
-    leadingEdge = 0.0;
-
-    for (int index = 0; index < 3; index++) {
-        if (index >= ActiveGustCount) {
-            break;
-        }
-
-        vec4 originTime = gustOriginTimeAt(index);
-        vec4 directionSpeed = gustDirectionSpeedAt(index);
-        vec4 strengthData = gustStrengthAt(index);
-        vec4 envelopeData = gustEnvelopeAt(index);
-        float age = WindTime - originTime.z;
-        if (age < 0.0 || age >= originTime.w) {
-            continue;
-        }
-
-        vec2 gustDirection = normalize(directionSpeed.xy);
-        vec2 gustCross = vec2(-gustDirection.y, gustDirection.x);
-        vec2 relative = wrappedWorldDelta(worldPosition - originTime.xy);
-        float along = dot(relative, gustDirection);
-        float across = dot(relative, gustCross);
-        float phase = strengthData.z;
-        float width = max(directionSpeed.w, 0.001);
-        float edgeNoise = sin(across * 0.055 + phase) * width * 0.17
-                + sin(across * 0.137 - phase * 1.61) * width * 0.07;
-        float normalizedDistance = (along - directionSpeed.z * age - edgeNoise) / width;
-        float spatialEnvelope = exp(-normalizedDistance * normalizedDistance * 1.65);
-        float timeEnvelope = gustEnvelope(age / originTime.w, envelopeData.x, envelopeData.y);
-        float pocket = clamp(
-                0.84
-                    + sin(across * 0.083 + age * 0.21 + phase) * 0.10
-                    + sin(across * 0.031 - age * 0.13 + phase * 2.07) * 0.06,
-                0.62,
-                1.12
-        );
-        float localStrength = strengthData.x * timeEnvelope * spatialEnvelope * pocket;
-        float crossVariation = sin(across * 0.069 + age * 0.18 + phase) * strengthData.w;
-        vec2 localDirection = normalize(gustDirection + gustCross * crossVariation);
-        directionVector += localDirection * localStrength;
-        gustStrength += localStrength;
-        turbulence += strengthData.y * timeEnvelope * spatialEnvelope;
-        leadingEdge += localStrength * smoothstep(-0.22, 0.72, normalizedDistance);
-    }
-
-    return length(directionVector) > 0.001 ? normalize(directionVector) : ambientDirection;
-}
-
-vec4 foliageInteractorAt(int index) {
-    if (index == 0) return FoliageInteractor0;
-    if (index == 1) return FoliageInteractor1;
-    if (index == 2) return FoliageInteractor2;
-    if (index == 3) return FoliageInteractor3;
-    if (index == 4) return FoliageInteractor4;
-    if (index == 5) return FoliageInteractor5;
-    if (index == 6) return FoliageInteractor6;
-    if (index == 7) return FoliageInteractor7;
-    if (index == 8) return FoliageInteractor8;
-    if (index == 9) return FoliageInteractor9;
-    if (index == 10) return FoliageInteractor10;
-    if (index == 11) return FoliageInteractor11;
-    if (index == 12) return FoliageInteractor12;
-    if (index == 13) return FoliageInteractor13;
-    if (index == 14) return FoliageInteractor14;
-    return FoliageInteractor15;
-}
-
-vec4 foliageInteractorMotionAt(int index) {
-    if (index == 0) return FoliageInteractorMotion0;
-    if (index == 1) return FoliageInteractorMotion1;
-    if (index == 2) return FoliageInteractorMotion2;
-    if (index == 3) return FoliageInteractorMotion3;
-    if (index == 4) return FoliageInteractorMotion4;
-    if (index == 5) return FoliageInteractorMotion5;
-    if (index == 6) return FoliageInteractorMotion6;
-    if (index == 7) return FoliageInteractorMotion7;
-    if (index == 8) return FoliageInteractorMotion8;
-    if (index == 9) return FoliageInteractorMotion9;
-    if (index == 10) return FoliageInteractorMotion10;
-    if (index == 11) return FoliageInteractorMotion11;
-    if (index == 12) return FoliageInteractorMotion12;
-    if (index == 13) return FoliageInteractorMotion13;
-    if (index == 14) return FoliageInteractorMotion14;
-    return FoliageInteractorMotion15;
-}
-
-vec3 foliageInteractionOffset(vec3 pos, vec2 anchor, float bend) {
-    if (FoliageInteractorCount <= 0 || bend <= 0.0) {
-        return vec3(0.0);
-    }
-
-    vec2 totalOffset = vec2(0.0);
-    for (int index = 0; index < 16; index++) {
-        if (index >= FoliageInteractorCount) {
-            break;
-        }
-
-        vec4 interactor = foliageInteractorAt(index);
-        vec4 motion = foliageInteractorMotionAt(index);
-        float radius = max(interactor.w, 0.001);
-        float verticalDistance = max(max(interactor.y - pos.y, pos.y - motion.x), 0.0);
-        float verticalInfluence = smoothCurve(1.0 - verticalDistance / (0.30 + radius * 0.55));
-        if (verticalInfluence <= 0.0) {
-            continue;
-        }
-
-        vec2 trail = motion.yz;
-        float trailLengthSqr = dot(trail, trail);
-        float trailProgress = trailLengthSqr > 0.000001
-                ? clamp(dot(anchor - interactor.xz, trail) / trailLengthSqr, 0.0, 1.0)
-                : 0.0;
-        vec2 nearestPoint = interactor.xz + trail * trailProgress;
-        vec2 delta = anchor - nearestPoint;
-        float horizontalDistance = length(delta);
-        float horizontalInfluence = smoothCurve(1.0 - horizontalDistance / radius);
-        if (horizontalInfluence <= 0.0) {
-            continue;
-        }
-
-        vec2 direction = delta / max(horizontalDistance, 0.001);
-        totalOffset += direction * horizontalInfluence * verticalInfluence * motion.w;
-    }
-
-    float offsetLength = length(totalOffset);
-    if (offsetLength > 1.0) {
-        totalOffset /= offsetLength;
-        offsetLength = 1.0;
-    }
-
-    float pushBlend = smoothCurve(clamp(offsetLength * bend * 1.35, 0.0, 1.0));
-    return vec3(totalOffset * bend * 0.34, pushBlend);
-}
-
-float grassVariationSeed(vec2 cell, vec2 salt) {
-    return fract(sin(dot(cell, salt)) * 43758.5453);
-}
-
-float foliageValueNoise(vec2 position, vec2 salt) {
-    vec2 cell = floor(position);
-    vec2 local = fract(position);
-    local = local * local * (3.0 - 2.0 * local);
-    float bottomLeft = grassVariationSeed(cell, salt);
-    float bottomRight = grassVariationSeed(cell + vec2(1.0, 0.0), salt);
-    float topLeft = grassVariationSeed(cell + vec2(0.0, 1.0), salt);
-    float topRight = grassVariationSeed(cell + vec2(1.0, 1.0), salt);
-    return mix(
-            mix(bottomLeft, bottomRight, local.x),
-            mix(topLeft, topRight, local.x),
-            local.y
-    );
-}
-
-float foliageColorVariation(vec2 worldPosition) {
-    float broad = foliageValueNoise(worldPosition * 0.045, vec2(127.1, 311.7));
-    float local = foliageValueNoise(worldPosition * 0.18, vec2(269.5, 183.3));
-    float accent = smoothstep(0.68, 0.90, broad);
-    return (broad - 0.5) * 0.38 + (local - 0.5) * 0.08 + accent * 0.08;
-}
-
-float foliageAnimationTime(float continuousTime, vec2 worldPosition) {
-    if (FoliageAnimationStepRate <= 0.0) {
-        return continuousTime;
-    }
-    float rate = max(FoliageAnimationStepRate, 1.0);
-    float phase = grassVariationSeed(floor(worldPosition * 2.0), vec2(41.7, 289.3)) / rate;
-    return floor((continuousTime + phase) * rate) / rate - phase;
-}
-
-vec3 rotateAroundAxis(vec3 value, vec3 axis, float angle) {
-    float c = cos(angle);
-    float s = sin(angle);
-    return value * c + cross(axis, value) * s + axis * dot(axis, value) * (1.0 - c);
-}
-
-vec3 applyLanternWind(vec3 pos, float alpha) {
-    bool lanternMarker = isLanternWindAlpha(alpha);
-    bool chainMarker = isChainWindAlpha(alpha);
-    if ((!lanternMarker && !chainMarker) || LanternWindSwayStrength <= 0.0) {
-        return pos;
-    }
-
-    float markerStrength = lanternMarker ? decodeLanternWindAlpha(alpha) : decodeChainWindAlpha(alpha);
-
-    float t = WindTime;
-    vec2 wrappedPosition = wrappedWorldPosition(pos.xz + CameraPosition.xz);
-    vec3 windPos = vec3(wrappedPosition.x, pos.y + CameraPosition.y, wrappedPosition.y);
-    vec2 windAnchor = floor(windPos.xz) + vec2(0.5);
-    float gustStrength;
-    float turbulence;
-    float leadingEdge;
-    vec2 windDir = sampleDynamicWind(windAnchor, gustStrength, turbulence, leadingEdge);
-    vec2 crossDir = vec2(-windDir.y, windDir.x);
-    float along = dot(windAnchor, windDir);
-    float across = dot(windAnchor, crossDir);
-    float seed = grassVariationSeed(floor(windAnchor), vec2(91.7, 53.3));
-    float phase = seed * 6.2831853;
-    float flutter = sin(t * 1.17 + across * 0.11 + phase * 1.71);
-    float windPower = AmbientWindStrength + gustStrength;
-    float windForce = 0.48 + clamp(windPower, 0.0, 3.0) * 0.34 + flutter * turbulence * 0.12;
-    float directionNoise = sin(across * 0.12 + t * 0.31 + phase) * (0.025 + turbulence * 0.15);
-    vec2 baseDir = normalize(windDir + crossDir * directionNoise);
-    float crossDrift = sin(t * 0.73 + across * 0.09 + phase * 1.37) * (0.025 + turbulence * 0.12);
-    vec2 swingDir = normalize(baseDir + crossDir * crossDrift);
-    vec3 axis = normalize(vec3(-swingDir.y, 0.0, swingDir.x));
-    float chainAngle = clamp((0.006 + windPower * 0.046) * LanternWindSwayStrength * windForce, 0.0, 0.22);
-    float bodyAngle = clamp((0.008 + windPower * 0.052) * LanternWindSwayStrength * windForce, 0.0, 0.25);
-    vec3 chainEndOffset = rotateAroundAxis(vec3(0.0, -1.0, 0.0), axis, chainAngle) - vec3(0.0, -1.0, 0.0);
-
-    float localY = fract(windPos.y);
-    if (chainMarker) {
-        if (markerStrength <= 0.0) {
-            return pos;
-        }
-
-        pos += chainEndOffset * markerStrength;
-        return pos;
-    }
-
-    vec3 local = vec3(windPos.x - windAnchor.x, localY - 1.0, windPos.z - windAnchor.y);
-    vec3 rotated = rotateAroundAxis(local, axis, bodyAngle * markerStrength);
-
-    float yaw = sin(t * 0.49 + phase * 2.3 + across * 0.05)
-            * (0.002 + turbulence * 0.012)
-            * LanternWindSwayStrength
-            * markerStrength;
-    float yawCos = cos(yaw);
-    float yawSin = sin(yaw);
-    rotated.xz = vec2(
-            rotated.x * yawCos - rotated.z * yawSin,
-            rotated.x * yawSin + rotated.z * yawCos
-    );
-
-    pos += chainEndOffset * markerStrength;
-    pos += rotated - local;
-    pos.y += 0.03125 * markerStrength;
-    return pos;
-}
-
 void main() {
     vec3 pos = Position + ChunkOffset;
     windSheen = 0.0;
 
-    bool windMarker = isFoliageWindVertex(Color.a);
-    bool lanternWindMarker = isLanternWindAlpha(Color.a) || isChainWindAlpha(Color.a);
-    float interactionBend = isPlantWindAlpha(Color.a) ? smoothCurve(decodePlantInteractionAlpha(Color.a)) : 0.0;
+    bool windMarker = wwb_is_foliage_wind_vertex(Color.a);
+    bool lanternWindMarker = wwb_is_lantern_wind_vertex(Color.a) || wwb_is_chain_wind_vertex(Color.a);
+    float interactionBend = wwb_is_plant_wind_vertex(Color.a) ? wwb_smooth_curve(wwb_decode_plant_interaction_alpha(Color.a)) : 0.0;
     bool interactionMarker = interactionBend > 0.0;
 
     if (windMarker || lanternWindMarker || interactionMarker) {
         vec3 basePos = pos;
         if (windMarker) {
-            float windBend = smoothCurve(decodeWindAlpha(Color.a));
-            float swayStrength = windSwayStrengthForAlpha(Color.a);
-            float sheenStrength = windSheenStrengthForAlpha(Color.a);
-            vec2 motionPosition = foliageMotionPosition(pos, Color.a);
-            float t = isPlantWindAlpha(Color.a) ? foliageAnimationTime(WindTime, motionPosition) : WindTime;
+            vec2 motionPosition = wwb_foliage_motion_position(pos, Color.a);
             float localGustStrength;
             float localTurbulence;
             float gustLeadingEdge;
-            vec2 windDir = sampleDynamicWind(
-                    motionPosition,
-                    localGustStrength,
-                    localTurbulence,
-                    gustLeadingEdge
+            vec2 windDir = wwb_sample_dynamic_wind(
+                    motionPosition, localGustStrength, localTurbulence, gustLeadingEdge
             );
-            vec2 crossDir = vec2(-windDir.y, windDir.x);
-            // Keep the original wave field fixed in world space. Dynamic direction steers the
-            // displacement, but must not re-project world coordinates and jump the wave phase.
-            vec2 phaseDir = normalize(vec2(0.82, 0.57));
-            vec2 phaseCross = vec2(-phaseDir.y, phaseDir.x);
-            float along = dot(motionPosition, phaseDir);
-            float across = dot(motionPosition, phaseCross);
-            float plantWind = isPlantWindAlpha(Color.a) ? 1.0 : 0.0;
-            vec2 gustCell = floor(motionPosition * 0.58);
-            vec2 bladeCell = floor(motionPosition * 2.7);
-            float gustSeed = grassVariationSeed(gustCell, vec2(127.1, 311.7));
-            float bladeSeed = grassVariationSeed(bladeCell, vec2(269.5, 183.3));
-            float localPhase = plantWind * ((gustSeed - 0.5) * 1.7 + (bladeSeed - 0.5) * 0.16);
-            float localTempo = mix(1.0, 0.94 + gustSeed * 0.12, plantWind);
-            float localAmplitude = mix(1.0, 0.82 + gustSeed * 0.30 + bladeSeed * 0.08, plantWind);
-            float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
-                    + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
-            phaseDrift += localPhase * 0.38;
-            float tempoPhase = (localTempo - 1.0) * 2.4
-                    + sin(along * 0.052 + across * 0.041 + t * 0.09 + localPhase * 0.2);
-            float amplitudeDrift = (0.84 + 0.22 * smoothCurve(sin(along * 0.21 + across * 0.14 - t * 0.16 + localPhase) * 0.5 + 0.5)) * localAmplitude;
-            float broad = sin(along * 0.35 - t * 1.28 + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + tempoPhase + localPhase);
-            float wave = pow(max(0.0, broad), 1.7);
-            float ripple = sin(along * 1.08 - t * 3.6 + across * 0.18 + phaseDrift * 1.4 + localPhase * 1.4) * 0.5 + 0.5;
-            float proceduralGust = smoothCurve(sin(along * 0.10 - t * 0.42 + across * 0.04 + phaseDrift * 0.35 + tempoPhase * 0.4 + localPhase * 0.5) * 0.5 + 0.5);
-            float motionBand = smoothCurve(wave) * (0.82 + proceduralGust * 0.18);
-            float tipLift = smoothCurve(windBend);
-            float sheenLull = 1.0 - smoothCurve(WeatherState.z) * mix(0.35, 0.72, plantWind);
-            windSheen = clamp(
-                    (motionBand * 0.22 + gustLeadingEdge * 0.08)
-                            * tipLift
-                            * sheenStrength
-                            * sheenLull,
-                    0.0,
-                    0.32
+            windSheen = wwb_foliage_wind_sheen(
+                    pos, Color.a, windDir, localGustStrength, localTurbulence, gustLeadingEdge
             );
-            // Preserve the original sway as the animation. Dynamic wind only supplies a smooth
-            // direction and amplitude control signal instead of adding another oscillator.
-            float precipitationLoad = clamp(WeatherState.x + WeatherState.y * 0.45, 0.0, 1.0);
-            float stormEnergy = clamp(
-                    WeatherState.y + localGustStrength * 0.65 + localTurbulence * 0.25,
-                    0.0,
-                    1.5
+            pos = wwb_apply_foliage_wind(
+                    pos, Color.a, windDir, localGustStrength, localTurbulence, gustLeadingEdge
             );
-            float lullSoftening = 1.0 - smoothCurve(WeatherState.z) * mix(0.35, 0.72, plantWind);
-            float leafWind = 1.0 - plantWind;
-            float dynamicStrength = (1.0
-                    + clamp(AmbientWindStrength, 0.0, 1.5) * 0.55
-                    + clamp(localGustStrength, 0.0, 1.5) * 0.45) * lullSoftening;
-            float aerodynamicResponse = mix(
-                    0.68 + stormEnergy * 0.18,
-                    1.0 - precipitationLoad * 0.12,
-                    plantWind
-            );
-            float shimmer = sin(motionPosition.x * 2.17 + motionPosition.y * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8);
-            float broadSway = mix(0.145, 0.225, plantWind);
-            float fineSway = mix(0.055, 0.020, plantWind);
-            float originalSway = 0.014 + wave * broadSway * amplitudeDrift
-                    + ripple * proceduralGust * fineSway
-                    + shimmer * mix(0.012, 0.003, plantWind);
-            float impactFlutter = sin(t * 9.7 + bladeSeed * 11.0 + across * 0.31)
-                    * sin(t * 6.3 + gustSeed * 7.0 - along * 0.17);
-            float steadyWeatherLean = plantWind * precipitationLoad * (0.010 + stormEnergy * 0.014)
-                    + gustLeadingEdge * (0.018 + plantWind * 0.018);
-            float leafFlutter = leafWind * impactFlutter
-                    * (precipitationLoad * 0.006 + localTurbulence * 0.026 + stormEnergy * 0.012);
-            float strength = clamp(
-                    (originalSway * dynamicStrength * aerodynamicResponse + steadyWeatherLean + leafFlutter)
-                            * windBend * swayStrength,
-                    -0.08,
-                    0.42
-            );
-            float directionNoise = sin(across * 0.22 + t * 0.55 + tempoPhase * 0.5 + phaseDrift * 0.35 + localPhase)
-                    * mix(0.18, 0.10, plantWind);
-            vec2 dir = normalize(windDir + crossDir * directionNoise);
-            pos.xz += dir * strength;
         }
 
         if (lanternWindMarker) {
-            pos = applyLanternWind(pos, Color.a);
+            pos = wwb_apply_lantern_wind(pos, Color.a);
         }
 
         if (interactionMarker) {
-            vec2 interactionAnchor = wrappedWorldDelta(
-                    foliageMotionPosition(basePos, Color.a) - CameraPosition.xz
+            vec2 interactionAnchor = wwb_wrapped_world_delta(
+                    wwb_foliage_motion_position(basePos, Color.a) - CameraPosition.xz
             );
-            vec3 interaction = foliageInteractionOffset(
-                    basePos, interactionAnchor, interactionBend);
-            vec2 windOffset = pos.xz - basePos.xz;
-            float windKeep = mix(1.0, 0.18, interaction.z);
-            pos.xz = basePos.xz + interaction.xy + windOffset * windKeep;
+            pos = wwb_apply_foliage_interaction(pos, basePos, interactionAnchor, Color.a);
         }
     }
 
@@ -586,10 +129,10 @@ void main() {
     vertexDistance = fog_distance(pos, FogShape);
     vec4 lightmapColor = minecraft_sample_lightmap(Sampler2, UV2);
     vertexColor = vec4(Color.rgb, 1.0) * lightmapColor;
-    if (isPlantWindAlpha(Color.a) && FoliageColorVariationStrength > 0.0) {
-        vec2 colorAnchor = foliageMotionPosition(Position + ChunkOffset, Color.a);
+    if (wwb_is_plant_wind_vertex(Color.a) && FoliageColorVariationStrength > 0.0) {
+        vec2 colorAnchor = wwb_foliage_motion_position(Position + ChunkOffset, Color.a);
         float variation = clamp(
-                foliageColorVariation(colorAnchor) * FoliageColorVariationStrength,
+                wwb_foliage_color_variation(colorAnchor) * FoliageColorVariationStrength,
                 -0.26,
                 0.32
         );
