@@ -114,6 +114,7 @@ public final class WhereWindsBlowClient {
 
     private static void onTagsUpdated(TagsUpdatedEvent event) {
         FoliageSwayProfiles.clearCache();
+        BiomeWindProfiles.clearCache();
     }
 
     private static void onClientConfigReload(ModConfigEvent.Reloading event) {

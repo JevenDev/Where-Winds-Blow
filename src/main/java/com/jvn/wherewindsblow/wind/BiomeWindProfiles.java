@@ -52,6 +52,12 @@ public final class BiomeWindProfiles {
         WhereWindsBlow.LOGGER.info("Loaded {} {} biome wind profiles.", ordered.size(), source.logName());
     }
 
+    public static void clearCache() {
+        CLIENT.clearCache();
+        SERVER.clearCache();
+        REVISION.incrementAndGet();
+    }
+
     public static long revision() {
         return REVISION.get();
     }
@@ -99,6 +105,10 @@ public final class BiomeWindProfiles {
 
         private synchronized void replace(List<BiomeWindProfile> updatedProfiles) {
             profiles = updatedProfiles;
+            cache.clear();
+        }
+
+        private synchronized void clearCache() {
             cache.clear();
         }
 

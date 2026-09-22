@@ -4,6 +4,7 @@ import com.jvn.wherewindsblow.client.lantern.SwingingLanternAssemblyRenderer;
 import com.jvn.wherewindsblow.client.weather.GpuSnowfallRenderer;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,9 +26,15 @@ public abstract class ClientLevelMixin {
         GpuSnowfallRenderer.invalidateColumn(pos);
     }
 
+    @Inject(method = "onChunkLoaded", at = @At("TAIL"))
+    private void wherewindsblow$refreshChunkCaches(ChunkPos pos, CallbackInfo ci) {
+        SwingingLanternAssemblyRenderer.invalidateChunk(pos.getWorldPosition());
+        GpuSnowfallRenderer.invalidateChunk(pos);
+    }
+
     @Inject(method = "unload", at = @At("HEAD"))
     private void wherewindsblow$discardLanternChunk(LevelChunk chunk, CallbackInfo ci) {
         SwingingLanternAssemblyRenderer.invalidateChunk(chunk);
-        GpuSnowfallRenderer.invalidateChunk(chunk);
+        GpuSnowfallRenderer.invalidateChunk(chunk.getPos());
     }
 }

@@ -26,7 +26,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FastColor;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.Heightmap;
 import org.joml.Vector3f;
 
@@ -263,18 +263,20 @@ public final class GpuSnowfallRenderer {
         markDirtyIfVisible(pos.getX(), pos.getZ());
     }
 
-    public static void invalidateChunk(LevelChunk chunk) {
-        int minX = chunk.getPos().getMinBlockX();
-        int minZ = chunk.getPos().getMinBlockZ();
-        for (int z = minZ; z < minZ + 16; z++) {
-            for (int x = minX; x < minX + 16; x++) {
+    public static void invalidateChunk(ChunkPos chunk) {
+        int minX = chunk.getMinBlockX();
+        int minZ = chunk.getMinBlockZ();
+        BIOME_CACHE.clear();
+        // biome zoom can select samples across the chunk boundary
+        for (int z = minZ - 4; z < minZ + 20; z++) {
+            for (int x = minX - 4; x < minX + 20; x++) {
                 COLUMN_CACHE.remove(columnKey(x, z));
             }
         }
-        if (cachedCenterX >= minX - HEIGHT_MAP_RADIUS
-                && cachedCenterX <= minX + 15 + HEIGHT_MAP_RADIUS
-                && cachedCenterZ >= minZ - HEIGHT_MAP_RADIUS
-                && cachedCenterZ <= minZ + 15 + HEIGHT_MAP_RADIUS) {
+        if (cachedCenterX >= minX - 4 - HEIGHT_MAP_RADIUS
+                && cachedCenterX <= minX + 19 + HEIGHT_MAP_RADIUS
+                && cachedCenterZ >= minZ - 4 - HEIGHT_MAP_RADIUS
+                && cachedCenterZ <= minZ + 19 + HEIGHT_MAP_RADIUS) {
             heightTextureDirty = true;
         }
     }
