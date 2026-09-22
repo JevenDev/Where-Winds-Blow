@@ -482,6 +482,12 @@ public final class WhereWindsBlowConfigScreen {
                                 SMALL_STEP
                         ))
                         .option(doubleOption(
+                                ClientConfig.WIND_LEAF_SWAY_STRENGTH,
+                                ClientConfig.WIND_LEAF_SWAY_STRENGTH_MIN,
+                                ClientConfig.WIND_LEAF_SWAY_STRENGTH_MAX,
+                                SMALL_STEP
+                        ))
+                        .option(doubleOption(
                                 ClientConfig.WIND_PLANT_SWAY_START_HEIGHT,
                                 ClientConfig.WIND_PLANT_SWAY_START_HEIGHT_MIN,
                                 ClientConfig.WIND_PLANT_SWAY_START_HEIGHT_MAX,

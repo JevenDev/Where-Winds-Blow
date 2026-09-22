@@ -296,7 +296,9 @@ public final class ResponsiveFoliageShaders {
     }
 
     public static float leafWindSwayStrength() {
-        return ClientConfig.ENABLE_WIND_LEAF_SWAY.getAsBoolean() ? windSwayStrength() * LEAF_WIND_SWAY_SCALE : 0.0F;
+        return ClientConfig.ENABLE_WIND_LEAF_SWAY.getAsBoolean()
+                ? windSwayStrength() * LEAF_WIND_SWAY_SCALE * (float) ClientConfig.WIND_LEAF_SWAY_STRENGTH.getAsDouble()
+                : 0.0F;
     }
 
     public static float lanternWindSwayStrength() {

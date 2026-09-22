@@ -69,6 +69,8 @@ public final class ClientConfig {
     public static final double BANNER_ANIMATION_DISTANCE_MAX = 128.0D;
     public static final double WIND_FOLIAGE_SWAY_STRENGTH_MIN = 0.0D;
     public static final double WIND_FOLIAGE_SWAY_STRENGTH_MAX = 2.0D;
+    public static final double WIND_LEAF_SWAY_STRENGTH_MIN = 0.0D;
+    public static final double WIND_LEAF_SWAY_STRENGTH_MAX = 4.0D;
     public static final double WIND_PLANT_SWAY_START_HEIGHT_MIN = 0.0D;
     public static final double WIND_PLANT_SWAY_START_HEIGHT_MAX = 1.0D;
     public static final double WEATHER_WIND_POWER_MIN = 0.0D;
@@ -360,6 +362,10 @@ public final class ClientConfig {
     public static final ModConfigSpec.DoubleValue WIND_FOLIAGE_SWAY_STRENGTH = BUILDER
             .comment("Scales the strength of wind-driven foliage sway.")
             .defineInRange("windFoliageSwayStrength", 1.0D, WIND_FOLIAGE_SWAY_STRENGTH_MIN, WIND_FOLIAGE_SWAY_STRENGTH_MAX);
+
+    public static final ModConfigSpec.DoubleValue WIND_LEAF_SWAY_STRENGTH = BUILDER
+            .comment("Multiplies leaf-block sway after foliage strength and weather minimums. 1 preserves the default motion, 0 stops leaf sway.")
+            .defineInRange("windLeafSwayStrength", 1.0D, WIND_LEAF_SWAY_STRENGTH_MIN, WIND_LEAF_SWAY_STRENGTH_MAX);
 
     public static final ModConfigSpec.DoubleValue WIND_PLANT_SWAY_START_HEIGHT = BUILDER
             .comment("Sets how far above the bottom of plant-like foliage wind sway starts, in block units.")

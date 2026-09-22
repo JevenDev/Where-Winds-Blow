@@ -308,6 +308,8 @@
   "where_winds_blow.config.blizzardIntensity.tooltip": "Scales the density of blowing snow and rooftop spindrift without changing ordinary snowfall or fog.",
   "where_winds_blow.config.windFoliageSwayStrength": "Sway Strength",
   "where_winds_blow.config.windFoliageSwayStrength.tooltip": "Scales the strength of wind-driven foliage motion.",
+  "where_winds_blow.config.windLeafSwayStrength": "Leaf Sway Strength",
+  "where_winds_blow.config.windLeafSwayStrength.tooltip": "Multiplies leaf-block sway without changing plant sway, including during rain and thunder. 1 keeps the default motion, 0 stops leaf sway, and higher values make leaves sway more.",
   "where_winds_blow.config.windPlantSwayStartHeight": "Plant Sway Start",
   "where_winds_blow.config.windPlantSwayStartHeight.tooltip": "Raises the still base of grass, crops, flowers, and other plant-like foliage. Higher values reduce wind sway on simple crossed-plane plants. Rebuilds visible foliage when changed.",
   "where_winds_blow.config.clearWeatherWindPower": "Clear Wind Power",
