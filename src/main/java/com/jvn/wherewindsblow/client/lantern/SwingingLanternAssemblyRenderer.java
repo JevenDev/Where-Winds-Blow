@@ -39,9 +39,7 @@ import org.joml.Quaternionf;
 
 public final class SwingingLanternAssemblyRenderer {
     private static final RenderLevelStageEvent.Stage RENDER_STAGE = RenderLevelStageEvent.Stage.AFTER_BLOCK_ENTITIES;
-    private static final int CHUNK_RENDER_RADIUS = 5;
-    private static final int MAX_CHUNK_CACHE_SCANS_PER_FRAME = 2;
-    private static final int MAX_LANTERN_CHUNK_CACHE_SIZE = 512;
+    private static final int ANIMATION_CHUNK_RADIUS = 5;
     private static final int MAX_SWING_STATES = 4096;
     private static final int MAX_CHAIN_HEIGHT = 32;
     private static final int COLLISION_BINARY_SEARCH_STEPS = 7;
@@ -58,7 +56,6 @@ public final class SwingingLanternAssemblyRenderer {
     private static final Map<Long, LanternChunkCache> LANTERN_CHUNK_CACHE = new ConcurrentHashMap<>();
     private static ClientLevel activeLevel;
     private static net.minecraft.resources.ResourceKey<Level> activeDimension;
-    private static int chunkCacheScansThisFrame;
 
     private SwingingLanternAssemblyRenderer() {
     }
@@ -68,13 +65,12 @@ public final class SwingingLanternAssemblyRenderer {
         LANTERN_CHUNK_CACHE.clear();
         activeLevel = null;
         activeDimension = null;
-        chunkCacheScansThisFrame = 0;
     }
 
     public static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() != RENDER_STAGE
                 || !ClientConfig.ENABLE_WIND_LANTERN_SWAY.getAsBoolean()
-                || !ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()) {
+                || !ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers()) {
             return;
         }
 
@@ -89,9 +85,6 @@ public final class SwingingLanternAssemblyRenderer {
             activeLevel = level;
             activeDimension = level.dimension();
         }
-        if (LANTERN_CHUNK_CACHE.size() > MAX_LANTERN_CHUNK_CACHE_SIZE) {
-            LANTERN_CHUNK_CACHE.clear();
-        }
         if (SWING_STATES.size() > MAX_SWING_STATES) {
             SWING_STATES.clear();
         }
@@ -101,10 +94,10 @@ public final class SwingingLanternAssemblyRenderer {
         ChunkPos cameraChunk = new ChunkPos(camera.getBlockPosition());
         BlockRenderDispatcher blockRenderer = minecraft.getBlockRenderer();
         MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
-        chunkCacheScansThisFrame = 0;
 
-        for (int chunkZ = cameraChunk.z - CHUNK_RENDER_RADIUS; chunkZ <= cameraChunk.z + CHUNK_RENDER_RADIUS; chunkZ++) {
-            for (int chunkX = cameraChunk.x - CHUNK_RENDER_RADIUS; chunkX <= cameraChunk.x + CHUNK_RENDER_RADIUS; chunkX++) {
+        int renderRadius = minecraft.options.getEffectiveRenderDistance() + 1;
+        for (int chunkZ = cameraChunk.z - renderRadius; chunkZ <= cameraChunk.z + renderRadius; chunkZ++) {
+            for (int chunkX = cameraChunk.x - renderRadius; chunkX <= cameraChunk.x + renderRadius; chunkX++) {
                 ChunkAccess chunk = level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
                 if (chunk instanceof LevelChunk levelChunk) {
                     renderChunkLanterns(level, levelChunk, blockRenderer, bufferSource, event.getPoseStack(), cameraPos, event);
@@ -117,8 +110,17 @@ public final class SwingingLanternAssemblyRenderer {
 
     public static boolean ownsChainAssembly(LanternModelData.ChainSegment segment) {
         return ClientConfig.ENABLE_WIND_LANTERN_SWAY.getAsBoolean()
-                && ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()
-                && segment.hangingLanternAttached();
+                && ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers()
+                && segment.hangingLanternAttached()
+                && supportsAssemblyHeight(segment.height());
+    }
+
+    static boolean ownsLanternAssembly(net.minecraft.world.level.BlockAndTintGetter level, BlockPos pos) {
+        return supportsAssemblyHeight(chainHeightAbove(level, pos));
+    }
+
+    private static boolean supportsAssemblyHeight(int height) {
+        return height > 0 && height <= MAX_CHAIN_HEIGHT;
     }
 
     public static void invalidateChunk(BlockPos pos) {
@@ -146,7 +148,7 @@ public final class SwingingLanternAssemblyRenderer {
             }
 
             int chainHeight = chainHeightAbove(level, pos);
-            if (chainHeight <= 0 || chainHeight > MAX_CHAIN_HEIGHT || !isVisible(event, pos, chainHeight)) {
+            if (!supportsAssemblyHeight(chainHeight) || !isVisible(event, pos, chainHeight)) {
                 continue;
             }
 
@@ -161,11 +163,6 @@ public final class SwingingLanternAssemblyRenderer {
             return cached.positions();
         }
 
-        if (chunkCacheScansThisFrame >= MAX_CHUNK_CACHE_SCANS_PER_FRAME) {
-            return cached != null ? cached.positions() : List.of();
-        }
-
-        chunkCacheScansThisFrame++;
         List<BlockPos> positions = new ArrayList<>();
         chunk.findBlocks(
                 SwingingLanternAssemblyRenderer::isHangingLantern,
@@ -188,11 +185,15 @@ public final class SwingingLanternAssemblyRenderer {
             RenderLevelStageEvent event
     ) {
         float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-        float tickTime = level.getGameTime() + partialTick;
-        double windTime = DynamicWindManager.simulationTime();
-        WindSample wind = DynamicWindManager.sampleWind(level, lanternPos);
-        Swing targetSwing = windSwingFor(lanternPos, chainHeight, windTime, wind);
-        Swing swing = updateSwingState(level, lanternPos, chainHeight, targetSwing, tickTime);
+        double tickTime = (double) level.getGameTime() + partialTick;
+        Swing swing = new Swing(0.0F, 0.0F, 0.0F, 0.0F);
+        double animationDistance = ANIMATION_CHUNK_RADIUS * 16.0D;
+        if (lanternPos.distToCenterSqr(cameraPos) <= animationDistance * animationDistance) {
+            double windTime = DynamicWindManager.simulationTime();
+            WindSample wind = DynamicWindManager.sampleWind(level, lanternPos);
+            Swing targetSwing = windSwingFor(lanternPos, chainHeight, windTime, wind);
+            swing = updateSwingState(level, lanternPos, chainHeight, targetSwing, tickTime);
+        }
 
         poseStack.pushPose();
         poseStack.translate(
@@ -279,7 +280,7 @@ public final class SwingingLanternAssemblyRenderer {
         return new Swing(swingX, swingZ, angle, yaw);
     }
 
-    private static Swing updateSwingState(ClientLevel level, BlockPos lanternPos, int chainHeight, Swing targetSwing, float tickTime) {
+    private static Swing updateSwingState(ClientLevel level, BlockPos lanternPos, int chainHeight, Swing targetSwing, double tickTime) {
         SwingState state = SWING_STATES.computeIfAbsent(lanternPos.asLong(), ignored -> new SwingState(tickTime));
         float deltaTicks = state.advanceTime(tickTime);
         float targetX = targetSwing.tiltX();
@@ -511,7 +512,7 @@ public final class SwingingLanternAssemblyRenderer {
     private static int chainHeightAbove(net.minecraft.world.level.BlockAndTintGetter level, BlockPos lanternPos) {
         int height = 0;
         BlockPos.MutableBlockPos chainPos = new BlockPos.MutableBlockPos();
-        while (height < MAX_CHAIN_HEIGHT) {
+        while (height <= MAX_CHAIN_HEIGHT) {
             chainPos.set(
                     lanternPos.getX(),
                     lanternPos.getY() + height + 1,
@@ -562,21 +563,21 @@ public final class SwingingLanternAssemblyRenderer {
         private float velocityZ;
         private float yawVelocity;
         private float windSuppression;
-        private float lastTickTime;
+        private double lastTickTime;
         private long lastCollisionCheckTick = Long.MIN_VALUE;
 
-        private SwingState(float tickTime) {
+        private SwingState(double tickTime) {
             lastTickTime = tickTime;
         }
 
-        private float advanceTime(float tickTime) {
-            float deltaTicks = tickTime - lastTickTime;
+        private float advanceTime(double tickTime) {
+            double deltaTicks = tickTime - lastTickTime;
             lastTickTime = tickTime;
             if (deltaTicks < 0.0F) {
                 return 0.0F;
             }
 
-            return Mth.clamp(deltaTicks, 0.0F, 2.0F);
+            return (float) Mth.clamp(deltaTicks, 0.0D, 2.0D);
         }
     }
 

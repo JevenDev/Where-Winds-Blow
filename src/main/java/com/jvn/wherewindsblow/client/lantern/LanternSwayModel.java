@@ -44,13 +44,14 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
     @Override
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
         ModelData originalData = originalModel.getModelData(level, pos, state, modelData);
-        if (!ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()) {
+        if (!ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers()) {
             return originalData;
         }
 
         if (subject == Subject.LANTERN && isHangingLantern(state)) {
             return originalData.derive()
-                    .with(LanternModelData.LANTERN_CHAIN_ATTACHED, hasVerticalChainAbove(level, pos))
+                    .with(LanternModelData.LANTERN_CHAIN_ATTACHED, isVerticalChain(level.getBlockState(pos.above())))
+                    .with(LanternModelData.LANTERN_ASSEMBLY_SUPPORTED, SwingingLanternAssemblyRenderer.ownsLanternAssembly(level, pos))
                     .with(LanternModelData.WIND_EXPOSURE, quantizeExposure(ResponsiveFoliage.windExposure(level, pos)))
                     .build();
         }
@@ -80,7 +81,7 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
             transformed.add(switch (subject) {
                 case LANTERN -> {
                     if (Boolean.TRUE.equals(extraData.get(LanternModelData.LANTERN_CHAIN_ATTACHED))) {
-                        yield null;
+                        yield Boolean.TRUE.equals(extraData.get(LanternModelData.LANTERN_ASSEMBLY_SUPPORTED)) ? null : quad;
                     }
 
                     yield lanternQuadCache.computeIfAbsent(
@@ -90,13 +91,17 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
                 }
                 case CHAIN -> {
                     LanternModelData.ChainSegment segment = extraData.get(LanternModelData.CHAIN_SEGMENT);
-                    if (segment == null
-                            || SwingingLanternAssemblyRenderer.ownsChainAssembly(segment)) {
+                    if (segment == null) {
+                        yield quad;
+                    }
+                    if (SwingingLanternAssemblyRenderer.ownsChainAssembly(segment)) {
                         yield null;
                     }
+                    if (segment.hangingLanternAttached()) {
+                        yield quad;
+                    }
 
-                    if (!segment.hangingLanternAttached()
-                            && !ClientConfig.ENABLE_STANDALONE_CHAIN_SWAY.getAsBoolean()) {
+                    if (!ClientConfig.ENABLE_STANDALONE_CHAIN_SWAY.getAsBoolean()) {
                         yield quad;
                     }
 
@@ -125,7 +130,7 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
                             && state.getValue(LanternBlock.HANGING);
                     case CHAIN -> isVerticalChain(state);
                 })
-                && ResponsiveFoliageShaders.shouldUseCustomFoliageShaders()
+                && ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers()
                 && ClientConfig.ENABLE_WIND_LANTERN_SWAY.getAsBoolean();
     }
 
@@ -218,10 +223,6 @@ final class LanternSwayModel extends BakedModelWrapper<BakedModel> {
                 && (state.is(Blocks.LANTERN) || state.is(Blocks.SOUL_LANTERN))
                 && state.hasProperty(LanternBlock.HANGING)
                 && state.getValue(LanternBlock.HANGING);
-    }
-
-    private static boolean hasVerticalChainAbove(BlockAndTintGetter level, BlockPos pos) {
-        return isVerticalChain(level.getBlockState(pos.above()));
     }
 
     private static boolean hasHangingLanternBelow(BlockAndTintGetter level, BlockPos top, int chainHeight) {

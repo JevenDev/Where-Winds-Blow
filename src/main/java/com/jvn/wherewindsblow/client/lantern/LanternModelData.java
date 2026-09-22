@@ -6,6 +6,7 @@ import net.neoforged.neoforge.client.model.data.ModelProperty;
 public final class LanternModelData {
     public static final ModelProperty<ChainSegment> CHAIN_SEGMENT = new ModelProperty<>(ChainSegment.class::isInstance);
     public static final ModelProperty<Boolean> LANTERN_CHAIN_ATTACHED = new ModelProperty<>(Boolean.class::isInstance);
+    public static final ModelProperty<Boolean> LANTERN_ASSEMBLY_SUPPORTED = new ModelProperty<>(Boolean.class::isInstance);
     public static final ModelProperty<Boolean> RENDERING_ASSEMBLY = new ModelProperty<>(Boolean.class::isInstance);
     public static final ModelProperty<Float> WIND_EXPOSURE = new ModelProperty<>(Float.class::isInstance);
 
