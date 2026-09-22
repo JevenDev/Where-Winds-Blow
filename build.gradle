@@ -170,6 +170,36 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.addAll(['-Xlint:deprecation'])
 }
 
+sourceSets {
+    particleWindTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+
+tasks.register('testParticleWindProfiles', JavaExec) {
+    group = 'verification'
+    description = 'Checks particle wind profile parsing, overrides, and resource reloads.'
+    dependsOn tasks.named('particleWindTestClasses')
+    classpath = sourceSets.particleWindTest.runtimeClasspath
+    mainClass = 'com.jvn.wherewindsblow.client.particle.ParticleWindProfilesTest'
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+}
+
+tasks.register('packageNetherStarWindExample', Zip) {
+    group = 'build'
+    description = 'Packages the nether star particle wind example resource pack.'
+    from 'examples/resourcepacks/nether-star-wind'
+    destinationDirectory = layout.buildDirectory.dir('example-packs')
+    archiveFileName = 'where-winds-blow-nether-star-wind-1.21.1.zip'
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('testParticleWindProfiles')
+}
+
 // IDEA no longer automatically downloads sources/javadoc jars for dependencies, so we need to explicitly enable the behavior.
 idea {
     module {

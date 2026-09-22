@@ -11,6 +11,7 @@ import com.jvn.wherewindsblow.client.foliage.FoliageSwayProfileReloadListener;
 import com.jvn.wherewindsblow.client.foliage.FoliageSwayProfiles;
 import com.jvn.wherewindsblow.client.lantern.LanternSway;
 import com.jvn.wherewindsblow.client.lantern.SwingingLanternAssemblyRenderer;
+import com.jvn.wherewindsblow.client.particle.ParticleWindProfileReloadListener;
 import com.jvn.wherewindsblow.client.weather.BlizzardWeatherEffects;
 import com.jvn.wherewindsblow.client.weather.DesertStormShaders;
 import com.jvn.wherewindsblow.client.weather.SnowfallShaders;
@@ -108,6 +109,7 @@ public final class WhereWindsBlowClient {
 
     private static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
         event.registerReloadListener(new FoliageSwayProfileReloadListener());
+        event.registerReloadListener(new ParticleWindProfileReloadListener());
         event.registerReloadListener(new BiomeWindProfileReloadListener(BiomeWindProfiles.Source.CLIENT, null));
         event.registerReloadListener((ResourceManagerReloadListener) resourceManager -> DynamicWindManager.reset());
     }

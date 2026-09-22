@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.mixin.client;
 
+import com.jvn.wherewindsblow.client.particle.WindAffectedParticle;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokeRenderTypes;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
 import java.util.ArrayList;
@@ -16,11 +17,13 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ParticleEngine.class)
@@ -39,6 +42,37 @@ public abstract class ParticleEngineMixin {
         if (options.getType() == ParticleTypes.SWEEP_ATTACK) {
             ResponsiveFoliagePhysics.addSweep(x, y, z);
         }
+    }
+
+    @Inject(method = "makeParticle", at = @At("RETURN"), require = 1)
+    private void wherewindsblow$captureParticleType(
+            ParticleOptions options,
+            double x,
+            double y,
+            double z,
+            double xSpeed,
+            double ySpeed,
+            double zSpeed,
+            CallbackInfoReturnable<Particle> cir
+    ) {
+        Particle particle = cir.getReturnValue();
+        if (particle != null) {
+            ((WindAffectedParticle) particle).wherewindsblow$setParticleType(BuiltInRegistries.PARTICLE_TYPE.getKey(options.getType()));
+        }
+    }
+
+    // the engine hook also covers particles whose tick override does not call super
+    @Inject(
+            method = "tickParticle",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/particle/Particle;tick()V",
+                    shift = At.Shift.AFTER
+            ),
+            require = 1
+    )
+    private void wherewindsblow$applyParticleWind(Particle particle, CallbackInfo ci) {
+        ((WindAffectedParticle) particle).wherewindsblow$applyWind();
     }
 
     @Redirect(

@@ -1,0 +1,5 @@
+{
+  "particles": "minecraft:end_rod",
+  "wind_strength_multiplier": 2.0,
+  "priority": 100
+}

@@ -13,6 +13,7 @@
     "client.HangingSignRendererMixin",
     "client.LevelRendererMixin",
     "client.ParticleEngineMixin",
+    "client.ParticleMixin",
     "client.WaterDropParticleMixin",
     "client.compat.acedium.AcediumCompactChunkVertexMixin",
     "client.compat.acedium.AcediumShaderLoaderMixin",

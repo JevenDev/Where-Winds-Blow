@@ -1,0 +1,9 @@
+{
+  "sources": [
+    {
+      "type": "minecraft:single",
+      "resource": "minecraft:item/nether_star",
+      "sprite": "nether_star_wind:nether_star"
+    }
+  ]
+}
