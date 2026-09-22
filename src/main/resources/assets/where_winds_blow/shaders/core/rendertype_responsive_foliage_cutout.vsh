@@ -505,12 +505,13 @@ void main() {
             float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
                     + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
             phaseDrift += localPhase * 0.38;
-            float tempoDrift = (1.0 + sin(along * 0.052 + across * 0.041 + t * 0.09 + localPhase * 0.2) * 0.08) * localTempo;
+            float tempoPhase = (localTempo - 1.0) * 2.4
+                    + sin(along * 0.052 + across * 0.041 + t * 0.09 + localPhase * 0.2);
             float amplitudeDrift = (0.84 + 0.22 * smoothCurve(sin(along * 0.21 + across * 0.14 - t * 0.16 + localPhase) * 0.5 + 0.5)) * localAmplitude;
-            float broad = sin(along * 0.35 - t * 1.28 * tempoDrift + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + localPhase);
+            float broad = sin(along * 0.35 - t * 1.28 + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + tempoPhase + localPhase);
             float wave = pow(max(0.0, broad), 1.7);
-            float ripple = sin(along * 1.08 - t * 3.6 * (1.0 + phaseDrift * 0.035) + across * 0.18 + phaseDrift * 0.7 + localPhase * 1.4) * 0.5 + 0.5;
-            float proceduralGust = smoothCurve(sin(along * 0.10 - t * 0.42 * tempoDrift + across * 0.04 + phaseDrift * 0.35 + localPhase * 0.5) * 0.5 + 0.5);
+            float ripple = sin(along * 1.08 - t * 3.6 + across * 0.18 + phaseDrift * 1.4 + localPhase * 1.4) * 0.5 + 0.5;
+            float proceduralGust = smoothCurve(sin(along * 0.10 - t * 0.42 + across * 0.04 + phaseDrift * 0.35 + tempoPhase * 0.4 + localPhase * 0.5) * 0.5 + 0.5);
             float motionBand = smoothCurve(wave) * (0.82 + proceduralGust * 0.18);
             float tipLift = smoothCurve(windBend);
             float sheenLull = 1.0 - smoothCurve(WeatherState.z) * mix(0.35, 0.72, plantWind);
@@ -558,7 +559,7 @@ void main() {
                     -0.08,
                     0.42
             );
-            float directionNoise = sin(across * 0.22 + t * 0.55 * tempoDrift + phaseDrift * 0.35 + localPhase)
+            float directionNoise = sin(across * 0.22 + t * 0.55 + tempoPhase * 0.5 + phaseDrift * 0.35 + localPhase)
                     * mix(0.18, 0.10, plantWind);
             vec2 dir = normalize(windDir + crossDir * directionNoise);
             pos.xz += dir * strength;
