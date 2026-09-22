@@ -54,7 +54,6 @@ public final class DynamicWindManager {
     private static boolean wasWindowActive;
     private static float shaderTimeSeconds;
     private static double simulationTimeSeconds;
-    private static float simulationSpeed = 1.0F;
     private static long simulationSeed;
     private static long randomState;
     private static float prevailingDirectionDegrees;
@@ -200,7 +199,7 @@ public final class DynamicWindManager {
 
     public static float shaderTime() {
         ensureLifecycle();
-        return shaderTimeSeconds + renderRemainderSeconds() * simulationSpeed;
+        return shaderTimeSeconds + renderRemainderSeconds();
     }
 
     public static float shaderTimeFor(double simulationTime) {
@@ -209,7 +208,7 @@ public final class DynamicWindManager {
     }
 
     private static double simulationTimeUnchecked() {
-        return simulationTimeSeconds + renderRemainderSeconds() * simulationSpeed;
+        return simulationTimeSeconds + renderRemainderSeconds();
     }
 
     private static float renderRemainderSeconds() {
@@ -360,8 +359,7 @@ public final class DynamicWindManager {
         updateEffectiveProfile(deltaSeconds, activeProfile);
         // Wind power controls force, not the rate at which every oscillator and gust clock runs.
         // Coupling these made stronger ambient wind visibly accelerate foliage rocking.
-        simulationSpeed = 1.0F;
-        advanceSimulationClock(deltaSeconds * simulationSpeed);
+        advanceSimulationClock(deltaSeconds);
 
         boolean dynamicWind = ClientConfig.ENABLE_DYNAMIC_WIND.getAsBoolean();
         Direction direction = updateDirection(
@@ -449,7 +447,6 @@ public final class DynamicWindManager {
         activeDimension = level == null ? null : level.dimension();
         lastUpdateMillis = Util.getMillis();
         wasWindowActive = minecraft.isWindowActive();
-        simulationSpeed = 1.0F;
         prevailingDirectionDegrees = configuredDirectionDegrees();
         directionStartDegrees = prevailingDirectionDegrees;
         currentDirectionDegrees = prevailingDirectionDegrees;
