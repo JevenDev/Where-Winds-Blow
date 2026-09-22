@@ -3,9 +3,9 @@ package com.jvn.wherewindsblow.worldgen;
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.block.WildWheatBlock;
 import com.mojang.serialization.Codec;
-import java.util.HashSet;
-import java.util.Set;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.WorldGenRegion;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
@@ -36,35 +36,43 @@ public class WildWheatPatchFeature extends Feature<NoneFeatureConfiguration> {
         int fieldRadius = random.nextInt(MIN_FIELD_RADIUS, MAX_FIELD_RADIUS + 1);
         FieldBlob[] blobs = createBlobs(random, fieldRadius);
         int maxExtent = maxExtent(blobs);
-        Set<BlockPos> placed = new HashSet<>();
+        int placed = 0;
+        ChunkPos center = level instanceof WorldGenRegion region ? region.getCenter() : new ChunkPos(origin);
+        // feature writes are limited to the generating chunk and its immediate neighbors
+        int minX = Math.max(-maxExtent, center.getMinBlockX() - 16 - origin.getX());
+        int maxX = Math.min(maxExtent, center.getMaxBlockX() + 16 - origin.getX());
+        int minZ = Math.max(-maxExtent, center.getMinBlockZ() - 16 - origin.getZ());
+        int maxZ = Math.min(maxExtent, center.getMaxBlockZ() + 16 - origin.getZ());
 
-        for (int offsetX = -maxExtent; offsetX <= maxExtent; offsetX++) {
-            for (int offsetZ = -maxExtent; offsetZ <= maxExtent; offsetZ++) {
+        for (int offsetX = minX; offsetX <= maxX; offsetX++) {
+            for (int offsetZ = minZ; offsetZ <= maxZ; offsetZ++) {
                 float density = densityAt(blobs, offsetX, offsetZ);
                 if (density <= 0.0F || random.nextFloat() > density) {
                     continue;
                 }
 
                 BlockPos candidate = findSurface(level, origin, offsetX, offsetZ);
-                if (candidate == null || !placed.add(candidate.immutable())) {
+                if (candidate == null) {
                     continue;
                 }
 
                 int age = sampleAge(random);
                 BlockState wildWheat = block.getStateForAge(age);
                 if (!canPlace(level, candidate, wildWheat)) {
-                    placed.remove(candidate);
                     continue;
                 }
 
-                level.setBlock(candidate, wildWheat, 2);
-                if (placed.size() >= MAX_FIELD_PLANTS) {
+                if (!level.setBlock(candidate, wildWheat, 2)) {
+                    continue;
+                }
+                placed++;
+                if (placed >= MAX_FIELD_PLANTS) {
                     return true;
                 }
             }
         }
 
-        return !placed.isEmpty();
+        return placed > 0;
     }
 
     private BlockPos findSurface(WorldGenLevel level, BlockPos origin, int offsetX, int offsetZ) {
