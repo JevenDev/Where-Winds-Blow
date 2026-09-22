@@ -12,4 +12,9 @@ public abstract class AcediumShaderMixin {
     private void wherewindsblow$uploadWindUniforms(CallbackInfo ci) {
         SodiumFoliageUniforms.uploadActiveAcediumProgramUniforms();
     }
+
+    @Inject(method = "delete", at = @At("HEAD"), require = 0)
+    private void wherewindsblow$discardWindUniforms(CallbackInfo ci) {
+        SodiumFoliageUniforms.reset();
+    }
 }

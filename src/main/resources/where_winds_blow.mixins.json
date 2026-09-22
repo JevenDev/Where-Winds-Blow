@@ -18,6 +18,7 @@
     "client.compat.acedium.AcediumShaderLoaderMixin",
     "client.compat.acedium.AcediumShaderMixin",
     "client.compat.sodium.SodiumShaderLoaderMixin",
+    "client.compat.sodium.SodiumGlProgramMixin",
     "client.compat.sodium.SodiumShaderChunkRendererMixin",
     "client.compat.snowrealmagic.SnowRealMagicRenderApiMixin",
     "client.compat.snowrealmagic.SnowRealMagicVariantModelMixin",

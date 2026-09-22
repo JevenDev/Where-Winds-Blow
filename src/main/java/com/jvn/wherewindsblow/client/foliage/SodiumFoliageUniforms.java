@@ -3,62 +3,20 @@ package com.jvn.wherewindsblow.client.foliage;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.GlobalWindState;
 import com.jvn.wherewindsblow.client.wind.GustFrontState;
-import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.opengl.GL20C;
 
 public final class SodiumFoliageUniforms {
-    private static final int UNRESOLVED_UNIFORM = Integer.MIN_VALUE;
-    private static int lastProgram;
-    private static int windTimeUniform = UNRESOLVED_UNIFORM;
-    private static int ambientWindStrengthUniform = UNRESOLVED_UNIFORM;
-    private static int windTurbulenceUniform = UNRESOLVED_UNIFORM;
-    private static int weatherStateUniform = UNRESOLVED_UNIFORM;
-    private static int activeGustCountUniform = UNRESOLVED_UNIFORM;
-    private static int plantSwayStrengthUniform = UNRESOLVED_UNIFORM;
-    private static int leafSwayStrengthUniform = UNRESOLVED_UNIFORM;
-    private static int lanternSwayStrengthUniform = UNRESOLVED_UNIFORM;
-    private static int plantSheenStrengthUniform = UNRESOLVED_UNIFORM;
-    private static int leafSheenStrengthUniform = UNRESOLVED_UNIFORM;
-    private static int foliageColorVariationStrengthUniform = UNRESOLVED_UNIFORM;
-    private static int foliageAnimationStepRateUniform = UNRESOLVED_UNIFORM;
-    private static int windDirectionUniform = UNRESOLVED_UNIFORM;
-    private static int cameraPositionUniform = UNRESOLVED_UNIFORM;
-    private static int interactorCountUniform = UNRESOLVED_UNIFORM;
-    private static final int[] gustOriginTimeUniforms = new int[DynamicWindManager.MAX_ACTIVE_GUSTS];
-    private static final int[] gustDirectionSpeedUniforms = new int[DynamicWindManager.MAX_ACTIVE_GUSTS];
-    private static final int[] gustStrengthUniforms = new int[DynamicWindManager.MAX_ACTIVE_GUSTS];
-    private static final int[] gustEnvelopeUniforms = new int[DynamicWindManager.MAX_ACTIVE_GUSTS];
-    private static final int[] interactorUniforms = new int[ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS];
-    private static final int[] interactorMotionUniforms = new int[ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS];
+    private static final Map<Integer, ProgramUniforms> PROGRAM_UNIFORMS = new HashMap<>();
 
     private SodiumFoliageUniforms() {
     }
 
     public static void reset() {
-        lastProgram = 0;
-        windTimeUniform = UNRESOLVED_UNIFORM;
-        ambientWindStrengthUniform = UNRESOLVED_UNIFORM;
-        windTurbulenceUniform = UNRESOLVED_UNIFORM;
-        weatherStateUniform = UNRESOLVED_UNIFORM;
-        activeGustCountUniform = UNRESOLVED_UNIFORM;
-        plantSwayStrengthUniform = UNRESOLVED_UNIFORM;
-        leafSwayStrengthUniform = UNRESOLVED_UNIFORM;
-        lanternSwayStrengthUniform = UNRESOLVED_UNIFORM;
-        plantSheenStrengthUniform = UNRESOLVED_UNIFORM;
-        leafSheenStrengthUniform = UNRESOLVED_UNIFORM;
-        foliageColorVariationStrengthUniform = UNRESOLVED_UNIFORM;
-        foliageAnimationStepRateUniform = UNRESOLVED_UNIFORM;
-        windDirectionUniform = UNRESOLVED_UNIFORM;
-        cameraPositionUniform = UNRESOLVED_UNIFORM;
-        interactorCountUniform = UNRESOLVED_UNIFORM;
-        Arrays.fill(gustOriginTimeUniforms, UNRESOLVED_UNIFORM);
-        Arrays.fill(gustDirectionSpeedUniforms, UNRESOLVED_UNIFORM);
-        Arrays.fill(gustStrengthUniforms, UNRESOLVED_UNIFORM);
-        Arrays.fill(gustEnvelopeUniforms, UNRESOLVED_UNIFORM);
-        Arrays.fill(interactorUniforms, UNRESOLVED_UNIFORM);
-        Arrays.fill(interactorMotionUniforms, UNRESOLVED_UNIFORM);
+        PROGRAM_UNIFORMS.clear();
     }
 
     public static void uploadActiveProgramUniforms() {
@@ -83,36 +41,10 @@ public final class SodiumFoliageUniforms {
                 return;
             }
 
-            refreshUniformLocations(program);
-            if (windTimeUniform < 0) {
-                return;
+            ProgramUniforms uniforms = PROGRAM_UNIFORMS.computeIfAbsent(program, ProgramUniforms::new);
+            if (uniforms.windTimeUniform >= 0) {
+                uniforms.upload();
             }
-
-            ResponsiveFoliagePhysics.updateShaderInteractors();
-            GlobalWindState windState = DynamicWindManager.currentState();
-            uploadUniform(windTimeUniform, DynamicWindManager.shaderTime());
-            uploadUniform(ambientWindStrengthUniform, DynamicWindManager.visualStrength(windState.ambientStrength()));
-            uploadUniform(windTurbulenceUniform, windState.ambientTurbulence());
-            uploadVector3Uniform(weatherStateUniform, windState.rainLevel(), windState.thunderLevel(), windState.lullAmount());
-            uploadUniform(plantSwayStrengthUniform, ResponsiveFoliageShaders.plantWindSwayStrength());
-            uploadUniform(leafSwayStrengthUniform, ResponsiveFoliageShaders.leafWindSwayStrength());
-            uploadUniform(lanternSwayStrengthUniform, ResponsiveFoliageShaders.lanternWindSwayStrength());
-            uploadUniform(plantSheenStrengthUniform, ResponsiveFoliageShaders.plantWindSheenStrength());
-            uploadUniform(leafSheenStrengthUniform, ResponsiveFoliageShaders.leafWindSheenStrength());
-            uploadUniform(foliageColorVariationStrengthUniform, ResponsiveFoliageShaders.foliageColorVariationStrength());
-            uploadUniform(foliageAnimationStepRateUniform, ResponsiveFoliageShaders.foliageAnimationStepRate());
-            uploadVector2Uniform(windDirectionUniform, windState.directionX(), windState.directionZ());
-            uploadGustUniforms();
-            Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-            uploadCameraPositionUniform(cameraPositionUniform, cameraPosition);
-            int interactorCount = ResponsiveFoliageShaders.foliageInteractorCount();
-            uploadIntUniform(interactorCountUniform, interactorCount);
-            uploadInteractorUniforms(
-                    ResponsiveFoliageShaders.foliageInteractors(),
-                    ResponsiveFoliageShaders.foliageInteractorMotions(),
-                    interactorCount,
-                    cameraPosition
-            );
         } catch (RuntimeException exception) {
             if (acedium) {
                 ResponsiveFoliageShaders.disableAcediumShaderPatch(
@@ -125,40 +57,6 @@ public final class SodiumFoliageUniforms {
                         exception
                 );
             }
-        }
-    }
-
-    private static void refreshUniformLocations(int program) {
-        if (lastProgram == program) {
-            return;
-        }
-
-        lastProgram = program;
-        windTimeUniform = GL20C.glGetUniformLocation(program, "u_WwbTime");
-        ambientWindStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbAmbientWindStrength");
-        windTurbulenceUniform = GL20C.glGetUniformLocation(program, "u_WwbWindTurbulence");
-        weatherStateUniform = GL20C.glGetUniformLocation(program, "u_WwbWeatherState");
-        activeGustCountUniform = GL20C.glGetUniformLocation(program, "u_WwbActiveGustCount");
-        plantSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSwayStrength");
-        leafSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSwayStrength");
-        lanternSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLanternSwayStrength");
-        plantSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSheenStrength");
-        leafSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSheenStrength");
-        foliageColorVariationStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbFoliageColorVariationStrength");
-        foliageAnimationStepRateUniform = GL20C.glGetUniformLocation(program, "u_WwbFoliageAnimationStepRate");
-        windDirectionUniform = GL20C.glGetUniformLocation(program, "u_WwbWindDirection");
-        cameraPositionUniform = GL20C.glGetUniformLocation(program, "u_WwbCameraPosition");
-        interactorCountUniform = GL20C.glGetUniformLocation(program, "u_WwbInteractorCount");
-        for (int index = 0; index < DynamicWindManager.MAX_ACTIVE_GUSTS; index++) {
-            gustOriginTimeUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbGustOriginTime" + index);
-            gustDirectionSpeedUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbGustDirectionSpeed" + index);
-            gustStrengthUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbGustStrength" + index);
-            gustEnvelopeUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbGustEnvelope" + index);
-        }
-        Arrays.fill(interactorUniforms, UNRESOLVED_UNIFORM);
-        for (int index = 0; index < interactorUniforms.length; index++) {
-            interactorUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbInteractor" + index);
-            interactorMotionUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbInteractorMotion" + index);
         }
     }
 
@@ -197,80 +95,160 @@ public final class SodiumFoliageUniforms {
         }
     }
 
-    private static void uploadGustUniforms() {
-        int gustCount = DynamicWindManager.activeGustCount();
-        uploadIntUniform(activeGustCountUniform, gustCount);
-        for (int index = 0; index < DynamicWindManager.MAX_ACTIVE_GUSTS; index++) {
-            GustFrontState gust = DynamicWindManager.gustFront(index);
-            if (gust == null) {
-                uploadVector4Uniform(gustOriginTimeUniforms[index], 0.0F, 0.0F, 0.0F, 0.0F);
-                uploadVector4Uniform(gustDirectionSpeedUniforms[index], 0.0F, 0.0F, 0.0F, 0.0F);
-                uploadVector4Uniform(gustStrengthUniforms[index], 0.0F, 0.0F, 0.0F, 0.0F);
-                uploadVector4Uniform(gustEnvelopeUniforms[index], 0.0F, 0.0F, 0.0F, 0.0F);
-                continue;
-            }
-            uploadVector4Uniform(
-                    gustOriginTimeUniforms[index],
-                    ResponsiveFoliageShaders.wrapShaderCoordinate(gust.originX()),
-                    ResponsiveFoliageShaders.wrapShaderCoordinate(gust.originZ()),
-                    DynamicWindManager.shaderTimeFor(gust.startTime()),
-                    gust.duration()
-            );
-            uploadVector4Uniform(
-                    gustDirectionSpeedUniforms[index],
-                    gust.directionX(),
-                    gust.directionZ(),
-                    gust.speed(),
-                    gust.width()
-            );
-            uploadVector4Uniform(
-                    gustStrengthUniforms[index],
-                    DynamicWindManager.visualStrength(
-                            gust.peakStrength() * DynamicWindManager.effectiveGustStrengthMultiplier()
-                    ),
-                    gust.turbulence() * DynamicWindManager.effectiveTurbulenceMultiplier(),
-                    gust.noisePhase(),
-                    gust.crossDrift()
-            );
-            uploadVector4Uniform(
-                    gustEnvelopeUniforms[index],
-                    gust.attackFraction(),
-                    gust.releaseStartFraction(),
-                    0.0F,
-                    0.0F
-            );
-        }
-    }
-
     private static void uploadVector4Uniform(int location, float x, float y, float z, float w) {
         if (location >= 0) {
             GL20C.glUniform4f(location, x, y, z, w);
         }
     }
 
-    private static void uploadInteractorUniforms(double[] interactors, double[] motions, int interactorCount, Vec3 cameraPosition) {
-        for (int index = 0; index < interactorCount; index++) {
-            int offset = index * 4;
-            int location = interactorUniforms[index];
-            if (location >= 0) {
-                GL20C.glUniform4f(
-                        location,
-                        (float) (interactors[offset] - cameraPosition.x),
-                        (float) (interactors[offset + 1] - cameraPosition.y),
-                        (float) (interactors[offset + 2] - cameraPosition.z),
-                        (float) interactors[offset + 3]
+    private static final class ProgramUniforms {
+        private final int windTimeUniform;
+        private final int ambientWindStrengthUniform;
+        private final int windTurbulenceUniform;
+        private final int weatherStateUniform;
+        private final int activeGustCountUniform;
+        private final int plantSwayStrengthUniform;
+        private final int leafSwayStrengthUniform;
+        private final int lanternSwayStrengthUniform;
+        private final int plantSheenStrengthUniform;
+        private final int leafSheenStrengthUniform;
+        private final int foliageColorVariationStrengthUniform;
+        private final int foliageAnimationStepRateUniform;
+        private final int windDirectionUniform;
+        private final int cameraPositionUniform;
+        private final int interactorCountUniform;
+        private final int[] gustOriginTimeUniforms = new int[DynamicWindManager.MAX_ACTIVE_GUSTS];
+        private final int[] gustDirectionSpeedUniforms = new int[DynamicWindManager.MAX_ACTIVE_GUSTS];
+        private final int[] gustStrengthUniforms = new int[DynamicWindManager.MAX_ACTIVE_GUSTS];
+        private final int[] gustEnvelopeUniforms = new int[DynamicWindManager.MAX_ACTIVE_GUSTS];
+        private final int[] interactorUniforms = new int[ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS];
+        private final int[] interactorMotionUniforms = new int[ResponsiveFoliageShaders.MAX_FOLIAGE_INTERACTORS];
+
+        private ProgramUniforms(int program) {
+            windTimeUniform = GL20C.glGetUniformLocation(program, "u_WwbTime");
+            ambientWindStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbAmbientWindStrength");
+            windTurbulenceUniform = GL20C.glGetUniformLocation(program, "u_WwbWindTurbulence");
+            weatherStateUniform = GL20C.glGetUniformLocation(program, "u_WwbWeatherState");
+            activeGustCountUniform = GL20C.glGetUniformLocation(program, "u_WwbActiveGustCount");
+            plantSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSwayStrength");
+            leafSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSwayStrength");
+            lanternSwayStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLanternSwayStrength");
+            plantSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbPlantSheenStrength");
+            leafSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSheenStrength");
+            foliageColorVariationStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbFoliageColorVariationStrength");
+            foliageAnimationStepRateUniform = GL20C.glGetUniformLocation(program, "u_WwbFoliageAnimationStepRate");
+            windDirectionUniform = GL20C.glGetUniformLocation(program, "u_WwbWindDirection");
+            cameraPositionUniform = GL20C.glGetUniformLocation(program, "u_WwbCameraPosition");
+            interactorCountUniform = GL20C.glGetUniformLocation(program, "u_WwbInteractorCount");
+            for (int index = 0; index < DynamicWindManager.MAX_ACTIVE_GUSTS; index++) {
+                gustOriginTimeUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbGustOriginTime" + index);
+                gustDirectionSpeedUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbGustDirectionSpeed" + index);
+                gustStrengthUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbGustStrength" + index);
+                gustEnvelopeUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbGustEnvelope" + index);
+            }
+            for (int index = 0; index < interactorUniforms.length; index++) {
+                interactorUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbInteractor" + index);
+                interactorMotionUniforms[index] = GL20C.glGetUniformLocation(program, "u_WwbInteractorMotion" + index);
+            }
+        }
+
+        private void upload() {
+            ResponsiveFoliagePhysics.updateShaderInteractors();
+            GlobalWindState windState = DynamicWindManager.currentState();
+            uploadUniform(windTimeUniform, DynamicWindManager.shaderTime());
+            uploadUniform(ambientWindStrengthUniform, DynamicWindManager.visualStrength(windState.ambientStrength()));
+            uploadUniform(windTurbulenceUniform, windState.ambientTurbulence());
+            uploadVector3Uniform(weatherStateUniform, windState.rainLevel(), windState.thunderLevel(), windState.lullAmount());
+            uploadUniform(plantSwayStrengthUniform, ResponsiveFoliageShaders.plantWindSwayStrength());
+            uploadUniform(leafSwayStrengthUniform, ResponsiveFoliageShaders.leafWindSwayStrength());
+            uploadUniform(lanternSwayStrengthUniform, ResponsiveFoliageShaders.lanternWindSwayStrength());
+            uploadUniform(plantSheenStrengthUniform, ResponsiveFoliageShaders.plantWindSheenStrength());
+            uploadUniform(leafSheenStrengthUniform, ResponsiveFoliageShaders.leafWindSheenStrength());
+            uploadUniform(foliageColorVariationStrengthUniform, ResponsiveFoliageShaders.foliageColorVariationStrength());
+            uploadUniform(foliageAnimationStepRateUniform, ResponsiveFoliageShaders.foliageAnimationStepRate());
+            uploadVector2Uniform(windDirectionUniform, windState.directionX(), windState.directionZ());
+            uploadGustUniforms();
+            Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+            uploadCameraPositionUniform(cameraPositionUniform, cameraPosition);
+            int interactorCount = ResponsiveFoliageShaders.foliageInteractorCount();
+            uploadIntUniform(interactorCountUniform, interactorCount);
+            uploadInteractorUniforms(
+                    ResponsiveFoliageShaders.foliageInteractors(),
+                    ResponsiveFoliageShaders.foliageInteractorMotions(),
+                    interactorCount,
+                    cameraPosition
+            );
+        }
+
+        private void uploadGustUniforms() {
+            int gustCount = DynamicWindManager.activeGustCount();
+            uploadIntUniform(activeGustCountUniform, gustCount);
+            for (int index = 0; index < DynamicWindManager.MAX_ACTIVE_GUSTS; index++) {
+                GustFrontState gust = DynamicWindManager.gustFront(index);
+                if (gust == null) {
+                    uploadVector4Uniform(gustOriginTimeUniforms[index], 0.0F, 0.0F, 0.0F, 0.0F);
+                    uploadVector4Uniform(gustDirectionSpeedUniforms[index], 0.0F, 0.0F, 0.0F, 0.0F);
+                    uploadVector4Uniform(gustStrengthUniforms[index], 0.0F, 0.0F, 0.0F, 0.0F);
+                    uploadVector4Uniform(gustEnvelopeUniforms[index], 0.0F, 0.0F, 0.0F, 0.0F);
+                    continue;
+                }
+                uploadVector4Uniform(
+                        gustOriginTimeUniforms[index],
+                        ResponsiveFoliageShaders.wrapShaderCoordinate(gust.originX()),
+                        ResponsiveFoliageShaders.wrapShaderCoordinate(gust.originZ()),
+                        DynamicWindManager.shaderTimeFor(gust.startTime()),
+                        gust.duration()
+                );
+                uploadVector4Uniform(
+                        gustDirectionSpeedUniforms[index],
+                        gust.directionX(),
+                        gust.directionZ(),
+                        gust.speed(),
+                        gust.width()
+                );
+                uploadVector4Uniform(
+                        gustStrengthUniforms[index],
+                        DynamicWindManager.visualStrength(
+                                gust.peakStrength() * DynamicWindManager.effectiveGustStrengthMultiplier()
+                        ),
+                        gust.turbulence() * DynamicWindManager.effectiveTurbulenceMultiplier(),
+                        gust.noisePhase(),
+                        gust.crossDrift()
+                );
+                uploadVector4Uniform(
+                        gustEnvelopeUniforms[index],
+                        gust.attackFraction(),
+                        gust.releaseStartFraction(),
+                        0.0F,
+                        0.0F
                 );
             }
+        }
 
-            int motionLocation = interactorMotionUniforms[index];
-            if (motionLocation >= 0) {
-                GL20C.glUniform4f(
-                        motionLocation,
-                        (float) (motions[offset] - cameraPosition.y),
-                        (float) motions[offset + 1],
-                        (float) motions[offset + 2],
-                        (float) motions[offset + 3]
-                );
+        private void uploadInteractorUniforms(double[] interactors, double[] motions, int interactorCount, Vec3 cameraPosition) {
+            for (int index = 0; index < interactorCount; index++) {
+                int offset = index * 4;
+                int location = interactorUniforms[index];
+                if (location >= 0) {
+                    GL20C.glUniform4f(
+                            location,
+                            (float) (interactors[offset] - cameraPosition.x),
+                            (float) (interactors[offset + 1] - cameraPosition.y),
+                            (float) (interactors[offset + 2] - cameraPosition.z),
+                            (float) interactors[offset + 3]
+                    );
+                }
+
+                int motionLocation = interactorMotionUniforms[index];
+                if (motionLocation >= 0) {
+                    GL20C.glUniform4f(
+                            motionLocation,
+                            (float) (motions[offset] - cameraPosition.y),
+                            (float) motions[offset + 1],
+                            (float) motions[offset + 2],
+                            (float) motions[offset + 3]
+                    );
+                }
             }
         }
     }
