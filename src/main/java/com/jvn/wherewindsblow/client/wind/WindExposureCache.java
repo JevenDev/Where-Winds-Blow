@@ -195,8 +195,13 @@ public final class WindExposureCache {
         return state.canOcclude() ? 0.02F : 0.24F;
     }
 
-    private static float skyAccess(BlockAndTintGetter level, BlockPos pos) {
-        return Mth.clamp(level.getBrightness(LightLayer.SKY, pos) / 15.0F, 0.0F, 1.0F);
+    static float skyAccess(BlockAndTintGetter level, BlockPos pos) {
+        try {
+            return Mth.clamp(level.getBrightness(LightLayer.SKY, pos) / 15.0F, 0.0F, 1.0F);
+        } catch (UnsupportedOperationException exception) {
+            // copycat views can request Sodium's unavailable light engine, so retain directional shelter only
+            return 1.0F;
+        }
     }
 
     static int directionBucket(float windX, float windZ) {

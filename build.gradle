@@ -175,6 +175,10 @@ sourceSets {
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
     }
+    windExposureTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
 }
 
 tasks.register('testParticleWindProfiles', JavaExec) {
@@ -183,6 +187,15 @@ tasks.register('testParticleWindProfiles', JavaExec) {
     dependsOn tasks.named('particleWindTestClasses')
     classpath = sourceSets.particleWindTest.runtimeClasspath
     mainClass = 'com.jvn.wherewindsblow.client.particle.ParticleWindProfilesTest'
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+}
+
+tasks.register('testWindExposure', JavaExec) {
+    group = 'verification'
+    description = 'Checks sky exposure with renderer world views that do not expose a light engine.'
+    dependsOn tasks.named('windExposureTestClasses')
+    classpath = sourceSets.windExposureTest.runtimeClasspath
+    mainClass = 'com.jvn.wherewindsblow.client.wind.WindExposureCacheTest'
     javaLauncher = javaToolchains.launcherFor(java.toolchain)
 }
 
@@ -198,6 +211,7 @@ tasks.register('packageNetherStarWindExample', Zip) {
 
 tasks.named('check') {
     dependsOn tasks.named('testParticleWindProfiles')
+    dependsOn tasks.named('testWindExposure')
 }
 
 // IDEA no longer automatically downloads sources/javadoc jars for dependencies, so we need to explicitly enable the behavior.
