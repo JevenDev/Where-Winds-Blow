@@ -21,12 +21,10 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.neoforged.neoforge.common.Tags;
 
 public final class WindReactivePrecipitationRenderer {
     private static final ResourceLocation RAIN_LOCATION = ResourceLocation.withDefaultNamespace("textures/environment/rain.png");
@@ -72,7 +70,6 @@ public final class WindReactivePrecipitationRenderer {
         );
         boolean dynamicRainSqualls = ClientConfig.ENABLE_DYNAMIC_RAIN_SQUALLS.getAsBoolean();
         float squallStrength = (float) ClientConfig.RAIN_SQUALL_STRENGTH.getAsDouble();
-        boolean desertStormEffects = ClientConfig.ENABLE_DESERT_STORM_EFFECTS.getAsBoolean();
         boolean rainEffects = ClientConfig.ENABLE_RAIN_EFFECTS.getAsBoolean();
         boolean slantedRain = ClientConfig.ENABLE_SLANTED_RAIN.getAsBoolean();
         float lullAmount = dynamicRainSqualls ? DynamicWindManager.currentState().lullAmount() : 0.0F;
@@ -91,23 +88,10 @@ public final class WindReactivePrecipitationRenderer {
                 cameraWeatherResponse.speedMultiplier() * (1.0F + thunder * 0.8F),
                 0.1F
         );
-        BlizzardRenderer.render(
-                level, rainSizeX, rainSizeZ, lightTexture,
-                rainLevel, thunder, precipitationAnimationTime, camX, camY, camZ
-        );
-        DesertStormRenderer.render(
-                level, rainLevel, thunder, animationTime, camX, camY, camZ
-        );
-        SnowfallRenderer.render(
-                level, lightTexture, rainLevel, thunder,
-                animationTime, camX, camY, camZ
-        );
         if (!rainEffects) {
             return;
         }
 
-        // The dedicated weather passes restore render state, so configure the rain stream state
-        // afterward rather than relying on state set before them.
         lightTexture.turnOnLightLayer();
         RenderSystem.disableCull();
         RenderSystem.enableBlend();
@@ -124,13 +108,7 @@ public final class WindReactivePrecipitationRenderer {
                 double widthX = rainSizeX[sizeIndex] * 0.5D;
                 double widthZ = rainSizeZ[sizeIndex] * 0.5D;
                 pos.set(x, camY, z);
-                Holder<Biome> biomeHolder = level.getBiome(pos);
-                if (desertStormEffects
-                        && (biomeHolder.is(Tags.Biomes.IS_DESERT)
-                                || biomeHolder.is(Tags.Biomes.IS_BADLANDS))) {
-                    continue;
-                }
-                Biome biome = biomeHolder.value();
+                Biome biome = level.getBiome(pos).value();
                 if (!biome.hasPrecipitation()) {
                     continue;
                 }
@@ -356,8 +334,7 @@ public final class WindReactivePrecipitationRenderer {
             }
 
             // Vanilla weather levels usually move gradually, but servers and commands can replace
-            // them in a single update. A short render-side ease keeps all precipitation variants on
-            // the same continuous clear/rain/thunder curve without making weather feel delayed.
+            // them in a single update. A short render-side ease keeps rain transitions continuous.
             float blend = ToucanMotion.expAlpha(0.12F, delta);
             rain = Mth.lerp(blend, rain, targetRain);
             thunder = Mth.lerp(blend, thunder, targetThunder);

@@ -1,7 +1,6 @@
 package com.jvn.wherewindsblow.client.wind;
 
 import com.jvn.toucanlib.client.ToucanEasing;
-import com.jvn.wherewindsblow.client.weather.BlizzardWeatherEffects;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
@@ -119,8 +118,6 @@ public final class TumbleweedRenderer {
             Vec3 cameraPos = event.getCamera().getPosition();
             PoseStack poseStack = event.getPoseStack();
             float partialTick = event.getPartialTick().getGameTimeDeltaPartialTick(false);
-            BlizzardWeatherEffects.BlizzardFogProfile stormFog =
-                    BlizzardWeatherEffects.fogProfile(event.getCamera(), partialTick);
             MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(BUFFER);
             BlockRenderDispatcher blockRenderer = minecraft.getBlockRenderer();
             for (Tumbleweed tumbleweed : TUMBLEWEEDS) {
@@ -132,8 +129,7 @@ public final class TumbleweedRenderer {
                             level,
                             cameraPos,
                             tumbleweed,
-                            partialTick,
-                            stormFog
+                            partialTick
                     );
                 }
             }
@@ -313,8 +309,7 @@ public final class TumbleweedRenderer {
             ClientLevel level,
             Vec3 cameraPos,
             Tumbleweed tumbleweed,
-            float partialTick,
-            BlizzardWeatherEffects.BlizzardFogProfile stormFog
+            float partialTick
     ) {
         double x = Mth.lerp(partialTick, tumbleweed.xOld, tumbleweed.x);
         double y = Mth.lerp(partialTick, tumbleweed.yOld, tumbleweed.y);
@@ -328,7 +323,7 @@ public final class TumbleweedRenderer {
         float fadeOut = tumbleweed.fadingOut
                 ? 1.0F - Mth.clamp((tumbleweed.fadeAge + partialTick) / FADE_TICKS, 0.0F, 1.0F)
                 : ToucanEasing.smoothstep(Mth.clamp((tumbleweed.lifetime - tumbleweed.age) / 28.0F, 0.0F, 1.0F));
-        float visibleScale = distanceFade * fadeIn * fadeOut * stormFog.visibility(distance);
+        float visibleScale = distanceFade * fadeIn * fadeOut;
         if (visibleScale <= 0.01F) {
             return;
         }

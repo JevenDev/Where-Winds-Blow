@@ -12,9 +12,6 @@ import com.jvn.wherewindsblow.client.foliage.FoliageSwayProfiles;
 import com.jvn.wherewindsblow.client.lantern.LanternSway;
 import com.jvn.wherewindsblow.client.lantern.SwingingLanternAssemblyRenderer;
 import com.jvn.wherewindsblow.client.particle.ParticleWindProfileReloadListener;
-import com.jvn.wherewindsblow.client.weather.BlizzardWeatherEffects;
-import com.jvn.wherewindsblow.client.weather.DesertStormShaders;
-import com.jvn.wherewindsblow.client.weather.SnowfallShaders;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.WindDebugOverlay;
 import com.jvn.wherewindsblow.client.wind.WindStreakRenderer;
@@ -67,10 +64,7 @@ public final class WhereWindsBlowClient {
                 .listener(WindStreakRenderer::onClientTick)
                 .listener(TumbleweedRenderer::onRenderLevelStage)
                 .listener(TumbleweedRenderer::onClientTick)
-                .listener(WindDebugOverlay::onRenderGui)
-                .listener(BlizzardWeatherEffects::onRenderFog)
-                .listener(BlizzardWeatherEffects::onComputeFogColor)
-                .listener(BlizzardWeatherEffects::onRenderLevelStage);
+                .listener(WindDebugOverlay::onRenderGui);
     }
 
     private static void registerBlockColors(RegisterColorHandlersEvent.Block event) {
@@ -103,8 +97,6 @@ public final class WhereWindsBlowClient {
     private static void registerShaders(RegisterShadersEvent event) {
         ResponsiveFoliageShaders.register(event);
         WindVisualShaders.register(event);
-        SnowfallShaders.register(event);
-        DesertStormShaders.register(event);
     }
 
     private static void registerReloadListeners(RegisterClientReloadListenersEvent event) {

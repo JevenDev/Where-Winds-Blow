@@ -38,13 +38,6 @@ final class WindParticleEnvironment {
     private WindParticleEnvironment() {
     }
 
-    static double distanceTo(Vec3 cameraPos, Point point) {
-        double dx = point.x() - cameraPos.x();
-        double dy = point.y() - cameraPos.y();
-        double dz = point.z() - cameraPos.z();
-        return Math.sqrt(dx * dx + dy * dy + dz * dz);
-    }
-
     static TerrainFlow terrainFlow(
             ClientLevel level,
             double x,

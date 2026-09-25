@@ -2,7 +2,6 @@ package com.jvn.wherewindsblow.client.wind;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
-import com.jvn.wherewindsblow.client.weather.BlizzardWeatherEffects;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -632,12 +631,11 @@ final class WindDebrisRenderer {
             Vec3 cameraPos,
             float partialTick,
             double windTime,
-            float opacity,
-            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
+            float opacity
     ) {
         renderWindParticles(
                 level, camera, pose, cameraPos, partialTick, windTime, opacity,
-                LEAVES, LEAF_RENDER_TYPES, blizzardFog
+                LEAVES, LEAF_RENDER_TYPES
         );
     }
 
@@ -648,12 +646,11 @@ final class WindDebrisRenderer {
             Vec3 cameraPos,
             float partialTick,
             double windTime,
-            float opacity,
-            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
+            float opacity
     ) {
         renderWindParticles(
                 level, camera, pose, cameraPos, partialTick, windTime, opacity,
-                FLOWER_PETALS, FLOWER_PETAL_RENDER_TYPES, blizzardFog
+                FLOWER_PETALS, FLOWER_PETAL_RENDER_TYPES
         );
     }
 
@@ -666,8 +663,7 @@ final class WindDebrisRenderer {
             double windTime,
             float opacity,
             WindLeaf[] particles,
-            RenderType[] renderTypes,
-            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
+            RenderType[] renderTypes
     ) {
         MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(LEAF_BUFFER);
         for (int textureIndex = 0; textureIndex < renderTypes.length; textureIndex++) {
@@ -679,7 +675,7 @@ final class WindDebrisRenderer {
                     }
                     renderLeaf(
                             consumer, pose, particle, level, camera, cameraPos,
-                            partialTick, windTime, opacity, blizzardFog
+                            partialTick, windTime, opacity
                     );
                 }
             }
@@ -696,8 +692,7 @@ final class WindDebrisRenderer {
             Vec3 cameraPos,
             float partialTick,
             double windTime,
-            float opacity,
-            BlizzardWeatherEffects.BlizzardFogProfile blizzardFog
+            float opacity
     ) {
         float life = ((float) leaf.age + partialTick) / (float) leaf.lifetime;
         float fade = smoothFade(Mth.clamp(life / 0.24F, 0.0F, 1.0F))
@@ -729,7 +724,6 @@ final class WindDebrisRenderer {
         double cameraDistance = Math.sqrt(dx * dx + dy * dy + dz * dz);
         float distanceFade = smoothFade(Mth.clamp((float) ((MAX_DISTANCE_FROM_PLAYER - cameraDistance) / 18.0D), 0.0F, 1.0F));
         float alpha = 0.95F * opacity * fade * distanceFade
-                * blizzardFog.visibility(cameraDistance)
                 * fadeOutMultiplier(leaf, partialTick);
         if (alpha <= 0.006F) {
             return;

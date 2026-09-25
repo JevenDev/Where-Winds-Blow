@@ -83,26 +83,6 @@ public final class ClientConfig {
     public static final double RAIN_ANGLE_VARIATION_MAX = 45.0D;
     public static final double RAIN_SQUALL_STRENGTH_MIN = 0.0D;
     public static final double RAIN_SQUALL_STRENGTH_MAX = 2.0D;
-    public static final double BLIZZARD_INTENSITY_MIN = 0.0D;
-    public static final double BLIZZARD_INTENSITY_MAX = 2.0D;
-    public static final double SNOW_FOG_INTENSITY_MIN = 0.0D;
-    public static final double SNOW_FOG_INTENSITY_MAX = 2.0D;
-    public static final double SNOWFLAKE_AMOUNT_MIN = 0.0D;
-    public static final double SNOWFLAKE_AMOUNT_MAX = 2.0D;
-    public static final double SNOWFLAKE_SIZE_MIN = 0.25D;
-    public static final double SNOWFLAKE_SIZE_MAX = 3.0D;
-    public static final double SNOWFLAKE_SPEED_MIN = 0.25D;
-    public static final double SNOWFLAKE_SPEED_MAX = 3.0D;
-    public static final double SAND_DUST_AMOUNT_MIN = 0.0D;
-    public static final double SAND_DUST_AMOUNT_MAX = 2.0D;
-    public static final double SAND_DUST_SIZE_MIN = 0.25D;
-    public static final double SAND_DUST_SIZE_MAX = 3.0D;
-    public static final double SAND_DUST_SPEED_MIN = 0.25D;
-    public static final double SAND_DUST_SPEED_MAX = 3.0D;
-    public static final double SANDSTORM_FOG_INTENSITY_MIN = 0.0D;
-    public static final double SANDSTORM_FOG_INTENSITY_MAX = 2.0D;
-    public static final double SANDSTORM_INTENSITY_MIN = 0.0D;
-    public static final double SANDSTORM_INTENSITY_MAX = 2.0D;
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
@@ -416,73 +396,8 @@ public final class ClientConfig {
             .defineInRange("thunderWeatherSheenStrength", 2.0D, WEATHER_SHEEN_STRENGTH_MIN, WEATHER_SHEEN_STRENGTH_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_REACTIVE_PRECIPITATION = BUILDER
-            .comment("Uses Where Winds Blow's atmospheric precipitation renderer. Disable this to use vanilla rain and snow.")
+            .comment("Uses Where Winds Blow's rain renderer. Disable this to use vanilla rain.")
             .define("enableWindReactivePrecipitation", true);
-
-    public static final ModConfigSpec.BooleanValue ENABLE_DESERT_STORM_EFFECTS = BUILDER
-            .comment("Replaces rainy weather in desert and badlands biomes with sand- or red-sand-tinted windstorms. Thunder makes them denser, more turbulent, and foggy.")
-            .define("enableDesertStormEffects", false);
-
-    public static final ModConfigSpec.DoubleValue SAND_DUST_AMOUNT = BUILDER
-            .comment("Scales the amount of airborne dust during ordinary rainy desert weather.")
-            .defineInRange("sandDustAmount", 1.0D, SAND_DUST_AMOUNT_MIN, SAND_DUST_AMOUNT_MAX);
-
-    public static final ModConfigSpec.DoubleValue SAND_DUST_SIZE = BUILDER
-            .comment("Scales the size of blowing dust particles during ordinary rainy desert weather.")
-            .defineInRange("sandDustSize", 1.0D, SAND_DUST_SIZE_MIN, SAND_DUST_SIZE_MAX);
-
-    public static final ModConfigSpec.DoubleValue SAND_DUST_SPEED = BUILDER
-            .comment("Scales how quickly blowing dust travels during ordinary rainy desert weather.")
-            .defineInRange("sandDustSpeed", 1.0D, SAND_DUST_SPEED_MIN, SAND_DUST_SPEED_MAX);
-
-    public static final ModConfigSpec.EnumValue<SandstormFogMode> SANDSTORM_FOG_MODE = BUILDER
-            .comment("Controls whether desert visibility fog is disabled, limited to severe sandstorms, or present during all rainy desert weather.")
-            .defineEnum("sandstormFogMode", SandstormFogMode.DISABLED);
-
-    public static final ModConfigSpec.DoubleValue SANDSTORM_FOG_INTENSITY = BUILDER
-            .comment("Scales desert-storm visibility fog without changing blowing dust.")
-            .defineInRange(
-                    "sandstormFogIntensity",
-                    1.0D,
-                    SANDSTORM_FOG_INTENSITY_MIN,
-                    SANDSTORM_FOG_INTENSITY_MAX
-            );
-
-    public static final ModConfigSpec.DoubleValue SANDSTORM_DUST_AMOUNT = BUILDER
-            .comment("Sets the airborne dust amount reached during a full sandstorm.")
-            .defineInRange(
-                    "sandstormDustAmount",
-                    1.0D,
-                    SAND_DUST_AMOUNT_MIN,
-                    SAND_DUST_AMOUNT_MAX
-            );
-
-    public static final ModConfigSpec.DoubleValue SANDSTORM_DUST_SIZE = BUILDER
-            .comment("Sets the blowing dust size reached during a full sandstorm.")
-            .defineInRange(
-                    "sandstormDustSize",
-                    1.0D,
-                    SAND_DUST_SIZE_MIN,
-                    SAND_DUST_SIZE_MAX
-            );
-
-    public static final ModConfigSpec.DoubleValue SANDSTORM_DUST_SPEED = BUILDER
-            .comment("Sets the blowing dust travel speed reached during a full sandstorm.")
-            .defineInRange(
-                    "sandstormDustSpeed",
-                    1.0D,
-                    SAND_DUST_SPEED_MIN,
-                    SAND_DUST_SPEED_MAX
-            );
-
-    public static final ModConfigSpec.DoubleValue SANDSTORM_INTENSITY = BUILDER
-            .comment("Scales the extra density and opacity of severe sandstorms without changing fog.")
-            .defineInRange(
-                    "sandstormIntensity",
-                    1.0D,
-                    SANDSTORM_INTENSITY_MIN,
-                    SANDSTORM_INTENSITY_MAX
-            );
 
     public static final ModConfigSpec.BooleanValue ENABLE_RAIN_EFFECTS = BUILDER
             .comment("Renders atmospheric rain while Where Winds Blow's precipitation renderer is enabled.")
@@ -508,54 +423,6 @@ public final class ClientConfig {
             .comment("Scales changes to rain density, speed, opacity, and tilt during gusts and lulls.")
             .defineInRange("rainSquallStrength", 1.0D, RAIN_SQUALL_STRENGTH_MIN, RAIN_SQUALL_STRENGTH_MAX);
 
-    public static final ModConfigSpec.BooleanValue ENABLE_SNOW_EFFECTS = BUILDER
-            .comment("Renders atmospheric snow while Where Winds Blow's precipitation renderer is enabled.")
-            .define("enableSnowEffects", true);
-
-    public static final ModConfigSpec.BooleanValue ENABLE_WIND_DRIVEN_SNOW = BUILDER
-            .comment("Lets snow drift and flutter with the shared wind simulation. Snow falls vertically when this is disabled.")
-            .define("enableWindDrivenSnow", true);
-
-    public static final ModConfigSpec.DoubleValue SNOWFLAKE_AMOUNT = BUILDER
-            .comment("Scales the number of falling snowflakes during ordinary snowfall.")
-            .defineInRange("snowflakeAmount", 1.0D, SNOWFLAKE_AMOUNT_MIN, SNOWFLAKE_AMOUNT_MAX);
-
-    public static final ModConfigSpec.DoubleValue SNOWFLAKE_SIZE = BUILDER
-            .comment("Scales the size of falling snowflakes during ordinary snowfall.")
-            .defineInRange("snowflakeSize", 1.0D, SNOWFLAKE_SIZE_MIN, SNOWFLAKE_SIZE_MAX);
-
-    public static final ModConfigSpec.DoubleValue SNOWFLAKE_SPEED = BUILDER
-            .comment("Scales the fall speed of snowflakes during ordinary snowfall.")
-            .defineInRange("snowflakeSpeed", 1.0D, SNOWFLAKE_SPEED_MIN, SNOWFLAKE_SPEED_MAX);
-
-    public static final ModConfigSpec.EnumValue<SnowFogMode> SNOW_FOG_MODE = BUILDER
-            .comment("Controls whether visibility fog is disabled, limited to blizzards, or present during all snowfall.")
-            .defineEnum("snowFogMode", SnowFogMode.BLIZZARDS_ONLY);
-
-    public static final ModConfigSpec.DoubleValue SNOW_FOG_INTENSITY = BUILDER
-            .comment("Scales snowy-weather fog without changing snowfall or blowing snow.")
-            .defineInRange("snowFogIntensity", 1.0D, SNOW_FOG_INTENSITY_MIN, SNOW_FOG_INTENSITY_MAX);
-
-    public static final ModConfigSpec.BooleanValue ENABLE_BLIZZARD_EFFECTS = BUILDER
-            .comment("Adds wind-driven surface snow and rooftop spindrift during severe snowy weather.")
-            .define("enableBlizzardEffects", true);
-
-    public static final ModConfigSpec.DoubleValue BLIZZARD_SNOWFLAKE_AMOUNT = BUILDER
-            .comment("Scales the number of falling snowflakes reached during a full blizzard.")
-            .defineInRange("blizzardSnowflakeAmount", 1.0D, SNOWFLAKE_AMOUNT_MIN, SNOWFLAKE_AMOUNT_MAX);
-
-    public static final ModConfigSpec.DoubleValue BLIZZARD_SNOWFLAKE_SIZE = BUILDER
-            .comment("Scales the snowflake size reached during a full blizzard.")
-            .defineInRange("blizzardSnowflakeSize", 1.0D, SNOWFLAKE_SIZE_MIN, SNOWFLAKE_SIZE_MAX);
-
-    public static final ModConfigSpec.DoubleValue BLIZZARD_SNOWFLAKE_SPEED = BUILDER
-            .comment("Scales the snowflake fall speed reached during a full blizzard.")
-            .defineInRange("blizzardSnowflakeSpeed", 1.0D, SNOWFLAKE_SPEED_MIN, SNOWFLAKE_SPEED_MAX);
-
-    public static final ModConfigSpec.DoubleValue BLIZZARD_INTENSITY = BUILDER
-            .comment("Scales blowing surface snow and rooftop spindrift without changing snowfall or fog.")
-            .defineInRange("blizzardIntensity", 1.0D, BLIZZARD_INTENSITY_MIN, BLIZZARD_INTENSITY_MAX);
-
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     public enum TerrainRendererBackend {
@@ -572,18 +439,6 @@ public final class ClientConfig {
     public enum FoliageAnimationMode {
         SMOOTH,
         STEPPED
-    }
-
-    public enum SnowFogMode {
-        DISABLED,
-        BLIZZARDS_ONLY,
-        ALL_SNOWFALL
-    }
-
-    public enum SandstormFogMode {
-        DISABLED,
-        SANDSTORMS_ONLY,
-        ALL_DESERT_WEATHER
     }
 
     private ClientConfig() {
