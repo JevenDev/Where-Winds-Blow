@@ -98,13 +98,18 @@ public final class WindExposureCache {
     }
 
     static void invalidateTrackedSections(LevelRenderer levelRenderer) {
-        Set<Long> sections;
+        for (long section : drainTrackedSections()) {
+            levelRenderer.setSectionDirty(SectionPos.x(section), SectionPos.y(section), SectionPos.z(section));
+        }
+    }
+
+    static Set<Long> drainTrackedSections() {
         synchronized (CACHE) {
             CACHE.clear();
-            sections = Set.copyOf(TRACKED_SECTIONS);
-        }
-        for (long section : sections) {
-            levelRenderer.setSectionDirty(SectionPos.x(section), SectionPos.y(section), SectionPos.z(section));
+            Set<Long> sections = Set.copyOf(TRACKED_SECTIONS);
+            TRACKED_SECTIONS.clear();
+            lastTrackedSection = Long.MIN_VALUE;
+            return sections;
         }
     }
 

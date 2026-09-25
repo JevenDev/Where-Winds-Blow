@@ -2,7 +2,9 @@ package com.jvn.wherewindsblow.client.wind;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.LightLayer;
 
@@ -10,6 +12,7 @@ public final class WindExposureCacheTest {
     private static int checks;
 
     public static void main(String[] args) {
+        drainsTrackedSections();
         for (int light : new int[]{-1, 0, 7, 15, 16}) {
             BlockPos pos = new BlockPos(54, 72, -2);
             BlockAndTintGetter level = view((proxy, method, arguments) -> {
@@ -46,6 +49,25 @@ public final class WindExposureCacheTest {
             check(exception == failure, "preserves unexpected lighting failures");
         }
         System.out.println("Passed " + checks + " wind exposure checks.");
+    }
+
+    private static void drainsTrackedSections() {
+        WindExposureCache.clear();
+        BlockPos first = new BlockPos(16, 64, 16);
+        BlockPos second = new BlockPos(32, 64, 16);
+        WindExposureCache.trackSection(first);
+        WindExposureCache.trackSection(first.offset(1, 0, 0));
+        WindExposureCache.trackSection(second);
+
+        Set<Long> drained = WindExposureCache.drainTrackedSections();
+        check(drained.equals(Set.of(SectionPos.asLong(first), SectionPos.asLong(second))),
+                "drains each tracked section once");
+        check(WindExposureCache.drainTrackedSections().isEmpty(), "clears tracked sections after invalidation");
+
+        WindExposureCache.trackSection(second);
+        check(WindExposureCache.drainTrackedSections().equals(Set.of(SectionPos.asLong(second))),
+                "tracks rebuilt sections again after invalidation");
+        WindExposureCache.clear();
     }
 
     private static BlockAndTintGetter view(InvocationHandler handler) {
