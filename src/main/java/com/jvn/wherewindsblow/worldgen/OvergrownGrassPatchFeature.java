@@ -19,7 +19,7 @@ public class OvergrownGrassPatchFeature extends Feature<NoneFeatureConfiguration
         RandomSource random = context.random();
         BlockPos origin = context.origin();
         float roll = random.nextFloat();
-        int peakHeight = roll < 0.5F ? 4 : roll < 0.9F ? 5 : 6;
+        int peakHeight = roll < 0.55F ? 3 : roll < 0.87F ? 4 : roll < 0.98F ? 5 : 6;
         double radius = (peakHeight - 1) * 1.5D;
         GrassPatchShape shape = GrassPatchShape.create(random, radius + 1.0D, radius + 2.5D, radius, radius + 1.25D);
         boolean placedAny = false;

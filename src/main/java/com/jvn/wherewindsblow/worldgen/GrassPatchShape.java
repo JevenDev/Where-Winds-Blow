@@ -4,7 +4,7 @@ import net.minecraft.util.RandomSource;
 
 final class GrassPatchShape {
     private static final int NOISE_SCALE = 4;
-    private static final double EDGE_WARP = 0.06D;
+    private static final double EDGE_WARP = 0.08D;
     private static final double PATCH_LIMIT = 1.18D;
 
     private final double radiusX;
@@ -66,7 +66,7 @@ final class GrassPatchShape {
             );
             distance = Math.min(distance, ovalDistance + lobe.heightOffset());
         }
-        return Math.max(0.0D, distance + valueNoise(worldX, worldZ, seed) * EDGE_WARP);
+        return Math.max(0.0D, distance + valueNoise(worldX, worldZ, seed, 6) * EDGE_WARP);
     }
 
     int grassHeight(int offsetX, int offsetZ, int worldX, int worldZ, int peakHeight) {
@@ -76,11 +76,10 @@ final class GrassPatchShape {
         }
 
         double edgeHeight = peakHeight + 0.25D - distance * (peakHeight - 1) / 0.9D;
-        int baseHeight = peakHeight == 2 ? 1 : 2;
-        int heightNoiseScale = peakHeight == 2 ? 3 : 6;
+        int heightNoiseScale = peakHeight * 2;
         double variation = valueNoise(worldX, worldZ, seed ^ 0x6A09E667F3BCC909L, heightNoiseScale);
-        double localHeight = baseHeight + 0.15D + (peakHeight - baseHeight) * (0.5D + variation * 0.5D);
-        return Math.clamp(Math.round(Math.min(edgeHeight, localHeight)), 1, peakHeight);
+        double localHeight = (peakHeight + 1) * 0.5D + variation * peakHeight * 0.65D;
+        return Math.clamp(Math.round(Math.min(edgeHeight, localHeight)), 0, peakHeight);
     }
 
     static double valueNoise(int x, int z, long seed) {

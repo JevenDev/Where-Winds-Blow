@@ -7,12 +7,14 @@ import com.jvn.wherewindsblow.block.FlatGrassBlock;
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.block.OvergrownGrassBlock;
 import com.jvn.wherewindsblow.block.OvergrownGrassPart;
+import com.mojang.serialization.JsonOps;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -40,8 +42,10 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+import net.minecraft.world.level.levelgen.placement.PlacementModifier;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.LoadingModList;
 import net.neoforged.neoforge.registries.GameData;
@@ -55,7 +59,9 @@ public final class GrassWorldgenTest {
         checksFernBiomeTags();
         checksPatchTransitions();
         bootstrapBlocks();
+        checksPatchPlacementResources();
         followsTerrainAndFillsPatches();
+        keepsOvergrownClumpsLow();
         placesForestFerns();
         preservesFernNeighbors();
         respectsFernPlacementLimits();
@@ -141,13 +147,13 @@ public final class GrassWorldgenTest {
 
     private static void checksPatchTransitions() {
         int offCenterPeaks = 0;
-        for (int peak : new int[]{2, 4, 5, 6}) {
+        for (int peak : new int[]{2, 3, 4, 5, 6}) {
             boolean[] allHeightsSeen = new boolean[peak + 1];
             for (int seed = 0; seed < 128; seed++) {
                 RandomSource random = RandomSource.create(seed);
                 double radius = (peak - 1) * 1.5D;
                 GrassPatchShape shape = peak == 2
-                        ? GrassPatchShape.create(random, 2.5D, 4.0D, 2.25D, 3.25D)
+                        ? GrassPatchShape.create(random, 3.0D, 4.5D, 2.75D, 3.75D)
                         : GrassPatchShape.create(random, radius + 1.0D, radius + 2.5D, radius, radius + 1.25D);
                 int originX = seed * 17 - 1024;
                 int originZ = 511 - seed * 31;
@@ -173,8 +179,8 @@ public final class GrassWorldgenTest {
                         if (Math.abs(x) > bounds || Math.abs(z) > bounds) {
                             check(height == 0, "patch bounds include the whole transition");
                         }
-                        if (shape.distance(x, z, originX + x, originZ + z) <= 1.0D) {
-                            check(height > 0, "patch interiors have no random density holes");
+                        if (height > 1) {
+                            check(east > 0 && south > 0, "tall clumps have shorter cover between them and openings");
                         }
                     }
                 }
@@ -210,6 +216,103 @@ public final class GrassWorldgenTest {
             state.initCache();
         }
         BuiltInRegistries.BLOCK.freeze();
+        Registry.register(BuiltInRegistries.FEATURE, ModFeatures.FERN_PATCH.getId(),
+                new FernPatchFeature(NoneFeatureConfiguration.CODEC));
+        Registry.register(BuiltInRegistries.FEATURE, ModFeatures.TALL_GRASS_PATCH.getId(),
+                new TallGrassPatchFeature(NoneFeatureConfiguration.CODEC));
+        Registry.register(BuiltInRegistries.FEATURE, ModFeatures.OVERGROWN_GRASS_PATCH.getId(),
+                new OvergrownGrassPatchFeature(NoneFeatureConfiguration.CODEC));
+    }
+
+    private static JsonObject worldgenResource(String folder, String name) throws IOException {
+        String path = "/data/where_winds_blow/worldgen/" + folder + "/" + name + ".json";
+        try (InputStreamReader reader = new InputStreamReader(
+                Objects.requireNonNull(GrassWorldgenTest.class.getResourceAsStream(path)), StandardCharsets.UTF_8)) {
+            return JsonParser.parseReader(reader).getAsJsonObject();
+        }
+    }
+
+    private static void checksPatchPlacementResources() throws IOException {
+        for (String family : List.of("fern_accent_patch", "tall_grass_patch", "tall_grass_field_patch",
+                "overgrown_grass_patch", "overgrown_grass_field_patch")) {
+            for (int pass = 1; pass <= 8; pass++) {
+                String name = family + (pass == 1 ? "" : "_" + pass);
+                JsonObject resource = worldgenResource("placed_feature", name);
+                String configuredName = ResourceLocation.parse(resource.get("feature").getAsString()).getPath();
+                ConfiguredFeature.DIRECT_CODEC.parse(JsonOps.INSTANCE,
+                        worldgenResource("configured_feature", configuredName)).getOrThrow();
+                List<PlacementModifier> frequency = new ArrayList<>();
+                boolean reachedHeightmap = false;
+                for (JsonElement element : resource.getAsJsonArray("placement")) {
+                    JsonObject placement = element.getAsJsonObject();
+                    PlacementModifier modifier = PlacementModifier.CODEC.parse(JsonOps.INSTANCE, placement).getOrThrow();
+                    if (placement.get("type").getAsString().equals("minecraft:heightmap")) {
+                        check(placement.get("heightmap").getAsString().equals("MOTION_BLOCKING_NO_LEAVES"),
+                                "patch origins use the forest floor in " + name);
+                        reachedHeightmap = true;
+                    } else if (!reachedHeightmap) {
+                        frequency.add(modifier);
+                    }
+                }
+                check(reachedHeightmap, "patches resolve a terrain height in " + name);
+
+                RandomSource random = RandomSource.create(817263L + pass);
+                int starts = 0;
+                for (int region = -4; region < 4; region++) {
+                    int regionalStarts = 0;
+                    for (int sample = 0; sample < 64; sample++) {
+                        List<BlockPos> positions = List.of(new BlockPos(region * 4096 + sample * 16, 64, region * -8192));
+                        for (PlacementModifier modifier : frequency) {
+                            positions = positions.stream().flatMap(pos -> modifier.getPositions(null, random, pos)).toList();
+                        }
+                        regionalStarts += positions.size();
+                    }
+                    check(regionalStarts > 0 && regionalStarts < 64,
+                            "every region has patch starts and clearings in " + name);
+                    starts += regionalStarts;
+                }
+                double rate = starts / 512.0D;
+                double expectedRate = family.equals("fern_accent_patch") ? 0.5D
+                        : family.equals("tall_grass_field_patch") ? 0.25D
+                        : family.equals("overgrown_grass_field_patch") ? 0.125D : 1.0D / 3.0D;
+                check(Math.abs(rate - expectedRate) < 0.08D, "patch frequency remains dispersed in " + name);
+            }
+        }
+    }
+
+    private static void keepsOvergrownClumpsLow() {
+        OvergrownGrassPatchFeature feature = new OvergrownGrassPatchFeature(NoneFeatureConfiguration.CODEC);
+        RandomSource seeds = RandomSource.create(7935612L);
+        int columns = 0;
+        int lowColumns = 0;
+        int patchesWithOvergrowth = 0;
+        int veryTallPatches = 0;
+        for (int sample = 0; sample < 256; sample++) {
+            TestWorld world = new TestWorld((x, z) -> 64);
+            feature.place(context(world, new BlockPos(sample * 31 - 4096, 64, 2048 - sample * 17), seeds.nextLong()));
+            int peak = 0;
+            for (BlockPos pos : world.blocks.keySet()) {
+                if (pos.getY() == 64) {
+                    int height = world.columnHeight(pos.getX(), pos.getZ());
+                    peak = Math.max(peak, height);
+                    columns++;
+                    if (height <= 3) {
+                        lowColumns++;
+                    }
+                }
+            }
+            if (peak >= 3) {
+                patchesWithOvergrowth++;
+            }
+            if (peak >= 5) {
+                veryTallPatches++;
+            }
+            world.checkPlants();
+        }
+        check(columns > 256 * 40 && columns < 256 * 180, "overgrown patches form compact stands with substantial ground cover");
+        check(lowColumns > columns * 0.9D, "most overgrown patch cover stays at three blocks or below");
+        check(patchesWithOvergrowth > 64, "lower patches still contain substantial overgrown grass");
+        check(veryTallPatches < 26, "five- and six-block stands remain occasional accents");
     }
 
     private static void followsTerrainAndFillsPatches() {

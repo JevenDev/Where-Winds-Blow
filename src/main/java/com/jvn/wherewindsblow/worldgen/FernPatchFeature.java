@@ -35,7 +35,7 @@ public final class FernPatchFeature extends Feature<NoneFeatureConfiguration> {
         WorldGenLevel level = context.level();
         RandomSource random = context.random();
         BlockPos origin = context.origin();
-        GrassPatchShape shape = GrassPatchShape.create(random, 2.5D, 4.0D, 2.25D, 3.25D);
+        GrassPatchShape shape = GrassPatchShape.create(random, 3.0D, 4.5D, 2.75D, 3.75D);
         boolean placedAny = false;
         int bounds = shape.bounds();
 
