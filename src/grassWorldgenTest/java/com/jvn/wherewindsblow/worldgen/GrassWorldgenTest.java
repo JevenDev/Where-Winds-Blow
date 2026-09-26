@@ -52,9 +52,13 @@ public final class GrassWorldgenTest {
     public static void main(String[] args) throws IOException {
         coversGrassyWetlandsAndShores();
         checksWetlandBiomeTags();
+        checksFernBiomeTags();
         checksPatchTransitions();
         bootstrapBlocks();
         followsTerrainAndFillsPatches();
+        placesForestFerns();
+        preservesFernNeighbors();
+        respectsFernPlacementLimits();
         preservesExistingVegetation();
         restrictsOvergrownGrassAtBiomeBorders();
         blendsOverlappingPatches();
@@ -111,6 +115,17 @@ public final class GrassWorldgenTest {
                 "overgrown patches default to swamp and jungle biome families");
         check(biomeTagValues("has_overgrown_grass_fields").isEmpty(),
                 "overgrown fields no longer generate in open biomes by default");
+    }
+
+    private static void checksFernBiomeTags() throws IOException {
+        Set<String> largeFerns = resolveBiomeTag("where_winds_blow:has_large_ferns", true);
+        Set<String> allFerns = resolveBiomeTag("where_winds_blow:has_fern_accents", true);
+        for (String biome : List.of("taiga", "snowy_taiga", "old_growth_spruce_taiga", "old_growth_pine_taiga", "windswept_forest")) {
+            check(largeFerns.contains("minecraft:" + biome), "spruce forests support large ferns in " + biome);
+        }
+        check(allFerns.containsAll(largeFerns), "large fern habitats also receive fern patches");
+        check(!largeFerns.contains("minecraft:plains") && !largeFerns.contains("minecraft:forest"),
+                "large fern accents stay in conifer habitats");
     }
 
     private static Set<String> biomeTagValues(String name) throws IOException {
@@ -224,6 +239,114 @@ public final class GrassWorldgenTest {
         check(repeated.blocks.equals(before), "seeded patches are reproducible");
     }
 
+    private static void placesForestFerns() {
+        FernPatchFeature feature = new FernPatchFeature(NoneFeatureConfiguration.CODEC);
+        BlockPos origin = new BlockPos(-16, 140, 15);
+        TestWorld spruce = new TestWorld((x, z) -> 80 + x - z);
+        spruce.biome = biome("has_fern_accents", "has_large_ferns");
+        check(feature.place(context(spruce, origin, 42)), "ferns follow the forest floor below a canopy-height origin");
+        check(spruce.blocks.values().stream().anyMatch(state -> state.is(Blocks.FERN)), "fern patches include small ferns");
+        check(spruce.blocks.values().stream().anyMatch(state -> state.is(Blocks.LARGE_FERN)), "spruce patches include large ferns");
+        spruce.checkPlants();
+
+        TestWorld repeated = new TestWorld((x, z) -> 80 + x - z);
+        repeated.biome = spruce.biome;
+        feature.place(context(repeated, origin, 42));
+        check(repeated.blocks.equals(spruce.blocks), "seeded fern patches are reproducible");
+
+        TestWorld forest = new TestWorld((x, z) -> 64);
+        forest.biome = biome("has_fern_accents");
+        check(feature.place(context(forest, origin, 42)), "other forests retain their fern accents");
+        check(forest.blocks.values().stream().allMatch(state -> state.is(Blocks.FERN)),
+                "large ferns only appear in their tagged habitats");
+
+        TestWorld border = new TestWorld((x, z) -> 64);
+        border.biome = spruce.biome;
+        border.includedBiomes = pos -> pos.getX() < 0;
+        check(feature.place(context(border, new BlockPos(-1, 64, 0), 42)), "fern patches reach habitat boundaries");
+        check(border.blocks.keySet().stream().allMatch(pos -> pos.getX() < 0), "ferns respect each column's biome");
+        border.checkPlants();
+    }
+
+    private static void preservesFernNeighbors() {
+        for (BlockState plant : new BlockState[]{
+                Blocks.DANDELION.defaultBlockState(), Blocks.LARGE_FERN.defaultBlockState(),
+                Blocks.DEAD_BUSH.defaultBlockState(), Blocks.WHEAT.defaultBlockState(),
+                Blocks.WATER.defaultBlockState(), Blocks.SPRUCE_LEAVES.defaultBlockState(),
+                ModBlocks.OVERGROWN_GRASS.get().defaultBlockState(), Blocks.STONE.defaultBlockState()
+        }) {
+            TestWorld world = new TestWorld((x, z) -> 64);
+            world.biome = biome("has_fern_accents", "has_large_ferns");
+            world.blocks.put(world.bottom(), plant);
+            Map<BlockPos, BlockState> before = Map.copyOf(world.blocks);
+            check(!FernPatchFeature.placeFern(world.level, world.bottom(), 2), "ferns preserve established plants and solids");
+            check(world.blocks.equals(before), "fern placement leaves neighboring vegetation untouched");
+        }
+
+        for (BlockState cover : new BlockState[]{
+                Blocks.AIR.defaultBlockState(), Blocks.SHORT_GRASS.defaultBlockState(),
+                ModBlocks.FLAT_GRASS.get().defaultBlockState(), Blocks.FERN.defaultBlockState()
+        }) {
+            TestWorld world = new TestWorld((x, z) -> 64);
+            world.biome = biome("has_fern_accents", "has_large_ferns");
+            if (!cover.isAir()) {
+                world.blocks.put(world.bottom(), cover);
+            }
+            check(FernPatchFeature.placeFern(world.level, world.bottom(), 2), "large ferns grow through short ground cover");
+            world.checkPlants();
+            Map<BlockPos, BlockState> before = Map.copyOf(world.blocks);
+            check(!world.place(2), "grass patches preserve established large ferns");
+            check(world.blocks.equals(before), "grass leaves both fern halves intact");
+        }
+
+        TestWorld grass = new TestWorld((x, z) -> 64);
+        grass.biome = biome("has_fern_accents", "has_large_ferns");
+        check(grass.place(2), "creates tall grass before fern placement");
+        check(!FernPatchFeature.placeFern(grass.level, grass.bottom(), 1), "small ferns never leave orphaned tall grass");
+        check(FernPatchFeature.placeFern(grass.level, grass.bottom(), 2), "large ferns can replace complete tall grass plants");
+        grass.checkPlants();
+    }
+
+    private static void respectsFernPlacementLimits() {
+        for (BlockState obstruction : new BlockState[]{
+                Blocks.SPRUCE_LEAVES.defaultBlockState(), Blocks.WATER.defaultBlockState(), Blocks.STONE.defaultBlockState()
+        }) {
+            TestWorld world = new TestWorld((x, z) -> 64);
+            world.biome = biome("has_fern_accents", "has_large_ferns");
+            world.blocks.put(world.bottom().above(), obstruction);
+            check(FernPatchFeature.placeFern(world.level, world.bottom(), 2), "ferns fall back to small plants under obstructions");
+            check(world.state(world.bottom()).is(Blocks.FERN), "low headroom produces a small fern");
+            check(world.state(world.bottom().above()).equals(obstruction), "fern headroom checks preserve obstructions");
+        }
+        for (int ground : new int[]{319, 320}) {
+            TestWorld world = new TestWorld((x, z) -> ground);
+            world.biome = biome("has_fern_accents", "has_large_ferns");
+            check(FernPatchFeature.placeFern(world.level, world.bottom(), 2) == (ground < 320),
+                    "ferns respect the build ceiling");
+            check(world.blocks.size() == (ground < 320 ? 1 : 0), "fern halves never exceed the build ceiling");
+        }
+        for (int writableHeight : new int[]{64, 65}) {
+            TestWorld world = new TestWorld((x, z) -> 64);
+            world.biome = biome("has_fern_accents", "has_large_ferns");
+            world.writableHeight = writableHeight;
+            check(FernPatchFeature.placeFern(world.level, world.bottom(), 2) == (writableHeight > 64),
+                    "ferns respect generation write limits");
+            check(world.blocks.size() == writableHeight - 64, "fern fallback stays within writable space");
+        }
+        for (int existingHeight : new int[]{0, 1, 2}) {
+            TestWorld world = new TestWorld((x, z) -> 64);
+            world.biome = biome("has_fern_accents", "has_large_ferns");
+            if (existingHeight > 0) {
+                check(world.place(existingHeight), "creates grass before a failed fern write");
+            }
+            Map<BlockPos, BlockState> before = Map.copyOf(world.blocks);
+            world.failedWrite = world.bottom().above();
+            check(!FernPatchFeature.placeFern(world.level, world.bottom(), 2), "failed fern writes report failure");
+            check(world.blocks.equals(before), "failed fern placement restores the original ground cover");
+            world.checkPlants();
+        }
+    }
+
     private static void preservesExistingVegetation() {
         for (BlockState plant : new BlockState[]{
                 Blocks.DANDELION.defaultBlockState(), Blocks.FERN.defaultBlockState(),
@@ -253,12 +376,12 @@ public final class GrassWorldgenTest {
 
     private static void restrictsOvergrownGrassAtBiomeBorders() {
         TestWorld dry = new TestWorld((x, z) -> 64);
-        dry.overgrownBiomes = pos -> false;
+        dry.includedBiomes = pos -> false;
         check(dry.place(6), "excluded biomes still receive shorter ground cover");
         check(dry.columnHeight(0, 0) == 2, "overgrown columns fall back to tall grass outside their habitat");
 
         TestWorld border = new TestWorld((x, z) -> 64);
-        border.overgrownBiomes = pos -> pos.getX() < 0;
+        border.includedBiomes = pos -> pos.getX() < 0;
         OvergrownGrassPatchFeature feature = new OvergrownGrassPatchFeature(NoneFeatureConfiguration.CODEC);
         check(feature.place(context(border, new BlockPos(-1, 120, 0), 42)), "patches generate across a biome boundary");
         boolean hasOvergrown = false;
@@ -276,20 +399,23 @@ public final class GrassWorldgenTest {
         border.checkPlants();
 
         TestWorld customField = new TestWorld((x, z) -> 64);
-        customField.overgrownBiome = biome("has_overgrown_grass_fields");
+        customField.biome = biome("has_overgrown_grass_fields");
         check(customField.place(4) && customField.columnHeight(0, 0) == 4,
                 "data packs can still opt biomes into overgrown fields");
     }
 
     @SuppressWarnings("unchecked")
-    private static Holder<Biome> biome(String tagName) {
-        TagKey<Biome> allowedTag = tagName == null ? null : TagKey.create(
-                Registries.BIOME, ResourceLocation.fromNamespaceAndPath("where_winds_blow", tagName));
+    private static Holder<Biome> biome(String... tagNames) {
+        Set<TagKey<Biome>> allowedTags = new HashSet<>();
+        for (String tagName : tagNames) {
+            allowedTags.add(TagKey.create(Registries.BIOME,
+                    ResourceLocation.fromNamespaceAndPath("where_winds_blow", tagName)));
+        }
         return (Holder<Biome>) Proxy.newProxyInstance(
                 Holder.class.getClassLoader(), new Class<?>[]{Holder.class},
                 (proxy, method, arguments) -> {
                     check(method.getName().equals("is"), "placement checks biome tag membership");
-                    return allowedTag != null && allowedTag.equals(arguments[0]);
+                    return allowedTags.contains(arguments[0]);
                 }
         );
     }
@@ -392,9 +518,9 @@ public final class GrassWorldgenTest {
         private final WorldGenLevel level;
         private int writableHeight = 320;
         private BlockPos failedWrite;
-        private Holder<Biome> overgrownBiome = biome("has_overgrown_grass");
-        private final Holder<Biome> otherBiome = biome(null);
-        private Predicate<BlockPos> overgrownBiomes = pos -> true;
+        private Holder<Biome> biome = biome("has_overgrown_grass");
+        private final Holder<Biome> otherBiome = biome();
+        private Predicate<BlockPos> includedBiomes = pos -> true;
 
         private TestWorld(IntBinaryOperator surface) {
             this.surface = surface;
@@ -412,7 +538,7 @@ public final class GrassWorldgenTest {
                                 yield surface.applyAsInt((int) arguments[1], (int) arguments[2]);
                             }
                             case "getMinBuildHeight" -> -64;
-                            case "getBiome" -> overgrownBiomes.test((BlockPos) arguments[0]) ? overgrownBiome : otherBiome;
+                            case "getBiome" -> includedBiomes.test((BlockPos) arguments[0]) ? biome : otherBiome;
                             case "getBlockState" -> state((BlockPos) arguments[0]);
                             case "getFluidState" -> state((BlockPos) arguments[0]).getFluidState();
                             case "ensureCanWrite" -> ((BlockPos) arguments[0]).getY() < writableHeight;
@@ -467,12 +593,12 @@ public final class GrassWorldgenTest {
             for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
                 BlockPos pos = entry.getKey();
                 BlockState state = entry.getValue();
-                if (state.is(Blocks.TALL_GRASS)) {
+                if (state.is(Blocks.TALL_GRASS) || state.is(Blocks.LARGE_FERN)) {
                     boolean lower = state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER;
                     BlockState partner = state(lower ? pos.above() : pos.below());
-                    check(partner.is(Blocks.TALL_GRASS)
+                    check(partner.is(state.getBlock())
                                     && partner.getValue(DoublePlantBlock.HALF) != state.getValue(DoublePlantBlock.HALF),
-                            "tall grass halves stay paired");
+                            "double plant halves stay paired");
                 } else if (state.is(ModBlocks.OVERGROWN_GRASS.get())) {
                     boolean above = state(pos.above()).is(ModBlocks.OVERGROWN_GRASS.get());
                     boolean below = state(pos.below()).is(ModBlocks.OVERGROWN_GRASS.get());

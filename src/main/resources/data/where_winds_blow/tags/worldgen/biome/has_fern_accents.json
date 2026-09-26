@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
+    "#where_winds_blow:has_large_ferns",
     "#c:is_forest",
     "#c:is_taiga",
     "#c:is_jungle",

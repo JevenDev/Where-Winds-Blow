@@ -26,6 +26,11 @@ public final class ModFeatures {
             () -> new TallGrassPatchFeature(NoneFeatureConfiguration.CODEC)
     );
 
+    public static final DeferredHolder<Feature<?>, FernPatchFeature> FERN_PATCH = FEATURES.register(
+            "fern_patch",
+            () -> new FernPatchFeature(NoneFeatureConfiguration.CODEC)
+    );
+
     public static final DeferredHolder<Feature<?>, WildWheatPatchFeature> WILD_WHEAT_PATCH = FEATURES.register(
             "wild_wheat_patch",
             () -> new WildWheatPatchFeature(NoneFeatureConfiguration.CODEC)
