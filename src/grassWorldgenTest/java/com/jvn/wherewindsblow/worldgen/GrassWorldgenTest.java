@@ -1,11 +1,14 @@
 package com.jvn.wherewindsblow.worldgen;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.jvn.wherewindsblow.block.FlatGrassBlock;
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.block.OvergrownGrassBlock;
 import com.jvn.wherewindsblow.block.OvergrownGrassPart;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -47,6 +50,7 @@ public final class GrassWorldgenTest {
     private static int checks;
 
     public static void main(String[] args) throws IOException {
+        coversGrassyWetlandsAndShores();
         checksWetlandBiomeTags();
         checksPatchTransitions();
         bootstrapBlocks();
@@ -59,6 +63,47 @@ public final class GrassWorldgenTest {
         restoresFailedTallPlacement();
         restoresFailedOvergrownPlacement();
         System.out.println("Passed " + checks + " grass worldgen checks.");
+    }
+
+    private static void coversGrassyWetlandsAndShores() throws IOException {
+        Set<String> coveredBiomes = new HashSet<>();
+        for (String density : List.of("dense", "medium", "sparse")) {
+            coveredBiomes.addAll(resolveBiomeTag("where_winds_blow:has_" + density + "_short_grass", true));
+        }
+        for (String biome : List.of(
+                "plains", "forest", "jungle", "swamp", "mangrove_swamp",
+                "river", "beach", "stony_shore", "ocean", "deep_ocean", "warm_ocean")) {
+            check(coveredBiomes.contains("minecraft:" + biome),
+                    "base grass cover reaches grassy terrain in " + biome);
+        }
+        for (String biome : List.of("desert", "badlands", "snowy_plains", "mushroom_fields", "the_void")) {
+            check(!coveredBiomes.contains("minecraft:" + biome),
+                    "base grass cover respects excluded habitats in " + biome);
+        }
+    }
+
+    private static Set<String> resolveBiomeTag(String id, boolean required) throws IOException {
+        ResourceLocation tag = ResourceLocation.parse(id);
+        String path = "/data/" + tag.getNamespace() + "/tags/worldgen/biome/" + tag.getPath() + ".json";
+        InputStream stream = GrassWorldgenTest.class.getResourceAsStream(path);
+        if (stream == null) {
+            check(!required, "required biome tag exists: " + id);
+            return Set.of();
+        }
+        try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+            Set<String> biomes = new HashSet<>();
+            for (JsonElement element : JsonParser.parseReader(reader).getAsJsonObject().getAsJsonArray("values")) {
+                JsonObject entry = element.isJsonObject() ? element.getAsJsonObject() : null;
+                String value = entry == null ? element.getAsString() : entry.get("id").getAsString();
+                boolean entryRequired = entry == null || !entry.has("required") || entry.get("required").getAsBoolean();
+                if (value.startsWith("#")) {
+                    biomes.addAll(resolveBiomeTag(value.substring(1), entryRequired));
+                } else {
+                    biomes.add(value);
+                }
+            }
+            return biomes;
+        }
     }
 
     private static void checksWetlandBiomeTags() throws IOException {

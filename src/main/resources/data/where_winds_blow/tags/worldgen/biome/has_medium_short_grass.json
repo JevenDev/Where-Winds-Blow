@@ -4,6 +4,10 @@
     "#c:is_plains",
     "#c:is_forest",
     "#c:is_savanna",
+    "#c:is_river",
+    "#c:is_beach",
+    "#c:is_stony_shores",
+    "#c:is_ocean",
     "minecraft:meadow"
   ]
 }
