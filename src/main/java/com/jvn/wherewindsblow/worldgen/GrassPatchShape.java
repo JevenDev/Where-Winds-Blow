@@ -5,20 +5,22 @@ import net.minecraft.util.RandomSource;
 final class GrassPatchShape {
     private static final int NOISE_SCALE = 4;
     private static final double EDGE_WARP = 0.06D;
-    private static final double PATCH_LIMIT = 1.08D;
+    private static final double PATCH_LIMIT = 1.18D;
 
     private final double radiusX;
     private final double radiusZ;
     private final double cosine;
     private final double sine;
     private final long seed;
+    private final Lobe[] lobes;
 
-    private GrassPatchShape(double radiusX, double radiusZ, double angle, long seed) {
+    private GrassPatchShape(double radiusX, double radiusZ, double angle, long seed, Lobe[] lobes) {
         this.radiusX = radiusX;
         this.radiusZ = radiusZ;
         this.cosine = Math.cos(angle);
         this.sine = Math.sin(angle);
         this.seed = seed;
+        this.lobes = lobes;
     }
 
     static GrassPatchShape create(
@@ -30,21 +32,41 @@ final class GrassPatchShape {
     ) {
         double radiusX = minRadiusX + random.nextDouble() * (maxRadiusX - minRadiusX);
         double radiusZ = minRadiusZ + random.nextDouble() * (maxRadiusZ - minRadiusZ);
-        return new GrassPatchShape(radiusX, radiusZ, random.nextDouble() * Math.PI, random.nextLong());
+        Lobe[] lobes = new Lobe[random.nextInt(2, 5)];
+        lobes[0] = new Lobe(0, 0, 0.15D + random.nextDouble() * 0.20D);
+        for (int index = 1; index < lobes.length; index++) {
+            double angle = random.nextDouble() * Math.PI * 2.0D;
+            double reach = 1.5D + random.nextDouble() * 1.5D;
+            int centerX = (int) Math.round(Math.cos(angle) * reach);
+            int centerZ = (int) Math.round(Math.sin(angle) * reach);
+            double heightOffset = index == 1 ? 0.0D : random.nextDouble() * 0.45D;
+            lobes[index] = new Lobe(centerX, centerZ, heightOffset);
+        }
+        return new GrassPatchShape(radiusX, radiusZ, random.nextDouble() * Math.PI, random.nextLong(), lobes);
     }
 
     int bounds() {
-        return (int) Math.ceil(Math.max(radiusX, radiusZ) * (PATCH_LIMIT + EDGE_WARP));
+        int centerExtent = 0;
+        for (Lobe lobe : lobes) {
+            centerExtent = Math.max(centerExtent, Math.max(Math.abs(lobe.x()), Math.abs(lobe.z())));
+        }
+        return centerExtent + (int) Math.ceil(Math.max(radiusX, radiusZ) * (PATCH_LIMIT + EDGE_WARP));
     }
 
     double distance(int offsetX, int offsetZ, int worldX, int worldZ) {
-        double rotatedX = offsetX * cosine - offsetZ * sine;
-        double rotatedZ = offsetX * sine + offsetZ * cosine;
-        double ovalDistance = Math.sqrt(
-                rotatedX * rotatedX / (radiusX * radiusX)
-                        + rotatedZ * rotatedZ / (radiusZ * radiusZ)
-        );
-        return Math.max(0.0D, ovalDistance + valueNoise(worldX, worldZ, seed) * EDGE_WARP);
+        double distance = Double.POSITIVE_INFINITY;
+        for (Lobe lobe : lobes) {
+            double x = offsetX - lobe.x();
+            double z = offsetZ - lobe.z();
+            double rotatedX = x * cosine - z * sine;
+            double rotatedZ = x * sine + z * cosine;
+            double ovalDistance = Math.sqrt(
+                    rotatedX * rotatedX / (radiusX * radiusX)
+                            + rotatedZ * rotatedZ / (radiusZ * radiusZ)
+            );
+            distance = Math.min(distance, ovalDistance + lobe.heightOffset());
+        }
+        return Math.max(0.0D, distance + valueNoise(worldX, worldZ, seed) * EDGE_WARP);
     }
 
     int grassHeight(int offsetX, int offsetZ, int worldX, int worldZ, int peakHeight) {
@@ -53,15 +75,23 @@ final class GrassPatchShape {
             return 0;
         }
 
-        double height = peakHeight + 0.25D - distance * (peakHeight - 1) / 0.9D;
-        return Math.clamp(Math.round(height), 1, peakHeight);
+        double edgeHeight = peakHeight + 0.25D - distance * (peakHeight - 1) / 0.9D;
+        int baseHeight = peakHeight == 2 ? 1 : 2;
+        int heightNoiseScale = peakHeight == 2 ? 3 : 6;
+        double variation = valueNoise(worldX, worldZ, seed ^ 0x6A09E667F3BCC909L, heightNoiseScale);
+        double localHeight = baseHeight + 0.15D + (peakHeight - baseHeight) * (0.5D + variation * 0.5D);
+        return Math.clamp(Math.round(Math.min(edgeHeight, localHeight)), 1, peakHeight);
     }
 
     static double valueNoise(int x, int z, long seed) {
-        int cellX = Math.floorDiv(x, NOISE_SCALE);
-        int cellZ = Math.floorDiv(z, NOISE_SCALE);
-        double fractionX = Math.floorMod(x, NOISE_SCALE) / (double) NOISE_SCALE;
-        double fractionZ = Math.floorMod(z, NOISE_SCALE) / (double) NOISE_SCALE;
+        return valueNoise(x, z, seed, NOISE_SCALE);
+    }
+
+    private static double valueNoise(int x, int z, long seed, int scale) {
+        int cellX = Math.floorDiv(x, scale);
+        int cellZ = Math.floorDiv(z, scale);
+        double fractionX = Math.floorMod(x, scale) / (double) scale;
+        double fractionZ = Math.floorMod(z, scale) / (double) scale;
         double smoothX = smooth(fractionX);
         double smoothZ = smooth(fractionZ);
 
@@ -88,5 +118,8 @@ final class GrassPatchShape {
 
     private static double lerp(double first, double second, double amount) {
         return first + (second - first) * amount;
+    }
+
+    private record Lobe(int x, int z, double heightOffset) {
     }
 }

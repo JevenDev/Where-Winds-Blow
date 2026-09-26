@@ -1,23 +1,36 @@
 package com.jvn.wherewindsblow.worldgen;
 
+import com.google.gson.JsonParser;
 import com.jvn.wherewindsblow.block.FlatGrassBlock;
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.block.OvergrownGrassBlock;
 import com.jvn.wherewindsblow.block.OvergrownGrassPart;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.IntBinaryOperator;
+import java.util.function.Predicate;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -33,11 +46,13 @@ import net.neoforged.neoforge.registries.GameData;
 public final class GrassWorldgenTest {
     private static int checks;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
+        checksWetlandBiomeTags();
         checksPatchTransitions();
         bootstrapBlocks();
         followsTerrainAndFillsPatches();
         preservesExistingVegetation();
+        restrictsOvergrownGrassAtBiomeBorders();
         blendsOverlappingPatches();
         fitsAvailableHeadroom();
         respectsBuildAndWriteLimits();
@@ -46,23 +61,51 @@ public final class GrassWorldgenTest {
         System.out.println("Passed " + checks + " grass worldgen checks.");
     }
 
+    private static void checksWetlandBiomeTags() throws IOException {
+        check(biomeTagValues("has_overgrown_grass").equals(Set.of("#c:is_swamp", "#c:is_jungle")),
+                "overgrown patches default to swamp and jungle biome families");
+        check(biomeTagValues("has_overgrown_grass_fields").isEmpty(),
+                "overgrown fields no longer generate in open biomes by default");
+    }
+
+    private static Set<String> biomeTagValues(String name) throws IOException {
+        String resource = "/data/where_winds_blow/tags/worldgen/biome/" + name + ".json";
+        try (InputStreamReader reader = new InputStreamReader(
+                Objects.requireNonNull(GrassWorldgenTest.class.getResourceAsStream(resource)), StandardCharsets.UTF_8)) {
+            Set<String> values = new HashSet<>();
+            JsonParser.parseReader(reader).getAsJsonObject().getAsJsonArray("values")
+                    .forEach(value -> values.add(value.getAsString()));
+            return values;
+        }
+    }
+
     private static void checksPatchTransitions() {
+        int offCenterPeaks = 0;
         for (int peak : new int[]{2, 4, 5, 6}) {
+            boolean[] allHeightsSeen = new boolean[peak + 1];
             for (int seed = 0; seed < 128; seed++) {
                 RandomSource random = RandomSource.create(seed);
                 double radius = (peak - 1) * 1.5D;
                 GrassPatchShape shape = peak == 2
-                        ? GrassPatchShape.create(random, 3.25D, 5.0D, 2.25D, 3.5D)
+                        ? GrassPatchShape.create(random, 2.5D, 4.0D, 2.25D, 3.25D)
                         : GrassPatchShape.create(random, radius + 1.0D, radius + 2.5D, radius, radius + 1.25D);
                 int originX = seed * 17 - 1024;
                 int originZ = 511 - seed * 31;
                 boolean[] seen = new boolean[peak + 1];
                 int bounds = shape.bounds();
+                if (shape.grassHeight(0, 0, originX, originZ, peak) < peak) {
+                    offCenterPeaks++;
+                }
                 for (int x = -bounds - 1; x <= bounds + 1; x++) {
                     for (int z = -bounds - 1; z <= bounds + 1; z++) {
                         int height = shape.grassHeight(x, z, originX + x, originZ + z, peak);
                         check(height >= 0 && height <= peak, "patch heights stay within their limits");
                         seen[height] = true;
+                        allHeightsSeen[height] = true;
+                        if (height > 0) {
+                            check(Math.abs(x) < 16 && Math.abs(z) < 16,
+                                    "clumps stay within the neighboring chunks at every chunk-edge origin");
+                        }
                         int east = shape.grassHeight(x + 1, z, originX + x + 1, originZ + z, peak);
                         int south = shape.grassHeight(x, z + 1, originX + x, originZ + z + 1, peak);
                         check(Math.abs(height - east) <= 1 && Math.abs(height - south) <= 1,
@@ -75,11 +118,19 @@ public final class GrassWorldgenTest {
                         }
                     }
                 }
-                for (boolean present : seen) {
-                    check(present, "patches contain every height between the center and edge");
+                int highest = peak;
+                while (!seen[highest]) {
+                    highest--;
+                }
+                for (int height = 0; height <= highest; height++) {
+                    check(seen[height], "patches contain every step between their local peaks and edges");
                 }
             }
+            for (boolean present : allHeightsSeen) {
+                check(present, "the full grass height range appears across varied clumps");
+            }
         }
+        check(offCenterPeaks > 64, "patches break up the repeated central mound profile");
     }
 
     private static void bootstrapBlocks() {
@@ -153,6 +204,49 @@ public final class GrassWorldgenTest {
         Map<BlockPos, BlockState> overgrown = Map.copyOf(world.blocks);
         check(!world.place(2), "tall grass does not downgrade overgrown grass");
         check(world.blocks.equals(overgrown), "all overgrown parts survive an overlap");
+    }
+
+    private static void restrictsOvergrownGrassAtBiomeBorders() {
+        TestWorld dry = new TestWorld((x, z) -> 64);
+        dry.overgrownBiomes = pos -> false;
+        check(dry.place(6), "excluded biomes still receive shorter ground cover");
+        check(dry.columnHeight(0, 0) == 2, "overgrown columns fall back to tall grass outside their habitat");
+
+        TestWorld border = new TestWorld((x, z) -> 64);
+        border.overgrownBiomes = pos -> pos.getX() < 0;
+        OvergrownGrassPatchFeature feature = new OvergrownGrassPatchFeature(NoneFeatureConfiguration.CODEC);
+        check(feature.place(context(border, new BlockPos(-1, 120, 0), 42)), "patches generate across a biome boundary");
+        boolean hasOvergrown = false;
+        boolean hasBorderCover = false;
+        for (Map.Entry<BlockPos, BlockState> entry : border.blocks.entrySet()) {
+            BlockPos pos = entry.getKey();
+            if (entry.getValue().is(ModBlocks.OVERGROWN_GRASS.get())) {
+                check(pos.getX() < 0, "overgrown grass never spills into excluded neighboring biomes");
+                hasOvergrown = true;
+            } else if (pos.getX() >= 0) {
+                hasBorderCover = true;
+            }
+        }
+        check(hasOvergrown && hasBorderCover, "biome borders retain both wetland growth and shorter transition cover");
+        border.checkPlants();
+
+        TestWorld customField = new TestWorld((x, z) -> 64);
+        customField.overgrownBiome = biome("has_overgrown_grass_fields");
+        check(customField.place(4) && customField.columnHeight(0, 0) == 4,
+                "data packs can still opt biomes into overgrown fields");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Holder<Biome> biome(String tagName) {
+        TagKey<Biome> allowedTag = tagName == null ? null : TagKey.create(
+                Registries.BIOME, ResourceLocation.fromNamespaceAndPath("where_winds_blow", tagName));
+        return (Holder<Biome>) Proxy.newProxyInstance(
+                Holder.class.getClassLoader(), new Class<?>[]{Holder.class},
+                (proxy, method, arguments) -> {
+                    check(method.getName().equals("is"), "placement checks biome tag membership");
+                    return allowedTag != null && allowedTag.equals(arguments[0]);
+                }
+        );
     }
 
     private static void blendsOverlappingPatches() {
@@ -253,6 +347,9 @@ public final class GrassWorldgenTest {
         private final WorldGenLevel level;
         private int writableHeight = 320;
         private BlockPos failedWrite;
+        private Holder<Biome> overgrownBiome = biome("has_overgrown_grass");
+        private final Holder<Biome> otherBiome = biome(null);
+        private Predicate<BlockPos> overgrownBiomes = pos -> true;
 
         private TestWorld(IntBinaryOperator surface) {
             this.surface = surface;
@@ -270,6 +367,7 @@ public final class GrassWorldgenTest {
                                 yield surface.applyAsInt((int) arguments[1], (int) arguments[2]);
                             }
                             case "getMinBuildHeight" -> -64;
+                            case "getBiome" -> overgrownBiomes.test((BlockPos) arguments[0]) ? overgrownBiome : otherBiome;
                             case "getBlockState" -> state((BlockPos) arguments[0]);
                             case "getFluidState" -> state((BlockPos) arguments[0]).getFluidState();
                             case "ensureCanWrite" -> ((BlockPos) arguments[0]).getY() < writableHeight;

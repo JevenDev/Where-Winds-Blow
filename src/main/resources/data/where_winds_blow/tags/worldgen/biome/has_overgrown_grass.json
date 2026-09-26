@@ -2,7 +2,6 @@
   "replace": false,
   "values": [
     "#c:is_swamp",
-    "#c:is_river",
-    "minecraft:flower_forest"
+    "#c:is_jungle"
   ]
 }

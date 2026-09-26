@@ -1,10 +1,16 @@
 package com.jvn.wherewindsblow.worldgen;
 
+import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.block.OvergrownGrassBlock;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoublePlantBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -13,6 +19,14 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 final class GrassPatchPlacement {
     private static final float FLAT_GRASS_CHANCE = 0.28F;
+    private static final TagKey<Biome> OVERGROWN_PATCH_BIOMES = TagKey.create(
+            Registries.BIOME,
+            ResourceLocation.fromNamespaceAndPath(WhereWindsBlow.MOD_ID, "has_overgrown_grass")
+    );
+    private static final TagKey<Biome> OVERGROWN_FIELD_BIOMES = TagKey.create(
+            Registries.BIOME,
+            ResourceLocation.fromNamespaceAndPath(WhereWindsBlow.MOD_ID, "has_overgrown_grass_fields")
+    );
 
     private GrassPatchPlacement() {
     }
@@ -22,6 +36,13 @@ final class GrassPatchPlacement {
         BlockPos bottom = new BlockPos(anchor.getX(), y, anchor.getZ());
         if (level.isOutsideBuildHeight(bottom) || !level.ensureCanWrite(bottom)) {
             return false;
+        }
+
+        if (height > 2) {
+            Holder<Biome> biome = level.getBiome(bottom);
+            if (!biome.is(OVERGROWN_PATCH_BIOMES) && !biome.is(OVERGROWN_FIELD_BIOMES)) {
+                height = 2;
+            }
         }
 
         BlockState previous = level.getBlockState(bottom);
