@@ -52,6 +52,8 @@ import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.windPat
 
 final class WindDebrisRenderer {
     private static final int MAX_LEAVES = 18;
+    private static final int MAX_SPAWNS_PER_TICK = 2;
+    private static final int FADE_IN_TICKS = 16;
     private static final int MAX_FLOWER_PETALS = 18;
     private static final int LEAF_TEXTURES_PER_TYPE = 12;
     private static final String[] LEAF_TEXTURE_TYPES = {
@@ -102,18 +104,19 @@ final class WindDebrisRenderer {
                 && ClientConfig.ENABLE_WIND_FLOWER_PETALS.getAsBoolean()
                 && isFlowerPetalBiome(level, player.blockPosition());
         int desiredFlowerPetalCount = canSpawnFlowerPetals ? desiredFlowerPetalCount(playerWind) : 0;
+        int spawnBudget = MAX_SPAWNS_PER_TICK;
         for (int index = 0; index < LEAVES.length; index++) {
             WindLeaf leaf = LEAVES[index];
             if (index >= desiredLeafCount) {
                 beginFadeOut(leaf);
-                tickFadeOut(leaf);
-                continue;
             }
 
-            if (!leaf.active) {
+            if (leaf.active) {
+                tick(leaf, player, level);
+            } else if (index < desiredLeafCount && --leaf.spawnCountdown <= 0 && spawnBudget > 0) {
+                spawnBudget--;
                 spawn(leaf, player, level, playerWind, true);
-            } else {
-                tick(leaf, player, level, playerWind);
+                leaf.spawnCountdown = leaf.active ? 0 : 8 + RANDOM.nextInt(17);
             }
         }
 
@@ -121,14 +124,14 @@ final class WindDebrisRenderer {
             WindLeaf petal = FLOWER_PETALS[index];
             if (index >= desiredFlowerPetalCount) {
                 beginFadeOut(petal);
-                tickFadeOut(petal);
-                continue;
             }
 
-            if (!petal.active) {
+            if (petal.active) {
+                tick(petal, player, level);
+            } else if (index < desiredFlowerPetalCount && --petal.spawnCountdown <= 0 && spawnBudget > 0) {
+                spawnBudget--;
                 spawnFlowerPetal(petal, player, level, playerWind, true);
-            } else {
-                tick(petal, player, level, playerWind);
+                petal.spawnCountdown = petal.active ? 0 : 8 + RANDOM.nextInt(17);
             }
         }
     }
@@ -138,12 +141,14 @@ final class WindDebrisRenderer {
             leaf.active = false;
             leaf.fadingOut = false;
             leaf.fadeOutAge = 0;
+            leaf.spawnCountdown = 0;
         }
 
         for (WindLeaf petal : FLOWER_PETALS) {
             petal.active = false;
             petal.fadingOut = false;
             petal.fadeOutAge = 0;
+            petal.spawnCountdown = 0;
         }
     }
 
@@ -164,7 +169,7 @@ final class WindDebrisRenderer {
     }
 
     private static int desiredLeafCount(WindSample wind) {
-        if (!ClientConfig.ENABLE_WIND_LEAVES.getAsBoolean()) {
+        if (!ClientConfig.ENABLE_WIND_LEAVES.getAsBoolean() || ClientConfig.WIND_LEAF_OPACITY.getAsDouble() <= 0.0D) {
             return 0;
         }
 
@@ -183,6 +188,9 @@ final class WindDebrisRenderer {
     }
 
     private static int desiredFlowerPetalCount(WindSample wind) {
+        if (ClientConfig.WIND_FLOWER_PETAL_OPACITY.getAsDouble() <= 0.0D) {
+            return 0;
+        }
         float visibility = (float) ClientConfig.WIND_STREAK_VISIBILITY.getAsDouble();
         if (visibility <= 0.0F || wind.strength() <= 0.02F) {
             return 0;
@@ -244,86 +252,79 @@ final class WindDebrisRenderer {
         );
     }
 
-    private static void tick(WindLeaf leaf, LocalPlayer player, ClientLevel level, WindSample playerWind) {
+    private static void tick(WindLeaf leaf, LocalPlayer player, ClientLevel level) {
         leaf.xOld = leaf.x;
         leaf.yOld = leaf.y;
         leaf.zOld = leaf.z;
-
-        if (leaf.fadingOut) {
-            tickFadeOut(leaf);
-            return;
-        }
-
         leaf.age++;
-        refreshWind(leaf, level);
-
-        if (!isValidLeafSpace(level, leaf.x, leaf.y, leaf.z, 0.0D)) {
-            beginFadeOut(leaf);
+        if (leaf.age >= leaf.lifetime || !isValidLeafSpace(level, leaf.x, leaf.y, leaf.z, 0.0D)) {
+            leaf.active = false;
             return;
         }
+        double dx = leaf.x - player.getX();
+        double dy = leaf.y - player.getEyeY();
+        double dz = leaf.z - player.getZ();
+        if (dx * dx + dy * dy + dz * dz > MAX_DISTANCE_FROM_PLAYER * MAX_DISTANCE_FROM_PLAYER) {
+            beginFadeOut(leaf);
+        }
+        if (leaf.fadingOut) {
+            if (++leaf.fadeOutAge >= FADE_OUT_TICKS) {
+                leaf.active = false;
+                return;
+            }
+            leaf.velocityX *= 0.86D;
+            leaf.velocityY *= 0.86D;
+            leaf.velocityZ *= 0.86D;
+        } else {
+            leaf.fadeInAge = Math.min(leaf.fadeInAge + 1, FADE_IN_TICKS);
+            refreshWind(leaf, level);
+            updateVelocity(leaf, level);
+        }
+        Point next = new Point(leaf.x + leaf.velocityX, leaf.y + leaf.velocityY, leaf.z + leaf.velocityZ);
+        if (windPathBlocked(level, leaf.x, leaf.y, leaf.z, next)) {
+            beginFadeOut(leaf);
+            leaf.velocityX = 0.0D;
+            leaf.velocityY = 0.0D;
+            leaf.velocityZ = 0.0D;
+        } else {
+            leaf.x = next.x();
+            leaf.y = next.y();
+            leaf.z = next.z();
+        }
+        leaf.light = LevelRenderer.getLightColor(level, BlockPos.containing(leaf.x, leaf.y, leaf.z));
+    }
 
+    private static void updateVelocity(WindLeaf leaf, ClientLevel level) {
         double motionScale = Mth.clamp(0.42D + leaf.windStrength * 1.18D + leaf.gustStrength * 0.78D, 0.2D, 3.25D);
         double speed = leaf.speed * motionScale;
         double leafTime = (double) leaf.age + leaf.seed;
         double turbulenceMotion = 0.72D + Mth.clamp(leaf.turbulence * 3.2D, 0.0D, 2.1D);
-        double weave = (
-                Math.sin(leafTime * 0.09D)
-                        + Math.sin(leaf.swirlPhase + leafTime * 0.027D) * 0.46D
-        ) * leaf.crossDrift * turbulenceMotion;
+        double weave = (Math.sin(leafTime * 0.09D)
+                + Math.sin(leaf.swirlPhase + leafTime * 0.027D) * 0.46D) * leaf.crossDrift * turbulenceMotion;
         double swirlAngle = leaf.swirlPhase + leafTime * leaf.swirlSpeed;
         double loopAngle = leaf.loopPhase + leafTime * leaf.loopSpeed;
         double swirl = Math.sin(swirlAngle) * leaf.swirlStrength * turbulenceMotion;
         double loop = Math.sin(loopAngle) * leaf.loopStrength * turbulenceMotion;
         double loopLift = Math.cos(loopAngle) * leaf.loopStrength * 0.72D * turbulenceMotion;
-        TerrainFlow terrainFlow = terrainFlow(
-                level,
-                leaf.x,
-                leaf.y,
-                leaf.z,
-                LEAF_TERRAIN_CLEARANCE,
-                LEAF_TERRAIN_LIFT_STRENGTH,
-                leaf.terrainLift,
-                leaf.terrainSideFlow,
-                leaf.windX,
-                leaf.windZ
+        TerrainFlow flow = terrainFlow(
+                level, leaf.x, leaf.y, leaf.z, LEAF_TERRAIN_CLEARANCE,
+                LEAF_TERRAIN_LIFT_STRENGTH, leaf.terrainLift, leaf.terrainSideFlow,
+                leaf.windX, leaf.windZ
         );
-        leaf.terrainLift = terrainFlow.lift();
-        leaf.terrainSideFlow = terrainFlow.side();
-        double flutter = (
-                Math.sin(leafTime * 0.084D)
-                        + Math.sin(leaf.flipPhase + leafTime * 0.17D) * 0.54D
-        ) * leaf.verticalDrift * turbulenceMotion;
+        leaf.terrainLift = flow.lift();
+        leaf.terrainSideFlow = flow.side();
+        double flutter = (Math.sin(leafTime * 0.084D)
+                + Math.sin(leaf.flipPhase + leafTime * 0.17D) * 0.54D) * leaf.verticalDrift * turbulenceMotion;
+        double bobSide = (Math.sin(leafTime * 0.16D) - Math.sin((leafTime - 1.0D) * 0.16D)) * leaf.bob;
+        double bobLift = (Math.cos(leafTime * 0.13D) - Math.cos((leafTime - 1.0D) * 0.13D)) * leaf.bob;
         double forwardPulse = Math.cos(swirlAngle) * leaf.swirlStrength * 0.16D;
-        double sideDrift = weave + swirl + loop + leaf.terrainSideFlow;
+        double sideDrift = weave + swirl + loop + leaf.terrainSideFlow + bobSide * turbulenceMotion;
         double lullDescent = Mth.lerp(Mth.clamp(leaf.windStrength / 0.32D, 0.0D, 1.0D), 1.72D, 0.82D);
-        double fall = leaf.fallSpeed * lullDescent;
-        Point next = keepAboveTerrainAndCollision(
-                level,
-                leaf.x + leaf.windX * (speed + forwardPulse) + leaf.crossX * sideDrift,
-                leaf.y + leaf.terrainLift + flutter + Math.cos(swirlAngle) * leaf.swirlStrength * 0.42D + loopLift - fall,
-                leaf.z + leaf.windZ * (speed + forwardPulse) + leaf.crossZ * sideDrift,
-                LEAF_TERRAIN_CLEARANCE
-        );
-        if (windPathBlocked(level, leaf.x, leaf.y, leaf.z, next)) {
-            beginFadeOut(leaf);
-            return;
-        }
-
-        leaf.x = next.x();
-        leaf.y = next.y();
-        leaf.z = next.z();
-
-        double dx = leaf.x - player.getX();
-        double dy = leaf.y - player.getEyeY();
-        double dz = leaf.z - player.getZ();
-        if (leaf.age >= leaf.lifetime
-                || dx * dx + dy * dy + dz * dz > MAX_DISTANCE_FROM_PLAYER * MAX_DISTANCE_FROM_PLAYER) {
-            if (leaf.flowerPetal) {
-                spawnFlowerPetal(leaf, player, level, playerWind, false);
-            } else {
-                spawn(leaf, player, level, playerWind, false);
-            }
-        }
+        double vertical = leaf.terrainLift + flutter + Math.cos(swirlAngle) * leaf.swirlStrength * 0.42D
+                + loopLift + bobLift - leaf.fallSpeed * lullDescent;
+        leaf.velocityX = Mth.lerp(0.24D, leaf.velocityX, leaf.windX * (speed + forwardPulse) + leaf.crossX * sideDrift);
+        leaf.velocityY = Mth.lerp(0.24D, leaf.velocityY, vertical);
+        leaf.velocityZ = Mth.lerp(0.24D, leaf.velocityZ, leaf.windZ * (speed + forwardPulse) + leaf.crossZ * sideDrift);
     }
 
     private static void spawn(WindLeaf leaf, LocalPlayer player, ClientLevel level, WindSample playerWind, boolean scatterAge) {
@@ -365,7 +366,6 @@ final class WindDebrisRenderer {
         leaf.xOld = leaf.x;
         leaf.yOld = leaf.y;
         leaf.zOld = leaf.z;
-        leaf.flowerPetal = false;
         BlockPos leafColorPos = leafBlockSpawn != null
                 ? leafBlockSpawn.source()
                 : BlockPos.containing(leaf.x, player.getY(), leaf.z);
@@ -404,6 +404,11 @@ final class WindDebrisRenderer {
         leaf.age = scatterAge ? RANDOM.nextInt(Math.max(1, leaf.lifetime / 2)) : 0;
         leaf.fadingOut = false;
         leaf.fadeOutAge = 0;
+        leaf.fadeInAge = 0;
+        leaf.velocityX = leaf.windX * leaf.speed;
+        leaf.velocityY = -leaf.fallSpeed;
+        leaf.velocityZ = leaf.windZ * leaf.speed;
+        leaf.light = LevelRenderer.getLightColor(level, BlockPos.containing(leaf.x, leaf.y, leaf.z));
         int color = sampleLeafColor(level, sourceLeafState, leafColorPos);
         leaf.red = color >> 16 & 255;
         leaf.green = color >> 8 & 255;
@@ -448,7 +453,6 @@ final class WindDebrisRenderer {
         petal.xOld = petal.x;
         petal.yOld = petal.y;
         petal.zOld = petal.z;
-        petal.flowerPetal = true;
         var biome = level.getBiome(spawnPos);
         double roseChance = biome.is(Tags.Biomes.IS_FLOWER_FOREST)
                 ? 0.62D
@@ -493,6 +497,11 @@ final class WindDebrisRenderer {
         petal.age = scatterAge ? RANDOM.nextInt(Math.max(1, petal.lifetime / 2)) : 0;
         petal.fadingOut = false;
         petal.fadeOutAge = 0;
+        petal.fadeInAge = 0;
+        petal.velocityX = petal.windX * petal.speed;
+        petal.velocityY = -petal.fallSpeed;
+        petal.velocityZ = petal.windZ * petal.speed;
+        petal.light = LevelRenderer.getLightColor(level, BlockPos.containing(petal.x, petal.y, petal.z));
         petal.red = 255;
         petal.green = 255;
         petal.blue = 255;
@@ -507,15 +516,14 @@ final class WindDebrisRenderer {
             double across = randomBetween(-24.0D, 24.0D);
             int x = Mth.floor(player.getX() + playerWind.directionX() * along + playerWind.crossX() * across);
             int z = Mth.floor(player.getZ() + playerWind.directionZ() * along + playerWind.crossZ() * across);
-            int startY = baseY + 11 - RANDOM.nextInt(4);
-            int endY = baseY - 2;
+            if (!level.hasChunk(SectionPos.blockToSectionCoord(x), SectionPos.blockToSectionCoord(z))) {
+                continue;
+            }
+            int startY = Math.min(level.getMaxBuildHeight() - 1, baseY + 11 - RANDOM.nextInt(4));
+            int endY = Math.max(level.getMinBuildHeight(), baseY - 2);
 
             for (int y = startY; y >= endY; y--) {
                 leafPos.set(x, y, z);
-                if (!level.hasChunk(SectionPos.blockToSectionCoord(x), SectionPos.blockToSectionCoord(z))) {
-                    break;
-                }
-
                 BlockState state = level.getBlockState(leafPos);
                 if (!ResponsiveFoliage.isLeaf(state) || !isLeafBlockWindExposed(level, leafPos)) {
                     continue;
@@ -556,24 +564,6 @@ final class WindDebrisRenderer {
 
         leaf.fadingOut = true;
         leaf.fadeOutAge = 0;
-        leaf.xOld = leaf.x;
-        leaf.yOld = leaf.y;
-        leaf.zOld = leaf.z;
-    }
-
-    private static void tickFadeOut(WindLeaf leaf) {
-        if (!leaf.active || !leaf.fadingOut) {
-            return;
-        }
-
-        leaf.xOld = leaf.x;
-        leaf.yOld = leaf.y;
-        leaf.zOld = leaf.z;
-        leaf.fadeOutAge++;
-        if (leaf.fadeOutAge >= FADE_OUT_TICKS) {
-            leaf.active = false;
-            leaf.fadingOut = false;
-        }
     }
 
     private static float fadeOutMultiplier(WindLeaf leaf, float partialTick) {
@@ -611,10 +601,12 @@ final class WindDebrisRenderer {
                 y = player.getY() + randomBetween(minPlayerClearance, maxPlayerClearance);
             }
 
-            y = Math.max(
-                    y,
-                    terrainHeight(level, x, z) + terrainClearance + randomBetween(minTerrainExtraClearance, maxTerrainExtraClearance)
-            );
+            double terrainY = terrainHeight(level, x, z);
+            if (!Double.isFinite(terrainY)) {
+                continue;
+            }
+            y = Math.max(y, terrainY + terrainClearance
+                    + randomBetween(minTerrainExtraClearance, maxTerrainExtraClearance));
             Point spawn = keepAboveTerrainAndCollision(level, x, y, z, terrainClearance);
             if (isValidWindSpace(level, spawn.x(), spawn.y(), spawn.z(), terrainClearance)) {
                 return spawn;
@@ -625,7 +617,6 @@ final class WindDebrisRenderer {
     }
 
     static void renderLeaves(
-            ClientLevel level,
             Camera camera,
             Matrix4f pose,
             Vec3 cameraPos,
@@ -634,13 +625,12 @@ final class WindDebrisRenderer {
             float opacity
     ) {
         renderWindParticles(
-                level, camera, pose, cameraPos, partialTick, windTime, opacity,
+                camera, pose, cameraPos, partialTick, windTime, opacity,
                 LEAVES, LEAF_RENDER_TYPES
         );
     }
 
     static void renderFlowerPetals(
-            ClientLevel level,
             Camera camera,
             Matrix4f pose,
             Vec3 cameraPos,
@@ -649,13 +639,12 @@ final class WindDebrisRenderer {
             float opacity
     ) {
         renderWindParticles(
-                level, camera, pose, cameraPos, partialTick, windTime, opacity,
+                camera, pose, cameraPos, partialTick, windTime, opacity,
                 FLOWER_PETALS, FLOWER_PETAL_RENDER_TYPES
         );
     }
 
     private static void renderWindParticles(
-            ClientLevel level,
             Camera camera,
             Matrix4f pose,
             Vec3 cameraPos,
@@ -674,7 +663,7 @@ final class WindDebrisRenderer {
                         consumer = bufferSource.getBuffer(renderTypes[textureIndex]);
                     }
                     renderLeaf(
-                            consumer, pose, particle, level, camera, cameraPos,
+                            consumer, pose, particle, camera, cameraPos,
                             partialTick, windTime, opacity
                     );
                 }
@@ -687,7 +676,6 @@ final class WindDebrisRenderer {
             VertexConsumer consumer,
             Matrix4f pose,
             WindLeaf leaf,
-            ClientLevel level,
             Camera camera,
             Vec3 cameraPos,
             float partialTick,
@@ -695,28 +683,16 @@ final class WindDebrisRenderer {
             float opacity
     ) {
         float life = ((float) leaf.age + partialTick) / (float) leaf.lifetime;
-        float fade = smoothFade(Mth.clamp(life / 0.24F, 0.0F, 1.0F))
+        float fade = smoothFade(Mth.clamp((leaf.fadeInAge + (leaf.fadingOut ? 0.0F : partialTick)) / FADE_IN_TICKS, 0.0F, 1.0F))
                 * smoothFade(Mth.clamp((1.0F - life) / 0.36F, 0.0F, 1.0F));
         if (fade <= 0.01F) {
             return;
         }
 
-        double baseX = lerp(partialTick, leaf.xOld, leaf.x);
-        double baseY = lerp(partialTick, leaf.yOld, leaf.y);
-        double baseZ = lerp(partialTick, leaf.zOld, leaf.z);
-        double turbulenceFlutter = 0.75D + Mth.clamp(leaf.turbulence * 2.6D, 0.0D, 1.7D);
+        double centerX = lerp(partialTick, leaf.xOld, leaf.x);
+        double centerY = lerp(partialTick, leaf.yOld, leaf.y);
+        double centerZ = lerp(partialTick, leaf.zOld, leaf.z);
         double leafTime = (double) leaf.age + partialTick + leaf.seed;
-        double flutter = (
-                Math.sin(leaf.seed + leafTime * 0.16D + windTime * 1.35D)
-                        + Math.sin(leaf.swirlPhase + leafTime * leaf.swirlSpeed * 0.72D) * 0.38D
-        ) * leaf.bob;
-        double centerX = baseX + leaf.crossX * flutter * turbulenceFlutter;
-        double centerY = baseY + Math.cos(leaf.seed * 0.7D + leafTime * 0.13D) * leaf.bob;
-        double centerZ = baseZ + leaf.crossZ * flutter * turbulenceFlutter;
-        centerY = Math.max(centerY, terrainHeight(level, centerX, centerZ) + LEAF_TERRAIN_CLEARANCE);
-        if (!leaf.fadingOut && !isValidLeafSpace(level, centerX, centerY, centerZ, 0.0D)) {
-            return;
-        }
 
         double dx = centerX - cameraPos.x();
         double dy = centerY - cameraPos.y();
@@ -745,7 +721,7 @@ final class WindDebrisRenderer {
                 1.14D
         );
         int alphaByte = alphaByte(alpha);
-        int light = LevelRenderer.getLightColor(level, BlockPos.containing(centerX, centerY, centerZ));
+        int light = leaf.light;
         emitLeafQuad(
                 consumer,
                 pose,
@@ -949,9 +925,14 @@ final class WindDebrisRenderer {
     }
 
     private static final class WindLeaf {
+        private int spawnCountdown;
+        private int fadeInAge;
+        private int light;
+        private double velocityX;
+        private double velocityY;
+        private double velocityZ;
         private boolean active;
         private boolean fadingOut;
-        private boolean flowerPetal;
         private int age;
         private int lifetime;
         private int fadeOutAge;

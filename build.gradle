@@ -212,6 +212,15 @@ tasks.register('testWindExposure', JavaExec) {
     javaLauncher = javaToolchains.launcherFor(java.toolchain)
 }
 
+tasks.register('testWindVisuals', JavaExec) {
+    group = 'verification'
+    description = 'Checks outdoor wind placement, collision paths, and render interpolation.'
+    dependsOn tasks.named('windExposureTestClasses')
+    classpath = sourceSets.windExposureTest.runtimeClasspath
+    mainClass = 'com.jvn.wherewindsblow.client.wind.WindVisualsTest'
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+}
+
 tasks.register('packageNetherStarWindExample', Zip) {
     group = 'build'
     description = 'Packages the nether star particle wind example resource pack.'
@@ -226,6 +235,7 @@ tasks.named('check') {
     dependsOn tasks.named('testGrassWorldgen')
     dependsOn tasks.named('testParticleWindProfiles')
     dependsOn tasks.named('testWindExposure')
+    dependsOn tasks.named('testWindVisuals')
 }
 
 // IDEA no longer automatically downloads sources/javadoc jars for dependencies, so we need to explicitly enable the behavior.

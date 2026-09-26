@@ -32,11 +32,9 @@ import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.Terrain
 import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.WIND_SAMPLE_INTERVAL_TICKS;
 import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.acceptSpawnForWind;
 import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.alphaByte;
-import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.isOpenSkyAir;
 import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.isValidWindSpace;
 import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.keepAboveTerrainAndCollision;
 import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.lerp;
-import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.lineHitsCollision;
 import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.randomBetween;
 import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.sampleWind;
 import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.smoothFade;
@@ -47,6 +45,7 @@ import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.windBoo
 
 public final class WindStreakRenderer {
     private static final int MAX_STREAKS = 20;
+    private static final int MAX_SPAWNS_PER_TICK = 2;
     private static final int BODY_SEGMENTS = 24;
     private static final double STREAK_TERRAIN_CLEARANCE = 1.45D;
     private static final double STREAK_TERRAIN_LIFT_STRENGTH = 0.18D;
@@ -88,21 +87,23 @@ public final class WindStreakRenderer {
             return;
         }
 
+        WindParticleEnvironment.beginTick(level);
         boolean canSpawnWind = shouldRenderAround(level, player);
         WindSample playerWind = DynamicWindManager.sampleWind(level, player.blockPosition());
         int desiredCount = canSpawnWind ? desiredStreakCount(playerWind) : 0;
+        int spawnBudget = MAX_SPAWNS_PER_TICK;
         for (int index = 0; index < STREAKS.length; index++) {
             WindStreak streak = STREAKS[index];
             if (index >= desiredCount) {
                 beginFadeOut(streak);
-                tickFadeOut(streak);
-                continue;
             }
 
-            if (!streak.active) {
-                spawn(streak, player, level, playerWind, true);
-            } else {
+            if (streak.active) {
                 tick(streak, player, level);
+            } else if (index < desiredCount && --streak.spawnCountdown <= 0 && spawnBudget > 0) {
+                spawnBudget--;
+                spawn(streak, player, level, playerWind, true);
+                streak.spawnCountdown = streak.active ? 0 : 6 + RANDOM.nextInt(15);
             }
         }
 
@@ -149,48 +150,24 @@ public final class WindStreakRenderer {
             if (lineOpacity > 0.0F) {
                 MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(LINE_BUFFER);
                 for (WindStreak streak : STREAKS) {
-                    if (streak.active) {
-                        VertexConsumer halo = bufferSource.getBuffer(windStreakLines(
-                                streak.strokeScale * STREAK_HALO_WIDTH_SCALE
-                        ));
-                        renderStreak(
-                                halo,
-                                pose,
-                                minecraft.level,
-                                streak,
-                                cameraPos,
-                                partialTick,
-                                windTime,
-                                lineOpacity * STREAK_HALO_OPACITY
-                        );
-                    }
+                    prepareStreak(streak, cameraPos, partialTick, windTime, lineOpacity);
                 }
-
-                for (WindStreak streak : STREAKS) {
-                    if (streak.active) {
-                        VertexConsumer core = bufferSource.getBuffer(windStreakLines(
-                                streak.strokeScale * STREAK_CORE_WIDTH_SCALE
-                        ));
-                        renderStreak(
-                                core, pose, minecraft.level, streak, cameraPos,
-                                partialTick, windTime, lineOpacity
-                        );
-                    }
-                }
+                renderStreakPass(bufferSource, pose, cameraPos, true);
+                renderStreakPass(bufferSource, pose, cameraPos, false);
 
                 bufferSource.endBatch();
             }
 
             if (leafOpacity > 0.0F) {
                 WindDebrisRenderer.renderLeaves(
-                        minecraft.level, camera, pose, cameraPos,
+                        camera, pose, cameraPos,
                         partialTick, windTime, leafOpacity
                 );
             }
 
             if (flowerPetalOpacity > 0.0F) {
                 WindDebrisRenderer.renderFlowerPetals(
-                        minecraft.level, camera, pose, cameraPos,
+                        camera, pose, cameraPos,
                         partialTick, windTime, flowerPetalOpacity
                 );
             }
@@ -210,9 +187,12 @@ public final class WindStreakRenderer {
             streak.fadingOut = false;
             streak.fadeInAge = 0;
             streak.fadeOutAge = 0;
+            streak.spawnCountdown = 0;
+            streak.path.reset();
         }
 
         WindDebrisRenderer.clear();
+        WindParticleEnvironment.clear();
     }
 
     private static boolean hasActiveWind() {
@@ -233,7 +213,7 @@ public final class WindStreakRenderer {
 
     private static int desiredStreakCount(WindSample wind) {
         float visibility = (float) ClientConfig.WIND_STREAK_VISIBILITY.getAsDouble();
-        if (visibility <= 0.0F || wind.strength() <= 0.015F) {
+        if (visibility <= 0.0F || ClientConfig.WIND_STREAK_OPACITY.getAsDouble() <= 0.0D || wind.strength() <= 0.015F) {
             return 0;
         }
 
@@ -269,33 +249,11 @@ public final class WindStreakRenderer {
     }
 
     private static void tick(WindStreak streak, LocalPlayer player, ClientLevel level) {
+        streak.path.hold();
         streak.xOld = streak.x;
         streak.yOld = streak.y;
         streak.zOld = streak.z;
-
-        if (streak.fadingOut) {
-            tickFadeOut(streak);
-            return;
-        }
-
         streak.age++;
-        refreshWind(streak, level);
-        if (streak.fadingOut) {
-            return;
-        }
-        if (streak.fadeInAge < STREAK_FADE_IN_TICKS) {
-            streak.fadeInAge++;
-        }
-
-        if (!isOpenSkyAir(level, streak.x, streak.y, streak.z)) {
-            beginFadeOut(streak);
-            return;
-        }
-
-        if (streakBodyHitsCollision(level, streak, DynamicWindManager.simulationTime())) {
-            beginFadeOut(streak);
-            return;
-        }
 
         double dx = streak.x - player.getX();
         double dy = streak.y - player.getEyeY();
@@ -306,60 +264,60 @@ public final class WindStreakRenderer {
         }
         if (dx * dx + dy * dy + dz * dz > MAX_DISTANCE_FROM_PLAYER * MAX_DISTANCE_FROM_PLAYER) {
             beginFadeOut(streak);
-            return;
+        }
+        if (!streak.fadingOut) {
+            refreshWind(streak, level);
+        }
+        if (streak.fadingOut) {
+            if (++streak.fadeOutAge >= FADE_OUT_TICKS) {
+                streak.active = false;
+                return;
+            }
+            streak.velocityX *= 0.86D;
+            streak.velocityY *= 0.86D;
+            streak.velocityZ *= 0.86D;
+        } else {
+            streak.fadeInAge = Math.min(streak.fadeInAge + 1, STREAK_FADE_IN_TICKS);
+            TerrainFlow flow = terrainFlow(
+                    level, streak.x, streak.y, streak.z, STREAK_TERRAIN_CLEARANCE,
+                    STREAK_TERRAIN_LIFT_STRENGTH, streak.terrainLift, streak.terrainSideFlow,
+                    streak.windX, streak.windZ
+            );
+            streak.terrainLift = flow.lift();
+            streak.terrainSideFlow = flow.side();
+            double motionScale = Mth.clamp(0.34D + streak.windStrength * 1.3D + streak.gustStrength * 0.72D, 0.18D, 3.1D);
+            double driftSpeed = streak.driftSpeed * motionScale * STREAK_PATH_ADVECTION;
+            double turbulenceScale = 0.55D + Mth.clamp(streak.turbulence * 2.4D, 0.0D, 1.8D);
+            double sideDrift = streak.terrainSideFlow * STREAK_PATH_ADVECTION
+                    + Math.sin(streak.seed + (double) streak.age * 0.045D) * streak.crossDrift * turbulenceScale;
+            streak.velocityX = Mth.lerp(0.28D, streak.velocityX, streak.windX * driftSpeed + streak.crossX * sideDrift);
+            streak.velocityY = Mth.lerp(0.28D, streak.velocityY, streak.terrainLift * STREAK_PATH_ADVECTION);
+            streak.velocityZ = Mth.lerp(0.28D, streak.velocityZ, streak.windZ * driftSpeed + streak.crossZ * sideDrift);
         }
 
-        TerrainFlow terrainFlow = terrainFlow(
-                level,
-                streak.x,
-                streak.y,
-                streak.z,
-                STREAK_TERRAIN_CLEARANCE,
-                STREAK_TERRAIN_LIFT_STRENGTH,
-                streak.terrainLift,
-                streak.terrainSideFlow,
-                streak.windX,
-                streak.windZ
-        );
-        streak.terrainLift = terrainFlow.lift();
-        streak.terrainSideFlow = terrainFlow.side();
-        double motionScale = Mth.clamp(0.34D + streak.windStrength * 1.3D + streak.gustStrength * 0.72D, 0.18D, 3.1D);
-        // Move the supporting path with the air as well as sending the bright pulse
-        // down it. A little slip keeps the stroke readable without making it look
-        // painted onto the world.
-        double driftSpeed = streak.driftSpeed * motionScale * STREAK_PATH_ADVECTION;
-        double turbulenceScale = 0.55D + Mth.clamp(streak.turbulence * 2.4D, 0.0D, 1.8D);
-        double sideDrift = streak.terrainSideFlow * STREAK_PATH_ADVECTION
-                + Math.sin(streak.seed + (double) streak.age * 0.045D) * streak.crossDrift * turbulenceScale;
-        Point next = keepAboveTerrainAndCollision(
-                level,
-                streak.x + streak.windX * driftSpeed + streak.crossX * sideDrift,
-                streak.y + streak.terrainLift * STREAK_PATH_ADVECTION,
-                streak.z + streak.windZ * driftSpeed + streak.crossZ * sideDrift,
-                STREAK_TERRAIN_CLEARANCE
-        );
-        if (streakBodyHitsCollision(
-                level,
-                streak,
-                next.x(),
-                next.y(),
-                next.z(),
-                DynamicWindManager.simulationTime()
-        )) {
+        double nextX = streak.x + streak.velocityX;
+        double nextY = streak.y + streak.velocityY;
+        double nextZ = streak.z + streak.velocityZ;
+        if (!updatePath(level, streak, nextX, nextY, nextZ)) {
+            streak.velocityX = 0.0D;
+            streak.velocityY = 0.0D;
+            streak.velocityZ = 0.0D;
             beginFadeOut(streak);
+            if (!streak.path.isValid(level, STREAK_TERRAIN_CLEARANCE)) {
+                streak.active = false;
+            }
             return;
         }
-
-        streak.x = next.x();
-        streak.y = next.y();
-        streak.z = next.z();
+        streak.x = nextX;
+        streak.y = nextY;
+        streak.z = nextZ;
     }
 
     private static void spawn(WindStreak streak, LocalPlayer player, ClientLevel level, WindSample playerWind, boolean scatterAge) {
         for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
             Point spawn = randomWindStreakPosition(streak, player, level, playerWind);
             if (spawn == null) {
-                break;
+                continue;
             }
 
             WindSample localWind = sampleWind(level, spawn.x(), spawn.y(), spawn.z());
@@ -399,6 +357,10 @@ public final class WindStreakRenderer {
             streak.seed = RANDOM.nextDouble() * Math.PI * 2.0D;
             streak.terrainLift = 0.0D;
             streak.terrainSideFlow = 0.0D;
+            streak.velocityX = 0.0D;
+            streak.velocityY = 0.0D;
+            streak.velocityZ = 0.0D;
+            streak.path.reset();
             streak.lifetime = Math.max(
                     56,
                     (int) Math.ceil((1.18D + streak.wakeLength) / streak.speed)
@@ -409,7 +371,7 @@ public final class WindStreakRenderer {
             streak.fadeOutAge = 0;
             streak.active = true;
             if (!isTooCloseToActiveStreak(streak, streak.x, streak.y, streak.z)
-                    && !streakBodyHitsCollision(level, streak, DynamicWindManager.simulationTime())) {
+                    && updatePath(level, streak, streak.x, streak.y, streak.z)) {
                 return;
             }
         }
@@ -424,27 +386,27 @@ public final class WindStreakRenderer {
             ClientLevel level,
             WindSample playerWind
     ) {
-        for (int attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
-            double along = RANDOM.nextDouble() < 0.72D
-                    ? randomBetween(-30.0D, -6.0D)
-                    : randomBetween(-8.0D, 18.0D);
-            double across = triangularRandom() * randomBetween(12.0D, 34.0D);
-            double x = player.getX() + playerWind.directionX() * along + playerWind.crossX() * across;
-            double z = player.getZ() + playerWind.directionZ() * along + playerWind.crossZ() * across;
+        double along = RANDOM.nextDouble() < 0.72D
+                ? randomBetween(-30.0D, -6.0D)
+                : randomBetween(-8.0D, 18.0D);
+        double across = triangularRandom() * randomBetween(12.0D, 34.0D);
+        double x = player.getX() + playerWind.directionX() * along + playerWind.crossX() * across;
+        double z = player.getZ() + playerWind.directionZ() * along + playerWind.crossZ() * across;
 
-            double terrainY = terrainHeight(level, x, z) + STREAK_TERRAIN_CLEARANCE;
-            double groundLayer = terrainY + randomElevationAboveTerrain();
-            double eyeLayer = player.getEyeY() + randomBetween(-0.9D, 4.8D);
-            double blend = smoothFade((float) Math.pow(RANDOM.nextDouble(), 1.65D));
-            double y = Mth.lerp(blend, groundLayer, Math.max(groundLayer, eyeLayer));
-
-            Point spawn = keepAboveTerrainAndCollision(level, x, y, z, STREAK_TERRAIN_CLEARANCE);
-            if (isValidWindSpace(level, spawn.x(), spawn.y(), spawn.z(), STREAK_TERRAIN_CLEARANCE)
-                    && !isTooCloseToActiveStreak(target, spawn.x(), spawn.y(), spawn.z())) {
-                return spawn;
-            }
+        double terrainY = terrainHeight(level, x, z) + STREAK_TERRAIN_CLEARANCE;
+        if (!Double.isFinite(terrainY)) {
+            return null;
         }
+        double groundLayer = terrainY + randomElevationAboveTerrain();
+        double eyeLayer = player.getEyeY() + randomBetween(-0.9D, 4.8D);
+        double blend = smoothFade((float) Math.pow(RANDOM.nextDouble(), 1.65D));
+        double y = Mth.lerp(blend, groundLayer, Math.max(groundLayer, eyeLayer));
 
+        Point spawn = keepAboveTerrainAndCollision(level, x, y, z, STREAK_TERRAIN_CLEARANCE);
+        if (isValidWindSpace(level, spawn.x(), spawn.y(), spawn.z(), STREAK_TERRAIN_CLEARANCE)
+                && !isTooCloseToActiveStreak(target, spawn.x(), spawn.y(), spawn.z())) {
+            return spawn;
+        }
         return null;
     }
 
@@ -484,28 +446,6 @@ public final class WindStreakRenderer {
         streak.fadeOutAge = 0;
     }
 
-    private static void tickFadeOut(WindStreak streak) {
-        if (!streak.active || !streak.fadingOut) {
-            return;
-        }
-
-        double dx = streak.x - streak.xOld;
-        double dy = streak.y - streak.yOld;
-        double dz = streak.z - streak.zOld;
-        streak.xOld = streak.x;
-        streak.yOld = streak.y;
-        streak.zOld = streak.z;
-        double momentum = 1.0D - (double) streak.fadeOutAge / (double) FADE_OUT_TICKS;
-        streak.x += dx * momentum;
-        streak.y += dy * momentum;
-        streak.z += dz * momentum;
-        streak.fadeOutAge++;
-        if (streak.fadeOutAge >= FADE_OUT_TICKS) {
-            streak.active = false;
-            streak.fadingOut = false;
-        }
-    }
-
     private static float fadeOutMultiplier(WindStreak streak, float partialTick) {
         if (!streak.fadingOut) {
             return 1.0F;
@@ -515,101 +455,61 @@ public final class WindStreakRenderer {
         return smoothFade(remaining);
     }
 
-    private static void renderStreak(
-            VertexConsumer consumer,
-            Matrix4f pose,
-            ClientLevel level,
-            WindStreak streak,
-            Vec3 cameraPos,
-            float partialTick,
-            double windTime,
-            float opacity
+    private static void prepareStreak(
+            WindStreak streak, Vec3 cameraPos, float partialTick, double windTime, float opacity
     ) {
-        float life = ((float) streak.age + partialTick) / (float) streak.lifetime;
-        float fadeIn = smoothFade(Mth.clamp(
-                ((float) streak.fadeInAge + partialTick) / (float) STREAK_FADE_IN_TICKS,
-                0.0F,
-                1.0F
-        ));
-        float naturalEndFade = streak.fadingOut
-                ? 1.0F
-                : smoothFade(Mth.clamp((1.0F - life) / 0.34F, 0.0F, 1.0F));
-        float fade = fadeIn * naturalEndFade;
-        if (fade <= 0.01F) {
+        streak.renderAlpha = 0.0F;
+        if (!streak.active) {
             return;
         }
-
+        float life = ((float) streak.age + partialTick) / (float) streak.lifetime;
+        float fadeIn = smoothFade(Mth.clamp(
+                ((float) streak.fadeInAge + (streak.fadingOut ? 0.0F : partialTick)) / (float) STREAK_FADE_IN_TICKS, 0.0F, 1.0F
+        ));
+        float fade = fadeIn * smoothFade(Mth.clamp((1.0F - life) / 0.34F, 0.0F, 1.0F));
         double baseX = lerp(partialTick, streak.xOld, streak.x);
         double baseY = lerp(partialTick, streak.yOld, streak.y);
         double baseZ = lerp(partialTick, streak.zOld, streak.z);
-        if (!streak.fadingOut && !isOpenSkyAir(level, baseX, baseY, baseZ)) {
-            return;
-        }
-
-        double cameraDistance = cameraPos.distanceTo(new Vec3(baseX, baseY, baseZ));
+        double cameraDistance = Math.sqrt(cameraPos.distanceToSqr(baseX, baseY, baseZ));
         float distanceFade = smoothFade(Mth.clamp((float) ((MAX_DISTANCE_FROM_PLAYER - cameraDistance) / 18.0D), 0.0F, 1.0F));
         float nearFade = smoothFade(Mth.clamp((float) ((cameraDistance - 1.75D) / 3.25D), 0.0F, 1.0F));
         float alpha = 0.88F * opacity * fade * nearFade * distanceFade * fadeOutMultiplier(streak, partialTick);
         if (alpha <= 0.006F) {
             return;
         }
-
+        streak.renderAlpha = alpha;
+        streak.haloType = windStreakLines(streak.strokeScale * STREAK_HALO_WIDTH_SCALE);
+        streak.coreType = windStreakLines(streak.strokeScale * STREAK_CORE_WIDTH_SCALE);
         float brushPosition = (float) (((double) streak.age + partialTick) * streak.speed - 0.18D);
-        for (int segment = 0; segment < BODY_SEGMENTS; segment++) {
-            float t0 = (float) segment / (float) BODY_SEGMENTS;
-            float t1 = (float) (segment + 1) / (float) BODY_SEGMENTS;
-            drawSegment(
-                    consumer, pose, level, streak, cameraPos,
-                    baseX, baseY, baseZ, t0, t1, windTime, brushPosition, alpha
-            );
+        for (int index = 0; index <= BODY_SEGMENTS; index++) {
+            streak.renderPoints[index] = streak.path.interpolate(index, partialTick);
+            float taper = motionTaper(streak, (float) index / BODY_SEGMENTS, windTime, brushPosition);
+            streak.renderTapers[index] = taper;
+            streak.renderWidths[index] = 0.42F + Mth.sqrt(Mth.clamp(taper, 0.0F, 1.0F)) * 0.58F;
         }
-
     }
 
-    private static void drawSegment(
-            VertexConsumer consumer,
-            Matrix4f pose,
-            ClientLevel level,
-            WindStreak streak,
-            Vec3 cameraPos,
-            double baseX,
-            double baseY,
-            double baseZ,
-            float t0,
-            float t1,
-            double windTime,
-            float brushPosition,
-            float alpha
+    private static void renderStreakPass(
+            MultiBufferSource.BufferSource bufferSource, Matrix4f pose, Vec3 cameraPos, boolean halo
     ) {
-        Point start = pointOnBody(streak, baseX, baseY, baseZ, t0, windTime);
-        Point end = pointOnBody(streak, baseX, baseY, baseZ, t1, windTime);
-        if ((!streak.fadingOut && (!isOpenSkyAir(level, start.x(), start.y(), start.z())
-                || !isOpenSkyAir(level, end.x(), end.y(), end.z())))
-                || lineHitsCollision(level, start, end)) {
-            return;
+        for (RenderType renderType : LINE_RENDER_TYPES.values()) {
+            VertexConsumer consumer = null;
+            for (WindStreak streak : STREAKS) {
+                if (streak.renderAlpha <= 0.0F || (halo ? streak.haloType : streak.coreType) != renderType) {
+                    continue;
+                }
+                if (consumer == null) {
+                    consumer = bufferSource.getBuffer(renderType);
+                }
+                float alpha = streak.renderAlpha * (halo ? STREAK_HALO_OPACITY : 1.0F);
+                for (int segment = 0; segment < BODY_SEGMENTS; segment++) {
+                    emitLine(consumer, pose, cameraPos, streak,
+                            streak.renderPoints[segment], streak.renderPoints[segment + 1],
+                            alpha * streak.renderTapers[segment], alpha * streak.renderTapers[segment + 1],
+                            streak.renderWidths[segment], streak.renderWidths[segment + 1]);
+                }
+            }
         }
-
-        float taper0 = motionTaper(streak, t0, windTime, brushPosition);
-        float taper1 = motionTaper(streak, t1, windTime, brushPosition);
-        float strongestTaper = Math.max(taper0, taper1);
-        if (strongestTaper <= 0.002F) {
-            return;
-        }
-
-        float widthTaper0 = 0.42F + Mth.sqrt(Mth.clamp(taper0, 0.0F, 1.0F)) * 0.58F;
-        float widthTaper1 = 0.42F + Mth.sqrt(Mth.clamp(taper1, 0.0F, 1.0F)) * 0.58F;
-        emitLine(
-                consumer,
-                pose,
-                cameraPos,
-                streak,
-                start,
-                end,
-                alpha * taper0,
-                alpha * taper1,
-                widthTaper0,
-                widthTaper1
-        );
     }
 
     private static Point pointOnBody(WindStreak streak, double baseX, double baseY, double baseZ, float t, double windTime) {
@@ -651,23 +551,12 @@ public final class WindStreakRenderer {
         return shapeFade * shimmer * fineBreakup * flowingStroke;
     }
 
-    private static boolean streakBodyHitsCollision(ClientLevel level, WindStreak streak, double windTime) {
-        return streakBodyHitsCollision(level, streak, streak.x, streak.y, streak.z, windTime);
-    }
-
-    private static boolean streakBodyHitsCollision(ClientLevel level, WindStreak streak, double baseX, double baseY, double baseZ, double windTime) {
-        Point previous = pointOnBody(streak, baseX, baseY, baseZ, 0.0F, windTime);
-        for (int segment = 1; segment <= BODY_SEGMENTS; segment++) {
-            float t = (float) segment / (float) BODY_SEGMENTS;
-            Point next = pointOnBody(streak, baseX, baseY, baseZ, t, windTime);
-            if (!isOpenSkyAir(level, next.x(), next.y(), next.z()) || lineHitsCollision(level, previous, next)) {
-                return true;
-            }
-
-            previous = next;
+    private static boolean updatePath(ClientLevel level, WindStreak streak, double x, double y, double z) {
+        double windTime = (double) streak.age * 0.05D;
+        for (int index = 0; index <= BODY_SEGMENTS; index++) {
+            streak.path.setCandidate(index, pointOnBody(streak, x, y, z, (float) index / BODY_SEGMENTS, windTime));
         }
-
-        return false;
+        return streak.path.advance(level, STREAK_TERRAIN_CLEARANCE);
     }
 
     private static void emitLine(
@@ -767,6 +656,17 @@ public final class WindStreakRenderer {
     }
 
     private static final class WindStreak {
+        private final WindStreakPath path = new WindStreakPath(BODY_SEGMENTS);
+        private final Point[] renderPoints = new Point[BODY_SEGMENTS + 1];
+        private final float[] renderTapers = new float[BODY_SEGMENTS + 1];
+        private final float[] renderWidths = new float[BODY_SEGMENTS + 1];
+        private RenderType haloType;
+        private RenderType coreType;
+        private float renderAlpha;
+        private int spawnCountdown;
+        private double velocityX;
+        private double velocityY;
+        private double velocityZ;
         private boolean active;
         private boolean fadingOut;
         private int age;
