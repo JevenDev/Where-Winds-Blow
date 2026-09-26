@@ -171,6 +171,10 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 sourceSets {
+    grassWorldgenTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
     particleWindTest {
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
@@ -179,6 +183,15 @@ sourceSets {
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
     }
+}
+
+tasks.register('testGrassWorldgen', JavaExec) {
+    group = 'verification'
+    description = 'Checks dense grass transitions, terrain placement, and vegetation preservation.'
+    dependsOn tasks.named('grassWorldgenTestClasses')
+    classpath = sourceSets.grassWorldgenTest.runtimeClasspath
+    mainClass = 'com.jvn.wherewindsblow.worldgen.GrassWorldgenTest'
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
 }
 
 tasks.register('testParticleWindProfiles', JavaExec) {
@@ -210,6 +223,7 @@ tasks.register('packageNetherStarWindExample', Zip) {
 }
 
 tasks.named('check') {
+    dependsOn tasks.named('testGrassWorldgen')
     dependsOn tasks.named('testParticleWindProfiles')
     dependsOn tasks.named('testWindExposure')
 }

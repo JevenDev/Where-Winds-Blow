@@ -4,7 +4,8 @@ import net.minecraft.util.RandomSource;
 
 final class GrassPatchShape {
     private static final int NOISE_SCALE = 4;
-    private static final double EDGE_WARP = 0.13D;
+    private static final double EDGE_WARP = 0.06D;
+    private static final double PATCH_LIMIT = 1.08D;
 
     private final double radiusX;
     private final double radiusZ;
@@ -33,7 +34,7 @@ final class GrassPatchShape {
     }
 
     int bounds() {
-        return (int) Math.ceil(Math.max(radiusX, radiusZ) + 1.0D);
+        return (int) Math.ceil(Math.max(radiusX, radiusZ) * (PATCH_LIMIT + EDGE_WARP));
     }
 
     double distance(int offsetX, int offsetZ, int worldX, int worldZ) {
@@ -46,8 +47,14 @@ final class GrassPatchShape {
         return Math.max(0.0D, ovalDistance + valueNoise(worldX, worldZ, seed) * EDGE_WARP);
     }
 
-    double coherence(int worldX, int worldZ) {
-        return valueNoise(worldX, worldZ, seed ^ 0x6A09E667F3BCC909L);
+    int grassHeight(int offsetX, int offsetZ, int worldX, int worldZ, int peakHeight) {
+        double distance = distance(offsetX, offsetZ, worldX, worldZ);
+        if (distance > PATCH_LIMIT) {
+            return 0;
+        }
+
+        double height = peakHeight + 0.25D - distance * (peakHeight - 1) / 0.9D;
+        return Math.clamp(Math.round(height), 1, peakHeight);
     }
 
     static double valueNoise(int x, int z, long seed) {

@@ -126,10 +126,21 @@ public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock 
             return false;
         }
 
+        BlockState[] previous = new BlockState[clampedHeight];
+        for (int offset = 0; offset < clampedHeight; offset++) {
+            previous[offset] = level.getBlockState(bottomPos.above(offset));
+        }
+
         BULK_PLACEMENT.set(true);
         try {
             for (int offset = 0; offset < clampedHeight; offset++) {
-                level.setBlock(bottomPos.above(offset), this.defaultBlockState().setValue(PART, partFor(offset, clampedHeight)), 3);
+                BlockState state = this.defaultBlockState().setValue(PART, partFor(offset, clampedHeight));
+                if (!previous[offset].equals(state) && !level.setBlock(bottomPos.above(offset), state, 3)) {
+                    for (int restore = offset - 1; restore >= 0; restore--) {
+                        level.setBlock(bottomPos.above(restore), previous[restore], 3);
+                    }
+                    return false;
+                }
             }
         } finally {
             BULK_PLACEMENT.set(false);
@@ -141,11 +152,14 @@ public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock 
     }
 
     public boolean canPlaceColumn(LevelReader level, BlockPos bottomPos, int height) {
-        if (height <= 0 || height > MAX_HEIGHT) {
+        if (height <= 0 || height > MAX_HEIGHT
+                || level.isOutsideBuildHeight(bottomPos) || level.isOutsideBuildHeight(bottomPos.above(height - 1))) {
             return false;
         }
 
-        if (level.getBlockState(bottomPos).is(this) || level.getBlockState(bottomPos.below()).is(this)) {
+        if (level.getBlockState(bottomPos.below()).is(this)
+                || (level.getBlockState(bottomPos).is(this)
+                && level.getBlockState(bottomPos.above(height - 1)).is(this))) {
             return false;
         }
 
@@ -156,7 +170,7 @@ public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock 
                 if (!this.defaultBlockState().canSurvive(level, current) || (!currentState.isAir() && !currentState.canBeReplaced()) || !hasEmptyFluid(level, current)) {
                     return false;
                 }
-            } else if (currentState.is(this) || !canGrowInto(level, current)) {
+            } else if (!canGrowInto(level, current)) {
                 return false;
             }
         }
