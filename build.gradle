@@ -183,6 +183,10 @@ sourceSets {
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
     }
+    foliageInteractionTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
 }
 
 tasks.register('testGrassWorldgen', JavaExec) {
@@ -221,6 +225,24 @@ tasks.register('testWindVisuals', JavaExec) {
     javaLauncher = javaToolchains.launcherFor(java.toolchain)
 }
 
+tasks.register('testFoliageInteraction', JavaExec) {
+    group = 'verification'
+    description = 'Checks vertical contact bounds for foliage interaction.'
+    dependsOn tasks.named('foliageInteractionTestClasses')
+    classpath = sourceSets.foliageInteractionTest.runtimeClasspath
+    mainClass = 'com.jvn.wherewindsblow.client.foliage.FoliageInteractionTest'
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+}
+
+tasks.register('testFoliageInteractionShaders', JavaExec) {
+    group = 'verification'
+    description = 'Checks foliage interaction shaders using a local OpenGL context.'
+    dependsOn tasks.named('foliageInteractionTestClasses')
+    classpath = sourceSets.foliageInteractionTest.runtimeClasspath
+    mainClass = 'com.jvn.wherewindsblow.client.foliage.FoliageInteractionShaderTest'
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+}
+
 tasks.register('packageNetherStarWindExample', Zip) {
     group = 'build'
     description = 'Packages the nether star particle wind example resource pack.'
@@ -236,6 +258,7 @@ tasks.named('check') {
     dependsOn tasks.named('testParticleWindProfiles')
     dependsOn tasks.named('testWindExposure')
     dependsOn tasks.named('testWindVisuals')
+    dependsOn tasks.named('testFoliageInteraction')
 }
 
 // IDEA no longer automatically downloads sources/javadoc jars for dependencies, so we need to explicitly enable the behavior.

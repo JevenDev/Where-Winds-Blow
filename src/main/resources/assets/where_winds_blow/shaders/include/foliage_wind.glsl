@@ -386,9 +386,13 @@ vec3 wwb_foliage_interaction_offset(vec3 position, vec2 anchor, float bend) {
 
         vec4 interactor = wwb_foliage_interactor_at(index);
         vec4 motion = wwb_foliage_interactor_motion_at(index);
-        float radius = max(interactor.w, 0.001);
+        float radius = max(abs(interactor.w), 0.001);
         float verticalDistance = max(max(interactor.y - position.y, position.y - motion.x), 0.0);
         float verticalInfluence = wwb_smooth_curve(1.0 - verticalDistance / (0.30 + radius * 0.55));
+        // negative radii mark radial forces, which have no feet cutoff
+        if (interactor.w >= 0.0) {
+            verticalInfluence *= wwb_smooth_curve((position.y - interactor.y) / 0.10);
+        }
         if (verticalInfluence <= 0.0) {
             continue;
         }

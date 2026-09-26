@@ -369,6 +369,10 @@ public final class ResponsiveFoliagePhysics {
             long nowMillis,
             Map<BlockPos, FoliageImpulse> touchedImpulses
     ) {
+        if (pos.getY() + 1.0D <= shape.minY() || pos.getY() >= shape.maxY()) {
+            return;
+        }
+
         double centerX = pos.getX() + 0.5D;
         double centerZ = pos.getZ() + 0.5D;
         double trailLengthSqr = shape.trailX() * shape.trailX() + shape.trailZ() * shape.trailZ();
@@ -656,7 +660,7 @@ public final class ResponsiveFoliagePhysics {
         private static ShaderInteraction fromForce(TransientForce force, long nowMillis) {
             return new ShaderInteraction(
                     force.x(), force.y() - force.radius() * 0.45F, force.y() + force.radius() * 0.45F,
-                    force.z(), force.radius(), 0.0F, 0.0F, force.currentStrength(nowMillis)
+                    force.z(), -force.radius(), 0.0F, 0.0F, force.currentStrength(nowMillis)
             );
         }
 
