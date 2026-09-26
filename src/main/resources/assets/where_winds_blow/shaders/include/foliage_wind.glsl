@@ -241,6 +241,57 @@ float wwb_foliage_animation_time(float continuousTime, vec2 worldPosition) {
     return floor((continuousTime + phase) * rate) / rate - phase;
 }
 
+vec2 wwb_plant_wind_motion(
+        vec2 motionPosition,
+        float localGustStrength,
+        float localTurbulence,
+        float gustLeadingEdge
+) {
+    float t = wwb_foliage_animation_time(u_WwbTime, motionPosition);
+    float rain = wwb_smooth_curve(u_WwbWeatherState.x);
+    float thunder = wwb_smooth_curve(u_WwbWeatherState.y);
+    float lull = 1.0 - wwb_smooth_curve(u_WwbWeatherState.z) * 0.72;
+    float ambient = clamp(u_WwbAmbientWindStrength, 0.0, 1.5);
+    float gust = clamp(localGustStrength, 0.0, 2.0);
+    float turbulence = clamp(localTurbulence, 0.0, 1.5);
+    float windResponse = 1.0 - exp(-(ambient + gust * 0.85) * 1.5);
+    float patchSeed = wwb_grass_variation_seed(floor(motionPosition * 0.58), vec2(127.1, 311.7));
+    float bladeSeed = wwb_grass_variation_seed(floor(motionPosition * 2.7), vec2(269.5, 183.3));
+    float localPhase = (patchSeed - 0.5) * 1.2 + (bladeSeed - 0.5) * 0.18;
+    float amplitude = 0.88 + patchSeed * 0.18 + bladeSeed * 0.06;
+
+    // keep field phases fixed while the sampled wind direction steers each plant
+    vec2 phaseDir = normalize(vec2(0.82, 0.57));
+    float along = dot(motionPosition, phaseDir);
+    float across = dot(motionPosition, vec2(-phaseDir.y, phaseDir.x));
+    float drift = sin(along * 0.09 + across * 0.07 - t * 0.17) * 0.55;
+    float clearSway = sin(along * 0.23 + across * 0.08 - t * 0.71 + drift + localPhase) * 0.72
+            + sin(along * 0.13 - across * 0.19 - t * 1.13 + localPhase * 0.7) * 0.28;
+    float rainSway = sin(along * 0.31 + across * 0.11 - t * 1.67 + drift + localPhase) * 0.68
+            + sin(along * 0.57 - across * 0.21 - t * 2.31 + localPhase * 1.3) * 0.32;
+    float stormSway = sin(along * 0.38 + across * 0.16 - t * 2.83 + drift + localPhase) * 0.62
+            + sin(along * 0.83 - across * 0.29 - t * 4.07 + localPhase * 1.7) * 0.38;
+
+    // blend fixed rhythms so weather changes never rescale the running clock
+    float sway = mix(clearSway * 0.14, rainSway * 0.047, rain);
+    sway = mix(sway, stormSway * 0.062, thunder);
+    float pressure = ambient * (0.035 + rain * 0.020 + thunder * 0.020)
+            + gust * (0.085 + rain * 0.020 + thunder * 0.030)
+            + gustLeadingEdge * 0.025;
+    float flutter = sin(t * 6.13 + bladeSeed * 11.0 + across * 0.31)
+            * sin(t * 4.31 + patchSeed * 7.0 - along * 0.17);
+    float tipFlutter = flutter * (rain * 0.003 + turbulence * (0.008 + thunder * 0.012));
+    float crossSway = sin(across * 0.20 + along * 0.16 - t * 0.61 + localPhase) * 0.7
+            + sin(across * 0.37 - along * 0.09 - t * 1.09 + localPhase * 1.4) * 0.3;
+    vec2 motion = vec2(
+            pressure + (sway + tipFlutter) * windResponse,
+            (crossSway * (0.008 + thunder * 0.012) + tipFlutter * 0.35) * windResponse
+    ) * amplitude * lull * u_WwbPlantSwayStrength;
+
+    // approach the bend limit smoothly so strong gusts still have room to move
+    return motion / sqrt(1.0 + dot(motion, motion) / (0.42 * 0.42));
+}
+
 float wwb_foliage_wind_sheen(
         vec3 position,
         float alpha,
@@ -255,29 +306,25 @@ float wwb_foliage_wind_sheen(
 
     float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
     vec2 motionPosition = wwb_foliage_motion_position(position, alpha);
-    float t = wwb_is_plant_wind_vertex(alpha) ? wwb_foliage_animation_time(u_WwbTime, motionPosition) : u_WwbTime;
+    if (wwb_is_plant_wind_vertex(alpha)) {
+        vec2 motion = wwb_plant_wind_motion(motionPosition, localGustStrength, localTurbulence, gustLeadingEdge);
+        return clamp(length(motion) * 0.48 * wwb_smooth_curve(bend) * u_WwbPlantSheenStrength, 0.0, 0.32);
+    }
+
+    float t = u_WwbTime;
     vec2 phaseDir = normalize(vec2(0.82, 0.57));
     vec2 phaseCross = vec2(-phaseDir.y, phaseDir.x);
     float along = dot(motionPosition, phaseDir);
     float across = dot(motionPosition, phaseCross);
-    float plantWind = wwb_is_plant_wind_vertex(alpha) ? 1.0 : 0.0;
-    vec2 gustCell = floor(motionPosition * 0.58);
-    vec2 bladeCell = floor(motionPosition * 2.7);
-    float gustSeed = wwb_grass_variation_seed(gustCell, vec2(127.1, 311.7));
-    float bladeSeed = wwb_grass_variation_seed(bladeCell, vec2(269.5, 183.3));
-    float localPhase = plantWind * ((gustSeed - 0.5) * 1.7 + (bladeSeed - 0.5) * 0.16);
-    float localTempo = mix(1.0, 0.94 + gustSeed * 0.12, plantWind);
     float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
             + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
-    phaseDrift += localPhase * 0.38;
-    float tempoPhase = (localTempo - 1.0) * 2.4
-            + sin(along * 0.052 + across * 0.041 + t * 0.09 + localPhase * 0.2);
-    float broad = sin(along * 0.35 - t * 1.28 + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + tempoPhase + localPhase);
+    float tempoPhase = sin(along * 0.052 + across * 0.041 + t * 0.09);
+    float broad = sin(along * 0.35 - t * 1.28 + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + tempoPhase);
     float wave = pow(max(0.0, broad), 1.7);
-    float proceduralGust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 + across * 0.04 + phaseDrift * 0.35 + tempoPhase * 0.4 + localPhase * 0.5) * 0.5 + 0.5);
+    float proceduralGust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 + across * 0.04 + phaseDrift * 0.35 + tempoPhase * 0.4) * 0.5 + 0.5);
     float motionBand = wwb_smooth_curve(wave) * (0.82 + proceduralGust * 0.18);
     float tipLift = wwb_smooth_curve(bend);
-    float sheenLull = 1.0 - wwb_smooth_curve(u_WwbWeatherState.z) * mix(0.35, 0.72, plantWind);
+    float sheenLull = 1.0 - wwb_smooth_curve(u_WwbWeatherState.z) * 0.35;
     return clamp(
             (motionBand * 0.22 + gustLeadingEdge * 0.08)
                     * tipLift
@@ -406,59 +453,50 @@ vec3 wwb_apply_foliage_wind(
 
     float bend = wwb_smooth_curve(wwb_decode_wind_alpha(alpha));
     vec2 motionPosition = wwb_foliage_motion_position(position, alpha);
-    float t = wwb_is_plant_wind_vertex(alpha) ? wwb_foliage_animation_time(u_WwbTime, motionPosition) : u_WwbTime;
     vec2 crossDir = vec2(-windDir.y, windDir.x);
+    if (wwb_is_plant_wind_vertex(alpha)) {
+        vec2 motion = wwb_plant_wind_motion(motionPosition, localGustStrength, localTurbulence, localGustLeadingEdge);
+        position.xz += (windDir * motion.x + crossDir * motion.y) * bend;
+        return position;
+    }
+
+    float t = u_WwbTime;
     // keep wave phase fixed in world space while wind steers displacement
     vec2 phaseDir = normalize(vec2(0.82, 0.57));
     vec2 phaseCross = vec2(-phaseDir.y, phaseDir.x);
     float along = dot(motionPosition, phaseDir);
     float across = dot(motionPosition, phaseCross);
-    float plantWind = wwb_is_plant_wind_vertex(alpha) ? 1.0 : 0.0;
     vec2 gustCell = floor(motionPosition * 0.58);
     vec2 bladeCell = floor(motionPosition * 2.7);
     float gustSeed = wwb_grass_variation_seed(gustCell, vec2(127.1, 311.7));
     float bladeSeed = wwb_grass_variation_seed(bladeCell, vec2(269.5, 183.3));
-    float localPhase = plantWind * ((gustSeed - 0.5) * 1.7 + (bladeSeed - 0.5) * 0.16);
-    float localTempo = mix(1.0, 0.94 + gustSeed * 0.12, plantWind);
-    float localAmplitude = mix(1.0, 0.82 + gustSeed * 0.30 + bladeSeed * 0.08, plantWind);
     float phaseDrift = sin(along * 0.13 - across * 0.09 + t * 0.11) * 0.48
             + sin(along * -0.07 + across * 0.17 - t * 0.09) * 0.26;
-    phaseDrift += localPhase * 0.38;
-    float tempoPhase = (localTempo - 1.0) * 2.4
-            + sin(along * 0.052 + across * 0.041 + t * 0.09 + localPhase * 0.2);
-    float amplitudeDrift = (0.84 + 0.22 * wwb_smooth_curve(sin(along * 0.21 + across * 0.14 - t * 0.16 + localPhase) * 0.5 + 0.5)) * localAmplitude;
-    float broad = sin(along * 0.35 - t * 1.28 + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + tempoPhase + localPhase);
+    float tempoPhase = sin(along * 0.052 + across * 0.041 + t * 0.09);
+    float amplitudeDrift = 0.84 + 0.22 * wwb_smooth_curve(sin(along * 0.21 + across * 0.14 - t * 0.16) * 0.5 + 0.5);
+    float broad = sin(along * 0.35 - t * 1.28 + sin(across * 0.075 + t * 0.18) * 1.35 + phaseDrift + tempoPhase);
     float wave = pow(max(0.0, broad), 1.7);
-    float ripple = sin(along * 1.08 - t * 3.6 + across * 0.18 + phaseDrift * 1.4 + localPhase * 1.4) * 0.5 + 0.5;
-    float proceduralGust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 + across * 0.04 + phaseDrift * 0.35 + tempoPhase * 0.4 + localPhase * 0.5) * 0.5 + 0.5);
-    // dynamic wind controls the existing sway instead of adding another oscillator
+    float ripple = sin(along * 1.08 - t * 3.6 + across * 0.18 + phaseDrift * 1.4) * 0.5 + 0.5;
+    float proceduralGust = wwb_smooth_curve(sin(along * 0.10 - t * 0.42 + across * 0.04 + phaseDrift * 0.35 + tempoPhase * 0.4) * 0.5 + 0.5);
     float precipitationLoad = clamp(u_WwbWeatherState.x + u_WwbWeatherState.y * 0.45, 0.0, 1.0);
     float stormEnergy = clamp(
             u_WwbWeatherState.y + localGustStrength * 0.65 + localTurbulence * 0.25,
             0.0,
             1.5
     );
-    float lullSoftening = 1.0 - wwb_smooth_curve(u_WwbWeatherState.z) * mix(0.35, 0.72, plantWind);
-    float leafWind = 1.0 - plantWind;
+    float lullSoftening = 1.0 - wwb_smooth_curve(u_WwbWeatherState.z) * 0.35;
     float dynamicStrength = (1.0
             + clamp(u_WwbAmbientWindStrength, 0.0, 1.5) * 0.55
             + clamp(localGustStrength, 0.0, 1.5) * 0.45) * lullSoftening;
-    float aerodynamicResponse = mix(
-            0.68 + stormEnergy * 0.18,
-            1.0 - precipitationLoad * 0.12,
-            plantWind
-    );
+    float aerodynamicResponse = 0.68 + stormEnergy * 0.18;
     float shimmer = sin(motionPosition.x * 2.17 + motionPosition.y * 1.63 + t * 2.1 + phaseDrift + bladeSeed * 2.8);
-    float broadSway = mix(0.145, 0.225, plantWind);
-    float fineSway = mix(0.055, 0.020, plantWind);
-    float originalSway = 0.014 + wave * broadSway * amplitudeDrift
-            + ripple * proceduralGust * fineSway
-            + shimmer * mix(0.012, 0.003, plantWind);
+    float originalSway = 0.014 + wave * 0.145 * amplitudeDrift
+            + ripple * proceduralGust * 0.055
+            + shimmer * 0.012;
     float impactFlutter = sin(t * 9.7 + bladeSeed * 11.0 + across * 0.31)
             * sin(t * 6.3 + gustSeed * 7.0 - along * 0.17);
-    float steadyWeatherLean = plantWind * precipitationLoad * (0.010 + stormEnergy * 0.014)
-            + localGustLeadingEdge * (0.018 + plantWind * 0.018);
-    float leafFlutter = leafWind * impactFlutter
+    float steadyWeatherLean = localGustLeadingEdge * 0.018;
+    float leafFlutter = impactFlutter
             * (precipitationLoad * 0.006 + localTurbulence * 0.026 + stormEnergy * 0.012);
     float strength = clamp(
             (originalSway * dynamicStrength * aerodynamicResponse + steadyWeatherLean + leafFlutter)
@@ -466,8 +504,7 @@ vec3 wwb_apply_foliage_wind(
             -0.08,
             0.42
     );
-    float directionNoise = sin(across * 0.22 + t * 0.55 + tempoPhase * 0.5 + phaseDrift * 0.35 + localPhase)
-            * mix(0.18, 0.10, plantWind);
+    float directionNoise = sin(across * 0.22 + t * 0.55 + tempoPhase * 0.5 + phaseDrift * 0.35) * 0.18;
     vec2 dir = normalize(windDir + crossDir * directionNoise);
     position.xz += dir * strength;
     return position;
