@@ -9,6 +9,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -25,7 +26,8 @@ abstract class FoliageBlockStateMixin {
     private void snowOutline(BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
         BlockState state = (BlockState) (Object) this;
         if (SnowLogging.layers(state) > 0) {
-            cir.setReturnValue(Shapes.or(cir.getReturnValue(), SnowLogging.snowState(state).getShape(level, pos, context)));
+            cir.setReturnValue(Shapes.or(state.setValue(SnowLogging.LAYERS, 0).getShape(level, pos, context),
+                    SnowLogging.snowState(state).getShape(level, pos, context)));
         }
     }
 
@@ -43,6 +45,76 @@ abstract class FoliageBlockStateMixin {
         BlockState state = (BlockState) (Object) this;
         if (SnowLogging.layers(state) > 0) {
             cir.setReturnValue(SnowLogging.snowState(state).getBlockSupportShape(level, pos));
+        }
+    }
+
+    @Inject(method = "getOffset", at = @At("HEAD"), cancellable = true, require = 1)
+    private void keepSnowAligned(BlockGetter level, BlockPos pos, CallbackInfoReturnable<Vec3> cir) {
+        if (SnowLogging.layers((BlockState) (Object) this) > 0) {
+            cir.setReturnValue(Vec3.ZERO);
+        }
+    }
+
+    @Inject(method = "hasOffsetFunction", at = @At("HEAD"), cancellable = true, require = 1)
+    private void noSnowOffset(CallbackInfoReturnable<Boolean> cir) {
+        if (SnowLogging.layers((BlockState) (Object) this) > 0) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "getShadeBrightness", at = @At("HEAD"), cancellable = true, require = 1)
+    private void snowBrightness(BlockGetter level, BlockPos pos, CallbackInfoReturnable<Float> cir) {
+        BlockState state = (BlockState) (Object) this;
+        if (SnowLogging.layers(state) > 0) {
+            cir.setReturnValue(SnowLogging.snowState(state).getShadeBrightness(level, pos));
+        }
+    }
+
+    @Inject(method = "getOcclusionShape", at = @At("HEAD"), cancellable = true, require = 1)
+    private void snowOcclusion(BlockGetter level, BlockPos pos, CallbackInfoReturnable<VoxelShape> cir) {
+        BlockState state = (BlockState) (Object) this;
+        if (SnowLogging.layers(state) > 0) {
+            cir.setReturnValue(SnowLogging.snowState(state).getOcclusionShape(level, pos));
+        }
+    }
+
+    @Inject(method = "canOcclude", at = @At("HEAD"), cancellable = true, require = 1)
+    private void snowCanOcclude(CallbackInfoReturnable<Boolean> cir) {
+        BlockState state = (BlockState) (Object) this;
+        if (SnowLogging.layers(state) > 0) {
+            cir.setReturnValue(SnowLogging.snowState(state).canOcclude());
+        }
+    }
+
+    @Inject(method = "useShapeForLightOcclusion", at = @At("HEAD"), cancellable = true, require = 1)
+    private void snowLightOcclusion(CallbackInfoReturnable<Boolean> cir) {
+        BlockState state = (BlockState) (Object) this;
+        if (SnowLogging.layers(state) > 0) {
+            cir.setReturnValue(SnowLogging.snowState(state).useShapeForLightOcclusion());
+        }
+    }
+
+    @Inject(method = "getLightBlock", at = @At("HEAD"), cancellable = true, require = 1)
+    private void snowLightBlock(BlockGetter level, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
+        BlockState state = (BlockState) (Object) this;
+        if (SnowLogging.layers(state) > 0) {
+            cir.setReturnValue(SnowLogging.snowState(state).getLightBlock(level, pos));
+        }
+    }
+
+    @Inject(method = "isViewBlocking", at = @At("HEAD"), cancellable = true, require = 1)
+    private void snowViewBlocking(BlockGetter level, BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        BlockState state = (BlockState) (Object) this;
+        if (SnowLogging.layers(state) > 0) {
+            cir.setReturnValue(SnowLogging.snowState(state).isViewBlocking(level, pos));
+        }
+    }
+
+    @Inject(method = "propagatesSkylightDown", at = @At("HEAD"), cancellable = true, require = 1)
+    private void snowSkylight(BlockGetter level, BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        BlockState state = (BlockState) (Object) this;
+        if (SnowLogging.layers(state) > 0) {
+            cir.setReturnValue(SnowLogging.snowState(state).propagatesSkylightDown(level, pos));
         }
     }
 

@@ -16,7 +16,7 @@ abstract class SnowLayerBlockMixin {
         BlockState state = context.getLevel().getBlockState(context.getClickedPos());
         if (SnowLogging.canContainSnow(state)
                 && SnowLogging.snowState(state).canSurvive(context.getLevel(), context.getClickedPos())) {
-            cir.setReturnValue(state.setValue(SnowLogging.LAYERS, Math.min(8, SnowLogging.layers(state) + 1)));
+            cir.setReturnValue(SnowLogging.snowyVariant(state).setValue(SnowLogging.LAYERS, Math.min(8, SnowLogging.layers(state) + 1)));
         }
     }
 }

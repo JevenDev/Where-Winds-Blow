@@ -139,6 +139,9 @@ public final class SnowLoggingGameTests {
                         .setValue(DoublePlantBlock.HALF, DoubleBlockHalf.UPPER), 2);
             }
             context = new BlockPlaceContext(level, player, InteractionHand.MAIN_HAND, new ItemStack(Items.SNOW), hit);
+            BlockState prediction = Blocks.SNOW.getStateForPlacement(context);
+            helper.assertTrue(prediction.is(expected[i]) && SnowLogging.layers(prediction) == 1,
+                    "snow placement predicts the same snowy state as the server");
             var snowItem = (net.minecraft.world.item.BlockItem) Items.SNOW;
             helper.assertTrue(snowItem.place(context).consumesAction(), "snow items can snowlog foliage");
             helper.assertTrue(level.getBlockState(pos).is(expected[i]), "snow item placement selects the snowy variant");
@@ -268,6 +271,45 @@ public final class SnowLoggingGameTests {
             }
         }
         helper.assertTrue(plants > 0 && plants < 16, "snowy patches blend plants with uncovered snow");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void matchesSnowLighting(GameTestHelper helper) {
+        var level = helper.getLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(1, 1, 1));
+        level.setBlockAndUpdate(pos.below(), Blocks.GRASS_BLOCK.defaultBlockState());
+        for (Block plant : new Block[]{Blocks.DANDELION, ModBlocks.SNOWY_SHORT_GRASS.get(), ModBlocks.SNOWY_TALL_GRASS.get()}) {
+            BlockState dry = plant.defaultBlockState();
+            Vec3 offset = dry.getOffset(level, pos);
+            for (int layers = 1; layers <= 8; layers++) {
+                BlockState state = dry.setValue(SnowLogging.LAYERS, layers);
+                BlockState snow = Blocks.SNOW.defaultBlockState().setValue(SnowLayerBlock.LAYERS, layers);
+                helper.assertTrue(state.getOffset(level, pos).equals(Vec3.ZERO) && !state.hasOffsetFunction(),
+                        "logged snow renders without the plant offset");
+                helper.assertTrue(state.setValue(SnowLogging.LAYERS, 0).getOffset(level, pos).equals(offset),
+                        "dry foliage retains its original offset");
+                helper.assertTrue(state.getShadeBrightness(level, pos) == snow.getShadeBrightness(level, pos),
+                        "logged snow matches vanilla ambient brightness at every depth");
+                helper.assertTrue(state.getLightBlock(level, pos) == snow.getLightBlock(level, pos)
+                        && state.propagatesSkylightDown(level, pos) == snow.propagatesSkylightDown(level, pos),
+                        "logged snow matches vanilla light transmission");
+                helper.assertTrue(state.isViewBlocking(level, pos) == snow.isViewBlocking(level, pos)
+                        && state.isSolidRender(level, pos) == snow.isSolidRender(level, pos),
+                        "logged snow matches vanilla opacity for lighting samples");
+                helper.assertTrue(state.canOcclude() == snow.canOcclude()
+                        && state.useShapeForLightOcclusion() == snow.useShapeForLightOcclusion(),
+                        "logged snow uses vanilla face and light occlusion");
+                helper.assertTrue(!net.minecraft.world.phys.shapes.Shapes.joinIsNotEmpty(state.getOcclusionShape(level, pos),
+                        snow.getOcclusionShape(level, pos), net.minecraft.world.phys.shapes.BooleanOp.NOT_SAME),
+                        "snow occlusion excludes the foliage outline");
+                for (Direction side : Direction.values()) {
+                    helper.assertTrue(!net.minecraft.world.phys.shapes.Shapes.joinIsNotEmpty(state.getFaceOcclusionShape(level, pos, side),
+                            snow.getFaceOcclusionShape(level, pos, side), net.minecraft.world.phys.shapes.BooleanOp.NOT_SAME),
+                            "logged snow preserves vanilla occlusion at shared edges");
+                }
+            }
+        }
         helper.succeed();
     }
 

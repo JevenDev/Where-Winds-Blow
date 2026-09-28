@@ -30,7 +30,7 @@ final class SnowloggedFoliageModel extends BakedModelWrapper<BakedModel> {
     @Override
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData data) {
         ModelData original = originalModel.getModelData(level, pos, state, data);
-        return SnowLogging.layers(state) > 0 ? original.derive().with(OFFSET, state.getOffset(level, pos)).build() : original;
+        return SnowLogging.layers(state) > 0 ? original.derive().with(OFFSET, state.setValue(SnowLogging.LAYERS, 0).getOffset(level, pos)).build() : original;
     }
 
     @Override
@@ -53,27 +53,27 @@ final class SnowloggedFoliageModel extends BakedModelWrapper<BakedModel> {
         }
         List<BakedQuad> quads = new ArrayList<>();
         if (renderType == null || originalModel.getRenderTypes(state, rand, data).contains(renderType)) {
-            quads.addAll(originalModel.getQuads(state, side, rand, data, renderType));
+            Vec3 offset = data.get(OFFSET);
+            for (BakedQuad quad : originalModel.getQuads(state, side, rand, data, renderType)) {
+                quads.add(offset == null || offset.equals(Vec3.ZERO) ? quad : offsetPlant(quad, offset));
+            }
         }
         if (renderType == null || renderType == RenderType.solid()) {
             BlockState snow = SnowLogging.snowState(state);
             BakedModel model = Minecraft.getInstance().getBlockRenderer().getBlockModel(snow);
-            Vec3 offset = data.get(OFFSET);
-            for (BakedQuad quad : model.getQuads(snow, side, rand, ModelData.EMPTY, renderType)) {
-                quads.add(offset == null || offset.equals(Vec3.ZERO) ? quad : unoffset(quad, offset));
-            }
+            quads.addAll(model.getQuads(snow, side, rand, ModelData.EMPTY, renderType));
         }
         return quads;
     }
 
-    private static BakedQuad unoffset(BakedQuad quad, Vec3 offset) {
+    private static BakedQuad offsetPlant(BakedQuad quad, Vec3 offset) {
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
         for (int vertex = 0; vertex < 4; vertex++) {
             int start = vertex * stride;
-            vertices[start] = Float.floatToRawIntBits(Float.intBitsToFloat(vertices[start]) - (float) offset.x);
-            vertices[start + 1] = Float.floatToRawIntBits(Float.intBitsToFloat(vertices[start + 1]) - (float) offset.y);
-            vertices[start + 2] = Float.floatToRawIntBits(Float.intBitsToFloat(vertices[start + 2]) - (float) offset.z);
+            vertices[start] = Float.floatToRawIntBits(Float.intBitsToFloat(vertices[start]) + (float) offset.x);
+            vertices[start + 1] = Float.floatToRawIntBits(Float.intBitsToFloat(vertices[start + 1]) + (float) offset.y);
+            vertices[start + 2] = Float.floatToRawIntBits(Float.intBitsToFloat(vertices[start + 2]) + (float) offset.z);
         }
         return new BakedQuad(vertices, quad.getTintIndex(), quad.getDirection(), quad.getSprite(), quad.isShade(), quad.hasAmbientOcclusion());
     }

@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,7 +18,8 @@ abstract class SnowPlacementMixin {
             at = @At("HEAD"), cancellable = true, require = 1)
     private void preserveFoliageAndSnow(BlockPos pos, BlockState state, int flags, int recursionLeft,
             CallbackInfoReturnable<Boolean> cir) {
-        if ((Object) this instanceof Level level && level.isClientSide) {
+        // server packets bypass merging, local placement still predicts the snowy variant
+        if ((Object) this instanceof Level level && level.isClientSide && (flags & Block.UPDATE_KNOWN_SHAPE) != 0) {
             return;
         }
         Boolean placed = SnowLogging.placeMerged((LevelAccessor) this, pos, state, flags, recursionLeft);
