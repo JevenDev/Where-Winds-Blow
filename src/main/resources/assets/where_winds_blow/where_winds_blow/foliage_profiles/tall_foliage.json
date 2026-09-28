@@ -6,6 +6,8 @@
   "sway_strength_multiplier": 0.95,
   "interaction_strength_multiplier": 0.75,
   "blocks": [
+    "where_winds_blow:snowy_tall_grass",
+    "where_winds_blow:snowy_large_fern",
     "#minecraft:tall_flowers",
     "minecraft:tall_grass",
     "minecraft:large_fern",

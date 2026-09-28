@@ -1,4 +1,9 @@
 {
+  "block.where_winds_blow.snowy_flat_grass": "Snowy Flat Grass",
+  "block.where_winds_blow.snowy_short_grass": "Snowy Short Grass",
+  "block.where_winds_blow.snowy_tall_grass": "Snowy Tall Grass",
+  "block.where_winds_blow.snowy_fern": "Snowy Fern",
+  "block.where_winds_blow.snowy_large_fern": "Snowy Large Fern",
   "modmenu.descriptionTranslation.where_winds_blow": "Adds fuller vanilla grass coverage to grassy biomes.",
   "where_winds_blow.config.title": "Where Winds Blow",
   "where_winds_blow.config.terrain": "Terrain",

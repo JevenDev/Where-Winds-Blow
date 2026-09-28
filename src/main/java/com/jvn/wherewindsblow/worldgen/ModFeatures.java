@@ -36,6 +36,11 @@ public final class ModFeatures {
             () -> new WildWheatPatchFeature(NoneFeatureConfiguration.CODEC)
     );
 
+    public static final DeferredHolder<Feature<?>, SnowyFoliagePatchFeature> SNOWY_FOLIAGE_PATCH = FEATURES.register(
+            "snowy_foliage_patch",
+            () -> new SnowyFoliagePatchFeature(NoneFeatureConfiguration.CODEC)
+    );
+
     private ModFeatures() {
     }
 

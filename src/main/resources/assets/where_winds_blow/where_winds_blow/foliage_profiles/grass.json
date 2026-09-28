@@ -6,6 +6,9 @@
   "sway_strength_multiplier": 1.15,
   "interaction_strength_multiplier": 1.15,
   "blocks": [
+    "where_winds_blow:snowy_flat_grass",
+    "where_winds_blow:snowy_short_grass",
+    "where_winds_blow:snowy_fern",
     "minecraft:short_grass",
     "minecraft:fern",
     "minecraft:dead_bush",

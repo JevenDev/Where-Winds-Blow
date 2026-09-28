@@ -87,6 +87,36 @@ public final class ModBlocks {
                     .sound(SoundType.GRASS)
     );
 
+    public static final DeferredBlock<SnowyGrassBlock> SNOWY_FLAT_GRASS = BLOCKS.registerBlock(
+            "snowy_flat_grass",
+            SnowyGrassBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SHORT_GRASS)
+    );
+
+    public static final DeferredBlock<SnowyGrassBlock> SNOWY_SHORT_GRASS = BLOCKS.registerBlock(
+            "snowy_short_grass",
+            SnowyGrassBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SHORT_GRASS)
+    );
+
+    public static final DeferredBlock<SnowyDoublePlantBlock> SNOWY_TALL_GRASS = BLOCKS.registerBlock(
+            "snowy_tall_grass",
+            SnowyDoublePlantBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.TALL_GRASS)
+    );
+
+    public static final DeferredBlock<SnowyGrassBlock> SNOWY_FERN = BLOCKS.registerBlock(
+            "snowy_fern",
+            SnowyGrassBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.SHORT_GRASS)
+    );
+
+    public static final DeferredBlock<SnowyDoublePlantBlock> SNOWY_LARGE_FERN = BLOCKS.registerBlock(
+            "snowy_large_fern",
+            SnowyDoublePlantBlock::new,
+            BlockBehaviour.Properties.ofFullCopy(Blocks.TALL_GRASS)
+    );
+
     public static final DeferredItem<BlockItem> OVERGROWN_GRASS_ITEM = ITEMS.registerSimpleBlockItem(OVERGROWN_GRASS, new Item.Properties());
     public static final DeferredItem<BlockItem> FLAT_GRASS_ITEM = ITEMS.registerSimpleBlockItem(FLAT_GRASS, new Item.Properties());
     public static final DeferredItem<BlockItem> FLAT_DEAD_GRASS_ITEM = ITEMS.registerSimpleBlockItem(FLAT_DEAD_GRASS, new Item.Properties());
@@ -94,6 +124,12 @@ public final class ModBlocks {
     public static final DeferredItem<BlockItem> SHORT_DRY_GRASS_ITEM = ITEMS.registerSimpleBlockItem(SHORT_DRY_GRASS, new Item.Properties());
     public static final DeferredItem<BlockItem> TALL_DRY_GRASS_ITEM = ITEMS.registerSimpleBlockItem(TALL_DRY_GRASS, new Item.Properties());
     public static final DeferredItem<BlockItem> WILD_WHEAT_ITEM = ITEMS.registerSimpleBlockItem(WILD_WHEAT, new Item.Properties());
+
+    public static final DeferredItem<BlockItem> SNOWY_FLAT_GRASS_ITEM = ITEMS.registerSimpleBlockItem(SNOWY_FLAT_GRASS, new Item.Properties());
+    public static final DeferredItem<BlockItem> SNOWY_SHORT_GRASS_ITEM = ITEMS.registerSimpleBlockItem(SNOWY_SHORT_GRASS, new Item.Properties());
+    public static final DeferredItem<BlockItem> SNOWY_TALL_GRASS_ITEM = ITEMS.registerSimpleBlockItem(SNOWY_TALL_GRASS, new Item.Properties());
+    public static final DeferredItem<BlockItem> SNOWY_FERN_ITEM = ITEMS.registerSimpleBlockItem(SNOWY_FERN, new Item.Properties());
+    public static final DeferredItem<BlockItem> SNOWY_LARGE_FERN_ITEM = ITEMS.registerSimpleBlockItem(SNOWY_LARGE_FERN, new Item.Properties());
 
     private ModBlocks() {
     }
@@ -113,6 +149,11 @@ public final class ModBlocks {
             event.accept(SHORT_DRY_GRASS_ITEM);
             event.accept(TALL_DRY_GRASS_ITEM);
             event.accept(WILD_WHEAT_ITEM);
+            event.accept(SNOWY_FLAT_GRASS_ITEM);
+            event.accept(SNOWY_SHORT_GRASS_ITEM);
+            event.accept(SNOWY_TALL_GRASS_ITEM);
+            event.accept(SNOWY_FERN_ITEM);
+            event.accept(SNOWY_LARGE_FERN_ITEM);
         }
     }
 }

@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#where_winds_blow:has_snowy_foliage",
+  "features": "where_winds_blow:snowy_foliage_patch",
+  "step": "vegetal_decoration"
+}

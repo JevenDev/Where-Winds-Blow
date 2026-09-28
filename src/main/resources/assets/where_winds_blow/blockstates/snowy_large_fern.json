@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "half=lower": {
+      "model": "where_winds_blow:block/snowy_large_fern_bottom"
+    },
+    "half=upper": {
+      "model": "where_winds_blow:block/snowy_large_fern_top"
+    }
+  }
+}

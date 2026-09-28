@@ -4,6 +4,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.jvn.wherewindsblow.block.FlatGrassBlock;
+import com.jvn.wherewindsblow.block.SnowyGrassBlock;
+import com.jvn.wherewindsblow.block.SnowyDoublePlantBlock;
 import com.jvn.wherewindsblow.block.ModBlocks;
 import com.jvn.wherewindsblow.block.OvergrownGrassBlock;
 import com.jvn.wherewindsblow.block.OvergrownGrassPart;
@@ -63,6 +65,7 @@ public final class GrassWorldgenTest {
         followsTerrainAndFillsPatches();
         keepsOvergrownClumpsLow();
         placesForestFerns();
+        placesSnowyPatches();
         preservesFernNeighbors();
         respectsFernPlacementLimits();
         preservesExistingVegetation();
@@ -214,6 +217,14 @@ public final class GrassWorldgenTest {
         }
         for (BlockState state : ModBlocks.OVERGROWN_GRASS.get().getStateDefinition().getPossibleStates()) {
             state.initCache();
+        }
+        for (var block : List.of(ModBlocks.SNOWY_FLAT_GRASS, ModBlocks.SNOWY_SHORT_GRASS, ModBlocks.SNOWY_FERN)) {
+            Registry.register(BuiltInRegistries.BLOCK, block.getId(),
+                    new SnowyGrassBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.SHORT_GRASS)));
+        }
+        for (var block : List.of(ModBlocks.SNOWY_TALL_GRASS, ModBlocks.SNOWY_LARGE_FERN)) {
+            Registry.register(BuiltInRegistries.BLOCK, block.getId(),
+                    new SnowyDoublePlantBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.TALL_GRASS)));
         }
         BuiltInRegistries.BLOCK.freeze();
         Registry.register(BuiltInRegistries.FEATURE, ModFeatures.FERN_PATCH.getId(),
@@ -447,6 +458,43 @@ public final class GrassWorldgenTest {
             check(!FernPatchFeature.placeFern(world.level, world.bottom(), 2), "failed fern writes report failure");
             check(world.blocks.equals(before), "failed fern placement restores the original ground cover");
             world.checkPlants();
+        }
+    }
+
+    private static void placesSnowyPatches() throws IOException {
+        check(biomeTagValues("has_snowy_foliage").equals(Set.of("#c:is_snowy")), "snowy foliage follows snowy biome tags");
+        check(worldgenResource("placed_feature", "snowy_foliage_patch").getAsJsonArray("placement")
+                .get(0).getAsJsonObject().get("chance").getAsInt() == 3, "snowy patches remain sparse");
+        SnowyFoliagePatchFeature feature = new SnowyFoliagePatchFeature(NoneFeatureConfiguration.CODEC);
+        TestWorld border = new TestWorld((x, z) -> 64 + Math.floorDiv(x, 4));
+        border.biome = biome("has_snowy_foliage");
+        border.includedBiomes = pos -> pos.getX() < 0;
+        check(feature.place(context(border, new BlockPos(-1, 90, 0), 42)), "snowy patches follow sloping terrain");
+        for (BlockPos pos : border.blocks.keySet()) {
+            check(pos.getX() < 0, "snowy plants stay within snowy biome boundaries");
+        }
+        border.checkPlants();
+        for (BlockState obstruction : new BlockState[]{Blocks.STONE.defaultBlockState(), Blocks.WATER.defaultBlockState(),
+                Blocks.DANDELION.defaultBlockState(), Blocks.LARGE_FERN.defaultBlockState()}) {
+            TestWorld world = new TestWorld((x, z) -> 64);
+            world.biome = biome("has_snowy_foliage");
+            world.blocks.put(world.bottom(), obstruction);
+            check(!SnowyFoliagePatchFeature.placePlant(world.level, world.bottom(), ModBlocks.SNOWY_FERN.get(),
+                    ModBlocks.SNOWY_LARGE_FERN.get(), true), "snowy patches preserve existing vegetation and obstacles");
+            check(world.state(world.bottom()).equals(obstruction), "snowy placement leaves obstructions intact");
+        }
+        for (var tallPlant : List.of(ModBlocks.SNOWY_TALL_GRASS, ModBlocks.SNOWY_LARGE_FERN)) {
+            TestWorld world = new TestWorld((x, z) -> 64);
+            world.biome = biome("has_snowy_foliage");
+            world.failedWrite = world.bottom().above();
+            check(!SnowyFoliagePatchFeature.placePlant(world.level, world.bottom(), ModBlocks.SNOWY_SHORT_GRASS.get(),
+                    tallPlant.get(), true), "failed snowy upper-half writes report failure");
+            check(world.blocks.isEmpty(), "failed snowy placement restores the original cover");
+            world.failedWrite = null;
+            world.blocks.put(world.bottom().above(), Blocks.STONE.defaultBlockState());
+            check(SnowyFoliagePatchFeature.placePlant(world.level, world.bottom(), ModBlocks.SNOWY_SHORT_GRASS.get(),
+                    tallPlant.get(), true), "snowy tall plants fall back to short cover under obstacles");
+            check(world.state(world.bottom()).is(ModBlocks.SNOWY_SHORT_GRASS.get()), "snowy fallback uses a short plant");
         }
     }
 
@@ -696,7 +744,7 @@ public final class GrassWorldgenTest {
             for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
                 BlockPos pos = entry.getKey();
                 BlockState state = entry.getValue();
-                if (state.is(Blocks.TALL_GRASS) || state.is(Blocks.LARGE_FERN)) {
+                if (state.getBlock() instanceof DoublePlantBlock) {
                     boolean lower = state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER;
                     BlockState partner = state(lower ? pos.above() : pos.below());
                     check(partner.is(state.getBlock())
