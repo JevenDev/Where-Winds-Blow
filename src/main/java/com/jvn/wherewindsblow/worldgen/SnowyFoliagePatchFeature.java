@@ -2,6 +2,7 @@ package com.jvn.wherewindsblow.worldgen;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
 import com.jvn.wherewindsblow.block.ModBlocks;
+import com.jvn.wherewindsblow.block.SnowLogging;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -52,12 +53,16 @@ public final class SnowyFoliagePatchFeature extends Feature<NoneFeatureConfigura
     static boolean placePlant(WorldGenLevel level, BlockPos anchor, Block shortPlant, Block tallPlant, boolean tall) {
         int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, anchor.getX(), anchor.getZ());
         BlockPos bottom = new BlockPos(anchor.getX(), y, anchor.getZ());
+        if (level.getBlockState(bottom.below()).is(Blocks.SNOW)) {
+            bottom = bottom.below();
+        }
         if (level.isOutsideBuildHeight(bottom) || !level.ensureCanWrite(bottom)
                 || !level.getBiome(bottom).is(BIOMES) || !level.getFluidState(bottom).isEmpty()) {
             return false;
         }
         BlockState previous = level.getBlockState(bottom);
-        if (!previous.isAir() && !previous.is(Blocks.SHORT_GRASS) && !previous.is(Blocks.FERN)) {
+        if (!previous.isAir() && !previous.is(Blocks.SHORT_GRASS) && !previous.is(Blocks.FERN)
+                && !(previous.is(Blocks.SNOW) && shortPlant.defaultBlockState().hasProperty(SnowLogging.LAYERS))) {
             return false;
         }
         BlockState lower = shortPlant.defaultBlockState();
@@ -67,15 +72,17 @@ public final class SnowyFoliagePatchFeature extends Feature<NoneFeatureConfigura
         BlockPos top = bottom.above();
         if (tall && !level.isOutsideBuildHeight(top) && level.ensureCanWrite(top) && level.getBlockState(top).isAir()) {
             lower = tallPlant.defaultBlockState().setValue(DoublePlantBlock.HALF, DoubleBlockHalf.LOWER);
+            BlockState upper = lower.setValue(DoublePlantBlock.HALF, DoubleBlockHalf.UPPER);
+            lower = SnowLogging.mergePlacement(level, bottom, lower);
             if (!level.setBlock(bottom, lower, 2)) {
                 return false;
             }
-            if (!level.setBlock(top, lower.setValue(DoublePlantBlock.HALF, DoubleBlockHalf.UPPER), 2)) {
-                level.setBlock(bottom, previous, 2);
+            if (!level.setBlock(top, upper, 2)) {
+                SnowLogging.restorePlacement(level, bottom, previous, 2);
                 return false;
             }
             return true;
         }
-        return level.setBlock(bottom, lower, 2);
+        return level.setBlock(bottom, SnowLogging.mergePlacement(level, bottom, lower), 2);
     }
 }

@@ -23,6 +23,10 @@ public final class WhereWindsBlowMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
+        if (mixinClassName.contains(".mixin.snow.")) {
+            return !isModLoaded(SNOW_REAL_MAGIC_MOD_ID);
+        }
+
         if (mixinClassName.contains(".compat.") && isModLoaded(CHUNKS_FADE_IN_MOD_ID)) {
             return false;
         }

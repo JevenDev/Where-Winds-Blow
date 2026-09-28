@@ -171,6 +171,10 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 sourceSets {
+    snowLoggingTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
     grassWorldgenTest {
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
@@ -186,6 +190,23 @@ sourceSets {
     foliageInteractionTest {
         compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
         runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+
+neoForge {
+    mods {
+        snowLoggingTests {
+            sourceSet(sourceSets.main)
+            sourceSet(sourceSets.snowLoggingTest)
+        }
+    }
+    runs.configureEach {
+        loadedMods = [mods."${mod_id}"]
+    }
+    runs.gameTestServer {
+        loadedMods = [mods.snowLoggingTests]
+        gameDirectory = layout.buildDirectory.dir('snowlogging-gametest')
+        logLevel = org.slf4j.event.Level.INFO
     }
 }
 

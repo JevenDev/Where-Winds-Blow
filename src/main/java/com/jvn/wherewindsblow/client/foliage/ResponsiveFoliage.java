@@ -1,6 +1,7 @@
 package com.jvn.wherewindsblow.client.foliage;
 
 import com.jvn.wherewindsblow.WhereWindsBlow;
+import com.jvn.wherewindsblow.block.SnowLogging;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.GlobalWindState;
 import com.jvn.wherewindsblow.client.wind.WindExposureCache;
@@ -148,11 +149,14 @@ public final class ResponsiveFoliage {
         event.getModels().replaceAll((location, model) -> {
             if (location.variant().equals(ModelResourceLocation.INVENTORY_VARIANT)
                     || model instanceof ResponsiveFoliageModel
+                    || model instanceof SnowloggedFoliageModel
                     || BuiltInRegistries.BLOCK.getOptional(location.id()).isEmpty()) {
                 return model;
             }
             // Profiles and server block tags can change after model baking
-            return wrapModel(model);
+            BakedModel foliage = wrapModel(model);
+            return BuiltInRegistries.BLOCK.get(location.id()).defaultBlockState().hasProperty(SnowLogging.LAYERS)
+                    ? new SnowloggedFoliageModel(foliage) : foliage;
         });
     }
 

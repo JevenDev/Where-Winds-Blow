@@ -4,6 +4,7 @@ import com.jvn.toucanlib.neoforge.event.ToucanEventBuses;
 import com.jvn.toucanlib.util.ToucanIds;
 import com.jvn.wherewindsblow.block.GrassBonemealHandler;
 import com.jvn.wherewindsblow.block.ModBlocks;
+import com.jvn.wherewindsblow.block.SnowLogging;
 import com.mojang.logging.LogUtils;
 import com.jvn.wherewindsblow.config.CommonConfig;
 import com.jvn.wherewindsblow.worldgen.ModBiomeModifiers;
@@ -28,6 +29,7 @@ public class WhereWindsBlow {
         ToucanEventBuses.on(modEventBus).listener(this::commonSetup);
         ToucanEventBuses.game().listener(this::addServerReloadListeners);
         ToucanEventBuses.game().listener(GrassBonemealHandler::onBonemeal);
+        ToucanEventBuses.game().listener(SnowLogging::onShovel);
 
         ModBlocks.register(modEventBus);
         ModFeatures.register(modEventBus);

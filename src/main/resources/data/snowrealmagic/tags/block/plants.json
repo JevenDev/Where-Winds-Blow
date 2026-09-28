@@ -1,0 +1,16 @@
+{
+  "replace": false,
+  "values": [
+    "where_winds_blow:flat_grass",
+    "where_winds_blow:overgrown_grass",
+    "where_winds_blow:flat_dead_grass",
+    "where_winds_blow:short_dead_grass",
+    "where_winds_blow:short_dry_grass",
+    "where_winds_blow:tall_dry_grass",
+    "where_winds_blow:snowy_flat_grass",
+    "where_winds_blow:snowy_short_grass",
+    "where_winds_blow:snowy_tall_grass",
+    "where_winds_blow:snowy_fern",
+    "where_winds_blow:snowy_large_fern"
+  ]
+}

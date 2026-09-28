@@ -3,6 +3,16 @@
   "package": "com.jvn.wherewindsblow.mixin",
   "plugin": "com.jvn.wherewindsblow.mixin.WhereWindsBlowMixinPlugin",
   "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "snow.FoliageStateDefinitionMixin",
+    "snow.FoliageBlockMixin",
+    "snow.FoliageBlockStateMixin",
+    "snow.SnowPlacementMixin",
+    "snow.SnowLayerBlockMixin",
+    "snow.SnowBiomeMixin",
+    "snow.SnowPrecipitationMixin",
+    "snow.SnowyDirtBlockMixin"
+  ],
   "client": [
     "client.CampfireBlockEntityMixin",
     "client.CampfireSmokeParticleMixin",

@@ -135,9 +135,12 @@ public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock 
         try {
             for (int offset = 0; offset < clampedHeight; offset++) {
                 BlockState state = this.defaultBlockState().setValue(PART, partFor(offset, clampedHeight));
+                if (offset == 0 && state.hasProperty(SnowLogging.LAYERS)) {
+                    state = state.setValue(SnowLogging.LAYERS, SnowLogging.layers(previous[offset]));
+                }
                 if (!previous[offset].equals(state) && !level.setBlock(bottomPos.above(offset), state, 3)) {
                     for (int restore = offset - 1; restore >= 0; restore--) {
-                        level.setBlock(bottomPos.above(restore), previous[restore], 3);
+                        SnowLogging.restorePlacement(level, bottomPos.above(restore), previous[restore], 3);
                     }
                     return false;
                 }
@@ -197,7 +200,7 @@ public class OvergrownGrassBlock extends BushBlock implements BonemealableBlock 
         int height = columnHeight(level, bottomPos);
         for (int offset = 0; offset < height; offset++) {
             BlockPos current = bottomPos.above(offset);
-            level.setBlock(current, this.defaultBlockState().setValue(PART, partFor(offset, height)), 3);
+            level.setBlock(current, level.getBlockState(current).setValue(PART, partFor(offset, height)), 3);
         }
     }
 
