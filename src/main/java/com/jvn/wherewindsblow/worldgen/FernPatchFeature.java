@@ -35,19 +35,11 @@ public final class FernPatchFeature extends Feature<NoneFeatureConfiguration> {
         WorldGenLevel level = context.level();
         RandomSource random = context.random();
         BlockPos origin = context.origin();
-        GrassPatchShape shape = GrassPatchShape.create(random, 3.0D, 4.5D, 2.75D, 3.75D);
         boolean placedAny = false;
-        int bounds = shape.bounds();
-
-        for (int offsetX = -bounds; offsetX <= bounds; offsetX++) {
-            for (int offsetZ = -bounds; offsetZ <= bounds; offsetZ++) {
-                int worldX = origin.getX() + offsetX;
-                int worldZ = origin.getZ() + offsetZ;
-                int height = shape.grassHeight(offsetX, offsetZ, worldX, worldZ, 2);
-                if (height > 0) {
-                    placedAny |= placeFern(level, origin.offset(offsetX, 0, offsetZ), height);
-                }
-            }
+        for (int attempt = 0; attempt < 12; attempt++) {
+            BlockPos anchor = origin.offset(random.nextInt(15) - 7, 0, random.nextInt(15) - 7);
+            int height = random.nextFloat() < 0.25F ? 2 : 1;
+            placedAny |= placeFern(level, anchor, height);
         }
 
         return placedAny;

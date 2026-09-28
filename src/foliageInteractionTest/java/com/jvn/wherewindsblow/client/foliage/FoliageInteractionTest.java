@@ -1,10 +1,29 @@
 package com.jvn.wherewindsblow.client.foliage;
 
+import com.jvn.wherewindsblow.block.SnowLogging;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import net.minecraft.SharedConstants;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.Bootstrap;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.loading.LoadingModList;
+import net.neoforged.neoforge.client.model.data.ModelData;
+import net.neoforged.neoforge.common.util.TriState;
+import net.neoforged.neoforge.registries.GameData;
 
 public final class FoliageInteractionTest {
     private static int checks;
@@ -30,7 +49,40 @@ public final class FoliageInteractionTest {
             check(!hasImpulse(groundY - 2.0D, groundY - 0.2D, groundY, 1.2F, 0.0F),
                     "standing below foliage does not push it");
         }
+        snowUsesAmbientOcclusion();
         System.out.println("Passed " + checks + " foliage interaction checks.");
+    }
+
+    private static void snowUsesAmbientOcclusion() {
+        LoadingModList.of(List.of(), List.of(), List.of(), List.of(), Map.of());
+        ModList.of(List.of(), List.of());
+        SharedConstants.tryDetectVersion();
+        Bootstrap.bootStrap();
+        GameData.unfreezeData();
+        Block plant = new Block(BlockBehaviour.Properties.of()) {
+            @Override
+            protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+                builder.add(SnowLogging.LAYERS);
+            }
+        };
+        Registry.register(BuiltInRegistries.BLOCK, ResourceLocation.fromNamespaceAndPath("where_winds_blow", "ao_test"), plant);
+        BakedModel unshadedPlant = (BakedModel) Proxy.newProxyInstance(BakedModel.class.getClassLoader(),
+                new Class<?>[]{BakedModel.class}, (proxy, method, arguments) -> {
+                    if (method.getName().equals("useAmbientOcclusion")) {
+                        return method.getReturnType() == boolean.class ? false : TriState.FALSE;
+                    }
+                    throw new AssertionError("unexpected model call: " + method.getName());
+                });
+        SnowloggedFoliageModel model = new SnowloggedFoliageModel(unshadedPlant);
+        for (int layers : new int[]{0, 1, 8}) {
+            BlockState state = plant.defaultBlockState().setValue(SnowLogging.LAYERS, layers);
+            check(model.useAmbientOcclusion(state, ModelData.EMPTY, RenderType.solid())
+                    == (layers > 0 ? TriState.TRUE : TriState.FALSE), "snow uses ambient occlusion despite an unshaded plant model");
+            check(model.useAmbientOcclusion(state, ModelData.EMPTY, RenderType.cutoutMipped()) == TriState.FALSE,
+                    "foliage keeps its original cutout shading");
+            check(model.useAmbientOcclusion(state, ModelData.EMPTY, null)
+                    == (layers > 0 ? TriState.TRUE : TriState.FALSE), "combined rendering also shades snow");
+        }
     }
 
     private static boolean hasImpulse(double minY, double maxY, int blockY, float radius, float trailX)

@@ -33,13 +33,13 @@ public final class SnowyFoliagePatchFeature extends Feature<NoneFeatureConfigura
     public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {
         RandomSource random = context.random();
         GrassPatchShape shape = GrassPatchShape.create(random, 3.0D, 5.0D, 2.5D, 4.0D);
-        boolean ferns = random.nextFloat() < 0.3F;
         boolean placedAny = false;
         for (int x = -shape.bounds(); x <= shape.bounds(); x++) {
             for (int z = -shape.bounds(); z <= shape.bounds(); z++) {
                 BlockPos anchor = context.origin().offset(x, 0, z);
                 int height = shape.grassHeight(x, z, anchor.getX(), anchor.getZ(), 2);
                 if (height > 0 && random.nextFloat() < 0.65F) {
+                    boolean ferns = random.nextFloat() < 0.1F;
                     Block shortPlant = ferns ? ModBlocks.SNOWY_FERN.get()
                             : random.nextFloat() < 0.35F ? ModBlocks.SNOWY_FLAT_GRASS.get() : ModBlocks.SNOWY_SHORT_GRASS.get();
                     Block tallPlant = ferns ? ModBlocks.SNOWY_LARGE_FERN.get() : ModBlocks.SNOWY_TALL_GRASS.get();

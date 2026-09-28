@@ -17,6 +17,7 @@ import net.neoforged.neoforge.client.ChunkRenderTypeSet;
 import net.neoforged.neoforge.client.model.BakedModelWrapper;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.client.model.data.ModelProperty;
+import net.neoforged.neoforge.common.util.TriState;
 import org.jetbrains.annotations.Nullable;
 
 final class SnowloggedFoliageModel extends BakedModelWrapper<BakedModel> {
@@ -36,6 +37,12 @@ final class SnowloggedFoliageModel extends BakedModelWrapper<BakedModel> {
     public ChunkRenderTypeSet getRenderTypes(BlockState state, RandomSource rand, ModelData data) {
         ChunkRenderTypeSet types = originalModel.getRenderTypes(state, rand, data);
         return SnowLogging.layers(state) > 0 ? ChunkRenderTypeSet.union(types, ChunkRenderTypeSet.of(RenderType.solid())) : types;
+    }
+
+    @Override
+    public TriState useAmbientOcclusion(BlockState state, ModelData data, RenderType renderType) {
+        return SnowLogging.layers(state) > 0 && (renderType == null || renderType == RenderType.solid())
+                ? TriState.TRUE : originalModel.useAmbientOcclusion(state, data, renderType);
     }
 
     @Override

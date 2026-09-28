@@ -361,6 +361,12 @@ public final class GrassWorldgenTest {
         check(feature.place(context(spruce, origin, 42)), "ferns follow the forest floor below a canopy-height origin");
         check(spruce.blocks.values().stream().anyMatch(state -> state.is(Blocks.FERN)), "fern patches include small ferns");
         check(spruce.blocks.values().stream().anyMatch(state -> state.is(Blocks.LARGE_FERN)), "spruce patches include large ferns");
+        long fernCount = spruce.blocks.values().stream().filter(state -> state.is(Blocks.FERN)
+                || state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.LOWER).count();
+        check(fernCount <= 12, "forest ferns remain scattered accents");
+        check(spruce.blocks.keySet().stream().mapToInt(BlockPos::getX).max().orElseThrow()
+                - spruce.blocks.keySet().stream().mapToInt(BlockPos::getX).min().orElseThrow() >= 8,
+                "forest fern accents spread across the surrounding floor");
         spruce.checkPlants();
 
         TestWorld repeated = new TestWorld((x, z) -> 80 + x - z);
@@ -466,6 +472,39 @@ public final class GrassWorldgenTest {
         check(worldgenResource("placed_feature", "snowy_foliage_patch").getAsJsonArray("placement")
                 .get(0).getAsJsonObject().get("chance").getAsInt() == 3, "snowy patches remain sparse");
         SnowyFoliagePatchFeature feature = new SnowyFoliagePatchFeature(NoneFeatureConfiguration.CODEC);
+        int grasses = 0;
+        int ferns = 0;
+        int mixed = 0;
+        boolean smallFern = false;
+        boolean largeFern = false;
+        for (int seed = 0; seed < 64; seed++) {
+            TestWorld world = new TestWorld((x, z) -> 64);
+            world.biome = biome("has_snowy_foliage");
+            feature.place(context(world, world.bottom(), seed));
+            int patchGrasses = 0;
+            int patchFerns = 0;
+            for (BlockState state : world.blocks.values()) {
+                if (state.hasProperty(DoublePlantBlock.HALF) && state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.UPPER) {
+                    continue;
+                }
+                if (state.is(ModBlocks.SNOWY_FERN.get()) || state.is(ModBlocks.SNOWY_LARGE_FERN.get())) {
+                    patchFerns++;
+                    smallFern |= state.is(ModBlocks.SNOWY_FERN.get());
+                    largeFern |= state.is(ModBlocks.SNOWY_LARGE_FERN.get());
+                } else {
+                    patchGrasses++;
+                }
+            }
+            check(patchGrasses > 0, "snowy generation keeps grass throughout each patch");
+            grasses += patchGrasses;
+            ferns += patchFerns;
+            if (patchGrasses > 0 && patchFerns > 0) {
+                mixed++;
+            }
+            world.checkPlants();
+        }
+        check(ferns > 0 && ferns * 4 < grasses, "snowy ferns remain occasional accents among grass");
+        check(mixed > 32 && smallFern && largeFern, "both fern sizes are sprinkled through mixed snowy patches");
         TestWorld border = new TestWorld((x, z) -> 64 + Math.floorDiv(x, 4));
         border.biome = biome("has_snowy_foliage");
         border.includedBiomes = pos -> pos.getX() < 0;
