@@ -12,6 +12,7 @@ import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 
 public final class GrassCoverFeature extends Feature<GrassCoverConfiguration> {
     private static final long COVER_NOISE_SALT = 0x6A09E667F3BCC909L;
+    private static final long PATCH_NOISE_SALT = 0xBB67AE8584CAA73BL;
     private static final float MAX_COVERAGE = 0.88F;
 
     public GrassCoverFeature(Codec<GrassCoverConfiguration> codec) {
@@ -39,8 +40,7 @@ public final class GrassCoverFeature extends Feature<GrassCoverConfiguration> {
             int z = minZ + offsetZ;
             for (int offsetX = 0; offsetX < 16; offsetX++) {
                 int x = minX + offsetX;
-                float variation = (float) GrassPatchShape.valueNoise(x, z, noiseSeed) * 0.12F;
-                float localCoverage = Mth.clamp(coverage + variation, 0.0F, MAX_COVERAGE);
+                float localCoverage = coverageAt(x, z, noiseSeed, coverage);
                 if (random.nextFloat() >= localCoverage) {
                     continue;
                 }
@@ -65,5 +65,11 @@ public final class GrassCoverFeature extends Feature<GrassCoverConfiguration> {
         }
 
         return placedAny;
+    }
+
+    static float coverageAt(int x, int z, long noiseSeed, float coverage) {
+        float patch = (float) GrassPatchShape.valueNoise(x, z, noiseSeed ^ PATCH_NOISE_SALT, 28);
+        float detail = (float) GrassPatchShape.valueNoise(x, z, noiseSeed) * 0.04F;
+        return Mth.clamp(coverage * (0.8F + patch * 0.5F) + detail, 0.0F, MAX_COVERAGE);
     }
 }

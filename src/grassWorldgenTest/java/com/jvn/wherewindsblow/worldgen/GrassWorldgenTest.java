@@ -61,6 +61,7 @@ public final class GrassWorldgenTest {
         checksFernBiomeTags();
         checksPatchTransitions();
         bootstrapBlocks();
+        checksBroadGrassCoverage();
         checksPatchPlacementResources();
         followsTerrainAndFillsPatches();
         keepsOvergrownClumpsLow();
@@ -124,6 +125,28 @@ public final class GrassWorldgenTest {
                 "overgrown patches default to swamp and jungle biome families");
         check(biomeTagValues("has_overgrown_grass_fields").isEmpty(),
                 "overgrown fields no longer generate in open biomes by default");
+    }
+
+    private static void checksBroadGrassCoverage() {
+        float minimum = 1.0F;
+        float maximum = 0.0F;
+        long seed = 813749L;
+        for (int x = -96; x <= 96; x += 4) {
+            for (int z = -96; z <= 96; z += 4) {
+                float coverage = GrassCoverFeature.coverageAt(x, z, seed, 0.8F);
+                minimum = Math.min(minimum, coverage);
+                maximum = Math.max(maximum, coverage);
+                check(coverage >= 0.0F && coverage <= 0.88F, "grass coverage stays within its limits");
+                check(coverage == GrassCoverFeature.coverageAt(x, z, seed, 0.8F),
+                        "grass coverage is deterministic at world coordinates");
+            }
+        }
+        check(maximum - minimum > 0.3F, "grass cover has broad dense and thin areas");
+        for (int z = -32; z <= 32; z++) {
+            float west = GrassCoverFeature.coverageAt(15, z, seed, 0.8F);
+            float east = GrassCoverFeature.coverageAt(16, z, seed, 0.8F);
+            check(Math.abs(west - east) < 0.06F, "grass cover stays smooth across chunk borders");
+        }
     }
 
     private static void checksFernBiomeTags() throws IOException {
