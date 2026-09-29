@@ -121,7 +121,7 @@
   "where_winds_blow.config.enableGrassGapFill": "Fill Grass Gaps",
   "where_winds_blow.config.enableGrassGapFill.tooltip": "Draws shorter crossed grass between adjacent matching grass plants to cover visible gaps.",
   "where_winds_blow.config.enableDenseFlowers": "Dense Flowers",
-  "where_winds_blow.config.enableDenseFlowers.tooltip": "Draws extra flowers on each block and between adjacent flowers selected by foliage profiles.",
+  "where_winds_blow.config.enableDenseFlowers.tooltip": "Draws extra flowers on each block and between adjacent flowers selected by foliage profiles. Shift-right-click with an empty hand to toggle a single flower. Choices are saved locally per world.",
   "where_winds_blow.config.enableGrassHeightVariation": "Vary Grass Height",
   "where_winds_blow.config.enableGrassHeightVariation.tooltip": "Changes only the rendered height of grass. Nearby pieces of the same tall plant stay connected.",
   "where_winds_blow.config.grassHeightMin": "Shortest Grass",
@@ -306,5 +306,9 @@
   "item.where_winds_blow.short_dead_grass": "Short Dead Grass",
   "item.where_winds_blow.short_dry_grass": "Short Dry Grass",
   "item.where_winds_blow.tall_dry_grass": "Tall Dry Grass",
-  "item.where_winds_blow.wild_wheat": "Wild Wheat"
+  "item.where_winds_blow.wild_wheat": "Wild Wheat",
+  "where_winds_blow.flowerDensity.single": "Single flower",
+  "where_winds_blow.flowerDensity.cluster": "Flower cluster",
+  "where_winds_blow.flowerDensity.loadFailed": "Could not load your saved flower choices. Check the client log.",
+  "where_winds_blow.flowerDensity.saveFailed": "Could not save this flower choice. Check the client log."
 }

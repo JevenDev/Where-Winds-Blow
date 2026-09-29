@@ -57,6 +57,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final Direction[] FLOWER_DIRECTIONS = {
             Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
     };
+    private static final Direction[] FLOWER_GAP_DIRECTIONS = {Direction.EAST, Direction.SOUTH};
     private static final int FLOWER_VARIANT_COUNT = 32;
     private static final FlowerCopy[] FLOWER_COPIES = FlowerCopy.values();
     private static final ModelProperty<FlowerCoverage> FLOWER_COVERAGE = new ModelProperty<>(FlowerCoverage.class::isInstance);
@@ -88,11 +89,12 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             }
         }
         if (profile != null && profile.type() == ResponsiveFoliageType.FLOWER
-                && profile.denseWhenAdjacent() && ClientConfig.ENABLE_DENSE_FLOWERS.getAsBoolean()) {
+                && profile.denseWhenAdjacent() && ClientConfig.ENABLE_DENSE_FLOWERS.getAsBoolean()
+                && !FlowerDensityOverrides.isSingleFlower(pos, state)) {
             int neighbors = flowerNeighbors(level, pos, state);
             if (neighbors != 0) {
                 originalData = originalData.derive()
-                        .with(FLOWER_COVERAGE, new FlowerCoverage(neighbors, flowerVariant(pos)))
+                        .with(FLOWER_COVERAGE, new FlowerCoverage(flowerGapEdges(level, pos, neighbors), flowerVariant(pos)))
                         .build();
             }
         }
@@ -189,16 +191,16 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         if (side == null && ClientConfig.ENABLE_DENSE_FLOWERS.getAsBoolean()
                 && extraData.has(FLOWER_COVERAGE) && !quads.isEmpty()) {
             FlowerCoverage coverage = extraData.get(FLOWER_COVERAGE);
-            int bridges = Integer.bitCount(coverage.neighbors() & (flowerNeighborBit(Direction.EAST)
+            int bridges = Integer.bitCount(coverage.gapEdges() & (flowerNeighborBit(Direction.EAST)
                     | flowerNeighborBit(Direction.SOUTH)));
             List<BakedQuad> filled = new ArrayList<>(quads.size() * (3 + bridges));
             filled.addAll(quads);
             for (BakedQuad quad : quads) {
                 for (FlowerCopy copy : FLOWER_COPIES) {
                     if ((copy == FlowerCopy.EAST_GAP
-                            && (coverage.neighbors() & flowerNeighborBit(Direction.EAST)) == 0)
+                            && (coverage.gapEdges() & flowerNeighborBit(Direction.EAST)) == 0)
                             || (copy == FlowerCopy.SOUTH_GAP
-                            && (coverage.neighbors() & flowerNeighborBit(Direction.SOUTH)) == 0)) {
+                            && (coverage.gapEdges() & flowerNeighborBit(Direction.SOUTH)) == 0)) {
                         continue;
                     }
                     filled.add(flowerFillQuadCache().computeIfAbsent(
@@ -384,6 +386,19 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             case WEST -> 8;
             default -> 0;
         };
+    }
+
+    private static int flowerGapEdges(BlockAndTintGetter level, BlockPos pos, int neighbors) {
+        int edges = neighbors;
+        for (Direction direction : FLOWER_GAP_DIRECTIONS) {
+            if ((edges & flowerNeighborBit(direction)) != 0) {
+                BlockPos adjacent = pos.relative(direction);
+                if (FlowerDensityOverrides.isSingleFlower(adjacent, level.getBlockState(adjacent))) {
+                    edges &= ~flowerNeighborBit(direction);
+                }
+            }
+        }
+        return edges;
     }
 
     private static int flowerVariant(BlockPos pos) {
@@ -799,7 +814,7 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         SOUTH_GAP
     }
 
-    private record FlowerCoverage(int neighbors, int variant) {
+    private record FlowerCoverage(int gapEdges, int variant) {
     }
 
     private record FlowerPlacement(float xOffset, float zOffset, float widthScale, float heightScale, float rotation) {

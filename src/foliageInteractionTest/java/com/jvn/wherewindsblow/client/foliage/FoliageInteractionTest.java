@@ -2,10 +2,14 @@ package com.jvn.wherewindsblow.client.foliage;
 
 import com.google.gson.JsonObject;
 import com.jvn.wherewindsblow.block.SnowLogging;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -38,7 +42,7 @@ import net.neoforged.neoforge.registries.GameData;
 public final class FoliageInteractionTest {
     private static int checks;
 
-    public static void main(String[] args) throws ReflectiveOperationException {
+    public static void main(String[] args) throws ReflectiveOperationException, IOException {
         for (int groundY : new int[]{-64, 0, 64, 127}) {
             check(!hasImpulse(groundY + 1.0D, groundY + 2.8D, groundY, 1.2F, 0.0F),
                     "standing level with the foliage top does not push it");
@@ -63,6 +67,7 @@ public final class FoliageInteractionTest {
         loggedPlantsKeepTheirOffset();
         adjacentGrassGetsEdgeFill();
         adjacentFlowersGetDenseCoverage();
+        flowerOverridesPersistPerWorld();
         variedPlantHeightKeepsColumnsConnected();
         System.out.println("Passed " + checks + " foliage interaction checks.");
     }
@@ -426,6 +431,78 @@ public final class FoliageInteractionTest {
                     Float.intBitsToFloat(vertices[offset + 1]), Float.intBitsToFloat(vertices[offset + 2]));
         }
         return center.scale(0.25D);
+    }
+
+    private static void flowerOverridesPersistPerWorld() throws IOException {
+        Path directory = Files.createTempDirectory("flower-overrides-test-");
+        try {
+            Path file = FlowerDensityOverrideStore.fileForWorld(directory, "singleplayer:world-a");
+            check(file.equals(FlowerDensityOverrideStore.fileForWorld(directory, "singleplayer:world-a")),
+                    "the same world uses the same override file");
+            Path otherWorld = FlowerDensityOverrideStore.fileForWorld(directory, "singleplayer:world-b");
+            check(!file.equals(otherWorld), "different worlds use different override files");
+            check(!file.equals(FlowerDensityOverrideStore.fileForWorld(directory, "server:world-a")),
+                    "singleplayer and multiplayer identities stay separate");
+            check(FlowerDensityOverrideStore.fileForWorld(directory, "../server:name").getParent().equals(directory),
+                    "world identities cannot escape the local storage directory");
+
+            ResourceLocation overworld = ResourceLocation.withDefaultNamespace("overworld");
+            ResourceLocation nether = ResourceLocation.withDefaultNamespace("the_nether");
+            ResourceLocation dandelion = ResourceLocation.withDefaultNamespace("dandelion");
+            ResourceLocation poppy = ResourceLocation.withDefaultNamespace("poppy");
+            BlockPos pos = new BlockPos(30_000_000, 319, -30_000_000);
+            FlowerDensityOverrideStore store = new FlowerDensityOverrideStore(file);
+            check(!store.isSingle(overworld, pos, dandelion), "flowers start without a single-flower override");
+            check(store.toggle(overworld, pos, dandelion), "the first click selects a single flower");
+            FlowerDensityOverrideStore rejoined = new FlowerDensityOverrideStore(file);
+            check(rejoined.isSingle(overworld, pos, dandelion),
+                    "single flowers survive leaving and rejoining at large coordinates");
+            check(!rejoined.isSingle(nether, pos, dandelion), "dimensions do not share overrides");
+            check(!rejoined.isSingle(overworld, pos.east(), dandelion), "nearby blocks keep their own density");
+            check(!rejoined.isSingle(overworld, pos, poppy),
+                    "replacing a flower with another type does not inherit its override");
+            check(!new FlowerDensityOverrideStore(otherWorld).isSingle(overworld, pos, dandelion),
+                    "another world does not inherit a flower choice");
+
+            rejoined.toggle(nether, pos, poppy);
+            check(!rejoined.toggle(overworld, pos, dandelion), "a second click restores the cluster");
+            FlowerDensityOverrideStore restored = new FlowerDensityOverrideStore(file);
+            check(!restored.isSingle(overworld, pos, dandelion),
+                    "restoring a cluster also survives rejoining");
+            check(restored.isSingle(nether, pos, poppy), "restoring one flower leaves other choices saved");
+
+            Path malformed = directory.resolve("malformed.json");
+            String invalid = """
+                    {"version":1,"single_flowers":[{"dimension":"bad id","position":12,"block":"minecraft:poppy"}]}
+                    """;
+            Files.writeString(malformed, invalid);
+            boolean rejected = false;
+            try {
+                new FlowerDensityOverrideStore(malformed);
+            } catch (IOException exception) {
+                rejected = true;
+            }
+            check(rejected && Files.readString(malformed).equals(invalid),
+                    "invalid saved choices are reported without overwriting the file");
+
+            Path blockedDirectory = directory.resolve("blocked");
+            FlowerDensityOverrideStore failedSave = new FlowerDensityOverrideStore(blockedDirectory.resolve("flowers.json"));
+            Files.writeString(blockedDirectory, "blocks directory creation");
+            boolean saveFailed = false;
+            try {
+                failedSave.toggle(overworld, pos, dandelion);
+            } catch (IOException exception) {
+                saveFailed = true;
+            }
+            check(saveFailed && !failedSave.isSingle(overworld, pos, dandelion),
+                    "a failed save does not publish an unsaved flower choice");
+        } finally {
+            try (var paths = Files.walk(directory)) {
+                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                    Files.delete(path);
+                }
+            }
+        }
     }
 
     private static void variedPlantHeightKeepsColumnsConnected() throws ReflectiveOperationException {

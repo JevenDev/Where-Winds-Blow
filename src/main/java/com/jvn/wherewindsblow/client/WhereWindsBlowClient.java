@@ -3,6 +3,7 @@ package com.jvn.wherewindsblow.client;
 import com.jvn.toucanlib.neoforge.config.ToucanConfigScreens;
 import com.jvn.toucanlib.neoforge.event.ToucanEventBuses;
 import com.jvn.wherewindsblow.block.ModBlocks;
+import com.jvn.wherewindsblow.client.foliage.FlowerDensityOverrides;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliage;
 import com.jvn.wherewindsblow.client.banner.BannerWindStateCache;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
@@ -58,6 +59,10 @@ public final class WhereWindsBlowClient {
                 .listener(BannerWindStateCache::onClientTick)
                 .listener(WhereWindsBlowClient::onClientPauseChange)
                 .listener(WhereWindsBlowClient::onClientLogin)
+                .listener(FlowerDensityOverrides::onClientLogin)
+                .listener(FlowerDensityOverrides::onClientLogout)
+                .listener(FlowerDensityOverrides::onClientTick)
+                .listener(FlowerDensityOverrides::onInteraction)
                 .listener(WhereWindsBlowClient::onTagsUpdated)
                 .listener(SwingingLanternAssemblyRenderer::onRenderLevelStage)
                 .listener(WindStreakRenderer::onRenderLevelStage)
