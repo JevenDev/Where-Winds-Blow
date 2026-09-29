@@ -24,7 +24,7 @@ public final class ResponsiveFoliageShaders {
     private static final String ACEDIUM_MOD_ID = "acedium";
     private static final String SODIUM_MOD_ID = "sodium";
     private static final String[] SHADER_RENDERER_MOD_IDS = {"iris", "oculus"};
-    private static final String[] INCOMPATIBLE_RENDERER_MOD_IDS = {"chunksfadein"};
+    private static final String[] INCOMPATIBLE_RENDERER_MOD_IDS = {"chunksfadein", "shine"};
     private static final long SHADER_PACK_STATE_CACHE_MILLIS = 250L;
     private static final double SHADER_WORLD_POSITION_PERIOD = 8192.0D;
     private static final float LEAF_WIND_SWAY_SCALE = 0.35F;

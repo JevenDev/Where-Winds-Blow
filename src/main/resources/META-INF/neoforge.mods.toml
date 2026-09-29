@@ -77,6 +77,14 @@ ordering="NONE"
 side="CLIENT"
 
 [[dependencies."${mod_id}"]]
+modId="shine"
+type="incompatible"
+reason="Where Winds Blow and Shine both alter terrain shader rendering and cannot be used together."
+versionRange=""
+ordering="NONE"
+side="CLIENT"
+
+[[dependencies."${mod_id}"]]
 modId="minecraft"
 type="required"
 versionRange="${minecraft_version_range}"
