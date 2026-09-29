@@ -50,13 +50,13 @@ public final class WindStreakRenderer {
     private static final double STREAK_TERRAIN_CLEARANCE = 1.45D;
     private static final double STREAK_TERRAIN_LIFT_STRENGTH = 0.18D;
     private static final double STREAK_PATH_ADVECTION = 0.34D;
-    private static final double STREAK_MIN_STROKE_SCALE = 0.58D;
+    private static final double STREAK_MIN_STROKE_SCALE = 0.72D;
     private static final double STREAK_HALO_WIDTH_SCALE = 1.35D;
-    private static final double STREAK_CORE_WIDTH_SCALE = 0.56D;
-    private static final float STREAK_HALO_OPACITY = 0.2F;
+    private static final double STREAK_CORE_WIDTH_SCALE = 0.8D;
+    private static final float STREAK_HALO_OPACITY = 0.28F;
     private static final double STREAK_MIN_HORIZONTAL_SPACING = 7.5D;
     private static final double STREAK_MIN_VERTICAL_SPACING = 2.8D;
-    private static final int STREAK_FADE_IN_TICKS = 26;
+    private static final int STREAK_FADE_IN_TICKS = 16;
     private static final int RED = 232;
     private static final int GREEN = 246;
     private static final int BLUE = 255;
@@ -473,7 +473,7 @@ public final class WindStreakRenderer {
         double cameraDistance = Math.sqrt(cameraPos.distanceToSqr(baseX, baseY, baseZ));
         float distanceFade = smoothFade(Mth.clamp((float) ((MAX_DISTANCE_FROM_PLAYER - cameraDistance) / 18.0D), 0.0F, 1.0F));
         float nearFade = smoothFade(Mth.clamp((float) ((cameraDistance - 1.75D) / 3.25D), 0.0F, 1.0F));
-        float alpha = 0.88F * opacity * fade * nearFade * distanceFade * fadeOutMultiplier(streak, partialTick);
+        float alpha = opacity * fade * nearFade * distanceFade * fadeOutMultiplier(streak, partialTick);
         if (alpha <= 0.006F) {
             return;
         }
@@ -547,7 +547,7 @@ public final class WindStreakRenderer {
                 + streak.shimmerStrength * (float) Math.sin(streak.seed + windTime * 1.8F + t * Mth.PI * 3.0F));
         float fineBreakup = 0.965F
                 + 0.035F * (float) Math.sin(streak.ripplePhase + windTime * 2.4F + t * Mth.PI * 6.0F);
-        float flowingStroke = Math.max(leadingEdge, trailingWake * (0.68F + curveBoost));
+        float flowingStroke = Math.max(leadingEdge, trailingWake * (0.88F + curveBoost));
         return shapeFade * shimmer * fineBreakup * flowingStroke;
     }
 
