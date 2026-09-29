@@ -55,7 +55,8 @@ public final class SodiumFoliageShaderSource {
                         wwbGustLeadingEdge
                 );
                 position = wwb_apply_lantern_wind(position, wwbFoliageAlpha);
-                position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbInteractionAnchor, wwbFoliageAlpha);""";
+                position = wwb_apply_foliage_interaction(position, wwbFoliageBase, wwbInteractionAnchor, wwbFoliageAlpha);
+                position = wwb_pixel_locked_position(position, wwbFoliageBase);""";
 
     private static final String WIND_COLOR_INJECTION = """
                 if (wwb_is_plant_wind_vertex(wwbFoliageAlpha) && u_WwbFoliageColorVariationStrength > 0.0) {

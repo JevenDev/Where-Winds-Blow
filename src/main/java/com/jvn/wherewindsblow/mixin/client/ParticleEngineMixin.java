@@ -1,8 +1,10 @@
 package com.jvn.wherewindsblow.mixin.client;
 
+import com.jvn.wherewindsblow.client.wind.PixelLockedWaving;
 import com.jvn.wherewindsblow.client.particle.WindAffectedParticle;
 import com.jvn.wherewindsblow.client.smoke.CampfireSmokeRenderTypes;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliagePhysics;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -73,6 +75,16 @@ public abstract class ParticleEngineMixin {
     )
     private void wherewindsblow$applyParticleWind(Particle particle, CallbackInfo ci) {
         ((WindAffectedParticle) particle).wherewindsblow$applyWind();
+    }
+
+    @Redirect(
+            method = "render(Lnet/minecraft/client/renderer/LightTexture;Lnet/minecraft/client/Camera;FLnet/minecraft/client/renderer/culling/Frustum;Ljava/util/function/Predicate;)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/particle/Particle;render(Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/minecraft/client/Camera;F)V"),
+            require = 1
+    )
+    private void wherewindsblow$renderPixelLockedParticle(Particle particle, VertexConsumer consumer, Camera camera, float partialTick) {
+        Vec3 position = ((WindAffectedParticle) particle).wherewindsblow$windRenderPosition(partialTick);
+        particle.render(position == null ? consumer : PixelLockedWaving.particleConsumer(consumer, position), camera, partialTick);
     }
 
     @Redirect(

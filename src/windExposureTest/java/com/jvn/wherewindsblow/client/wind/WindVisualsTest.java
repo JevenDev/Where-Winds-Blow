@@ -1,5 +1,15 @@
 package com.jvn.wherewindsblow.client.wind;
 
+import com.electronwill.nightconfig.core.CommentedConfig;
+import com.jvn.wherewindsblow.config.ClientConfig;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.neoforged.fml.config.IConfigSpec;
+import net.neoforged.fml.config.ModConfig;
+import java.lang.reflect.Constructor;
+import java.nio.file.Path;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
@@ -25,7 +35,7 @@ import static com.jvn.wherewindsblow.client.wind.WindParticleEnvironment.Terrain
 public final class WindVisualsTest {
     private static int checks;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ReflectiveOperationException {
         LoadingModList.of(List.of(), List.of(), List.of(), List.of(), Map.of());
         ModList.of(List.of(), List.of());
         SharedConstants.tryDetectVersion();
@@ -39,7 +49,94 @@ public final class WindVisualsTest {
         usesClientHeightmaps();
         keepsTerrainFlowFinite();
         refreshesColumnCaches();
+        checksPixelLockedWaving();
         System.out.println("Passed " + checks + " wind visual checks.");
+    }
+
+    private static void checksPixelLockedWaving() throws ReflectiveOperationException {
+        CommentedConfig config = CommentedConfig.inMemory();
+        ClientConfig.SPEC.correct(config);
+        Constructor<?> loadedConfig = Class.forName("net.neoforged.fml.config.LoadedConfig")
+                .getDeclaredConstructor(CommentedConfig.class, Path.class, ModConfig.class);
+        loadedConfig.setAccessible(true);
+        ClientConfig.SPEC.acceptConfig((IConfigSpec.ILoadedConfig) loadedConfig.newInstance(config, null, null));
+        float[] vertex = new float[3];
+        Map<String, Object[]> attributes = new HashMap<>();
+        VertexConsumer consumer = (VertexConsumer) Proxy.newProxyInstance(
+                WindVisualsTest.class.getClassLoader(), new Class<?>[]{VertexConsumer.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("addVertex")) {
+                        for (int axis = 0; axis < 3; axis++) {
+                            vertex[axis] = (float) args[axis];
+                        }
+                    } else {
+                        attributes.put(method.getName(), args);
+                    }
+                    return proxy;
+                }
+        );
+        MultiBufferSource buffers = type -> consumer;
+        check(!PixelLockedWaving.enabled(), "pixel locked waving defaults to off");
+        check(PixelLockedWaving.snap(0.047D) == 0.047D, "disabled motion keeps subtexel precision");
+        check(PixelLockedWaving.buffers(buffers, new Matrix4f(), new Matrix4f()) == buffers,
+                "disabled models keep the original buffer source");
+        check(PixelLockedWaving.particleConsumer(consumer, new Vec3(0.047D, 0.0D, 0.0D)) == consumer,
+                "disabled particles keep the original consumer");
+        ClientConfig.PIXEL_LOCKED_WAVING.set(true);
+        try {
+            for (double coordinate : new double[]{-30000000.047D, -1.047D, -0.03D, 0.03D, 1.047D, 30000000.047D}) {
+                double snapped = PixelLockedWaving.snap(coordinate);
+                check(snapped * 16.0D == Math.rint(snapped * 16.0D), "world motion lands on the texel grid");
+                check(Math.abs(snapped - coordinate) <= 1.0D / 32.0D, "snapping moves at most half a texel");
+            }
+            check(PixelLockedWaving.snap(-0.0625D) == -0.0625D, "negative texel boundaries stay fixed");
+            check(PixelLockedWaving.snap(0.03125D) == 0.0625D, "half-texel ties match GLSL rounding");
+            for (Vec3 camera : List.of(Vec3.ZERO, new Vec3(0.173D, -0.329D, 0.411D))) {
+                Matrix4f rest = new Matrix4f().translation((float) -camera.x, (float) -camera.y, (float) -camera.z);
+                Matrix4f animated = new Matrix4f(rest).translate(0.047F, -0.047F, 0.016F);
+                Vector3f point = animated.transformPosition(0.001F, 0.25F, -0.013F, new Vector3f());
+                VertexConsumer locked = PixelLockedWaving.buffers(buffers, rest, animated).getBuffer(null);
+                locked.addVertex(point.x, point.y, point.z).setColor(10, 20, 30, 40)
+                        .setUv(0.2F, 0.8F).setUv1(3, 7).setUv2(11, 15).setNormal(0.0F, 1.0F, 0.0F);
+                check(Math.abs(vertex[0] + camera.x - 0.0635D) < 0.00001D
+                                && Math.abs(vertex[1] + camera.y - 0.1875D) < 0.00001D
+                                && Math.abs(vertex[2] + camera.z + 0.013D) < 0.00001D,
+                        "model displacement stays texel locked as the camera moves and preserves thin geometry");
+                check(attributes.size() == 5 && (int) attributes.get("setColor")[3] == 40
+                                && (float) attributes.get("setUv")[1] == 0.8F
+                                && (int) attributes.get("setUv1")[1] == 7
+                                && (int) attributes.get("setUv2")[1] == 15
+                                && (float) attributes.get("setNormal")[1] == 1.0F,
+                        "locked model vertices preserve color, texture, overlay, light, and normals");
+                Vec3 position = new Vec3(2.047D, -0.047D, 4.016D);
+                locked = PixelLockedWaving.particleConsumer(consumer, position);
+                locked.addVertex((float) (position.x - camera.x + 0.01D),
+                        (float) (position.y - camera.y), (float) (position.z - camera.z));
+                check(Math.abs(vertex[0] + camera.x - 2.0725D) < 0.00001D
+                                && Math.abs(vertex[1] + camera.y + 0.0625D) < 0.00001D
+                                && Math.abs(vertex[2] + camera.z - 4.0D) < 0.00001D,
+                        "particle centers snap in world space while billboard dimensions remain intact");
+            }
+            Matrix4f rest = new Matrix4f().translation(0.173F, -0.329F, 0.411F)
+                    .rotateY(0.63F).scale(0.6666667F, -0.6666667F, -0.6666667F);
+            Matrix4f animated = new Matrix4f(rest).rotateX(0.21F).rotateZ(-0.07F);
+            VertexConsumer locked = PixelLockedWaving.buffers(buffers, rest, animated).getBuffer(null);
+            for (Vector3f local : List.of(new Vector3f(), new Vector3f(0.01F, 2.0F, -0.003F))) {
+                Vector3f base = rest.transformPosition(local, new Vector3f());
+                Vector3f point = animated.transformPosition(local, new Vector3f());
+                locked.addVertex(point.x, point.y, point.z);
+                for (int axis = 0; axis < 3; axis++) {
+                    float delta = vertex[axis] - base.get(axis);
+                    check(Math.abs(delta * 16.0F - Math.round(delta * 16.0F)) < 0.00001F,
+                            "scaled and rotated decorations retain their rest position plus whole texel offsets");
+                }
+            }
+            float angle = PixelLockedWaving.angle(0.37F, 0.5F);
+            check(Math.abs(angle * 0.5F * 16.0F - Math.round(angle * 0.5F * 16.0F)) < 0.00001F,
+                    "tumbling uses texel-sized arc steps");
+        } finally {
+            ClientConfig.PIXEL_LOCKED_WAVING.set(false);
+        }
+        check(PixelLockedWaving.snap(0.047D) == 0.047D, "turning the mode off restores smooth motion immediately");
     }
 
     private static void rejectsShelteredSpawns() {

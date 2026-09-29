@@ -134,6 +134,8 @@
   "where_winds_blow.config.flowerHeightMin.tooltip": "Lowest vanilla flower height multiplier. Set both limits to 1 for the original height.",
   "where_winds_blow.config.flowerHeightMax": "Tallest Flower",
   "where_winds_blow.config.flowerHeightMax.tooltip": "Highest vanilla flower height multiplier. Limits are sorted if entered in reverse.",
+  "where_winds_blow.config.pixelLockedWaving": "Pixel locked waving",
+  "where_winds_blow.config.pixelLockedWaving.tooltip": "Snaps foliage, decorations, banners, wind particles, and rain motion to the 1/16-block texel grid. Takes effect immediately and keeps wind physics smooth.",
   "where_winds_blow.config.foliageAnimationMode": "Plant Animation",
   "where_winds_blow.config.foliageAnimationMode.tooltip": "Chooses continuous plant motion or staggered stepped updates.",
   "where_winds_blow.config.foliageAnimationMode.smooth": "Smooth",

@@ -482,7 +482,10 @@ public final class WindStreakRenderer {
         streak.coreType = windStreakLines(streak.strokeScale * STREAK_CORE_WIDTH_SCALE);
         float brushPosition = (float) (((double) streak.age + partialTick) * streak.speed - 0.18D);
         for (int index = 0; index <= BODY_SEGMENTS; index++) {
-            streak.renderPoints[index] = streak.path.interpolate(index, partialTick);
+            Point point = streak.path.interpolate(index, partialTick);
+            streak.renderPoints[index] = PixelLockedWaving.enabled()
+                    ? new Point(PixelLockedWaving.snap(point.x()), PixelLockedWaving.snap(point.y()), PixelLockedWaving.snap(point.z()))
+                    : point;
             float taper = motionTaper(streak, (float) index / BODY_SEGMENTS, windTime, brushPosition);
             streak.renderTapers[index] = taper;
             streak.renderWidths[index] = 0.42F + Mth.sqrt(Mth.clamp(taper, 0.0F, 1.0F)) * 0.58F;

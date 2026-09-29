@@ -40,6 +40,7 @@ uniform int FogShape;
 #define u_WwbLeafSheenStrength LeafWindSheenStrength
 #define u_WwbFoliageColorVariationStrength FoliageColorVariationStrength
 #define u_WwbFoliageAnimationStepRate FoliageAnimationStepRate
+#define u_WwbPixelLockedWaving PixelLockedWaving
 #define u_WwbWindDirection WindDirection
 #define u_WwbCameraPosition CameraPosition
 #define u_WwbInteractorCount FoliageInteractorCount
@@ -122,6 +123,7 @@ void main() {
             );
             pos = wwb_apply_foliage_interaction(pos, basePos, interactionAnchor, Color.a);
         }
+        pos = wwb_pixel_locked_position(pos, basePos);
     }
 
     gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);

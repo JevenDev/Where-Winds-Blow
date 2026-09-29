@@ -22,6 +22,7 @@ uniform float u_WwbPlantSheenStrength;
 uniform float u_WwbLeafSheenStrength;
 uniform float u_WwbFoliageColorVariationStrength;
 uniform float u_WwbFoliageAnimationStepRate;
+uniform int u_WwbPixelLockedWaving;
 uniform vec2 u_WwbWindDirection;
 uniform vec3 u_WwbCameraPosition;
 uniform int u_WwbInteractorCount;

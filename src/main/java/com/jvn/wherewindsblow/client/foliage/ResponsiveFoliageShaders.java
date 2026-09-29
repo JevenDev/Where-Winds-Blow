@@ -209,6 +209,7 @@ public final class ResponsiveFoliageShaders {
         shader.safeGetUniform("LeafWindSheenStrength").set(leafWindSheenStrength());
         shader.safeGetUniform("FoliageColorVariationStrength").set(foliageColorVariationStrength());
         shader.safeGetUniform("FoliageAnimationStepRate").set(foliageAnimationStepRate());
+        shader.safeGetUniform("PixelLockedWaving").set(ClientConfig.PIXEL_LOCKED_WAVING.getAsBoolean() ? 1 : 0);
         shader.safeGetUniform("WindDirection").set(windState.directionX(), windState.directionZ());
         Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
         uploadGustUniforms(shader);

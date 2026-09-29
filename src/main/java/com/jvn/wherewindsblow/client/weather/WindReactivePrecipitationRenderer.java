@@ -7,6 +7,7 @@ import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.toucanlib.client.ToucanMotion;
 import com.jvn.toucanlib.client.ToucanScaledAnimationClock;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
+import com.jvn.wherewindsblow.client.wind.PixelLockedWaving;
 import com.jvn.wherewindsblow.client.wind.WindSample;
 import com.jvn.wherewindsblow.config.ClientConfig;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -208,6 +209,9 @@ public final class WindReactivePrecipitationRenderer {
     private static void addRainQuad(BufferBuilder buffer, int x, int z, int bottomY, int topY,
                                     double camX, double camY, double camZ, double widthX, double widthZ,
                                     float driftX, float driftZ, float scroll, float alpha, int light, float offset) {
+        driftX = PixelLockedWaving.snap(driftX);
+        driftZ = PixelLockedWaving.snap(driftZ);
+        scroll = PixelLockedWaving.snap(scroll);
         float leftX = (float) (x - camX - widthX + 0.5D + offset);
         float rightX = (float) (x - camX + widthX + 0.5D + offset);
         float leftZ = (float) (z - camZ - widthZ + 0.5D + offset);

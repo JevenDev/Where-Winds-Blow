@@ -311,9 +311,9 @@ public final class TumbleweedRenderer {
             Tumbleweed tumbleweed,
             float partialTick
     ) {
-        double x = Mth.lerp(partialTick, tumbleweed.xOld, tumbleweed.x);
-        double y = Mth.lerp(partialTick, tumbleweed.yOld, tumbleweed.y);
-        double z = Mth.lerp(partialTick, tumbleweed.zOld, tumbleweed.z);
+        double x = PixelLockedWaving.snap(Mth.lerp(partialTick, tumbleweed.xOld, tumbleweed.x));
+        double y = PixelLockedWaving.snap(Mth.lerp(partialTick, tumbleweed.yOld, tumbleweed.y));
+        double z = PixelLockedWaving.snap(Mth.lerp(partialTick, tumbleweed.zOld, tumbleweed.z));
         double dx = x - cameraPos.x();
         double dy = y - cameraPos.y();
         double dz = z - cameraPos.z();
@@ -330,6 +330,8 @@ public final class TumbleweedRenderer {
 
         float roll = (float) Mth.lerp(partialTick, tumbleweed.rollOld, tumbleweed.roll);
         float yaw = (float) Mth.lerp(partialTick, tumbleweed.yawOld, tumbleweed.yaw);
+        roll = PixelLockedWaving.angle(roll, (float) tumbleweed.radius);
+        yaw = PixelLockedWaving.angle(yaw, (float) tumbleweed.radius);
         float axisX = (float) tumbleweed.windZ;
         float axisZ = (float) -tumbleweed.windX;
         float modelScale = (float) (tumbleweed.radius * 2.0D) * visibleScale;

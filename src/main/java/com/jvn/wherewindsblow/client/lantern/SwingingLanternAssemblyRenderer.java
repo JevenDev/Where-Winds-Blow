@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.lantern;
 
+import com.jvn.wherewindsblow.client.wind.PixelLockedWaving;
 import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.wherewindsblow.client.foliage.ResponsiveFoliageShaders;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
@@ -35,6 +36,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.client.model.data.ModelData;
+import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 
 public final class SwingingLanternAssemblyRenderer {
@@ -202,6 +204,7 @@ public final class SwingingLanternAssemblyRenderer {
                 lanternPos.getZ() - cameraPos.z + 0.5D
         );
 
+        Matrix4f restingAssembly = PixelLockedWaving.enabled() ? new Matrix4f(poseStack.last().pose()) : null;
         float previousBend = 0.0F;
         BlockPos.MutableBlockPos chainPos = new BlockPos.MutableBlockPos();
         for (int chainIndex = chainHeight - 1; chainIndex >= 0; chainIndex--) {
@@ -220,7 +223,12 @@ public final class SwingingLanternAssemblyRenderer {
                 poseStack.pushPose();
                 poseStack.translate(-0.5D, -1.0D, -0.5D);
                 int packedLight = LevelRenderer.getLightColor(level, chainState, chainPos);
-                blockRenderer.renderSingleBlock(chainState, poseStack, bufferSource, packedLight, OverlayTexture.NO_OVERLAY, ASSEMBLY_MODEL_DATA, null);
+                MultiBufferSource chainBuffers = restingAssembly == null ? bufferSource : PixelLockedWaving.buffers(
+                        bufferSource,
+                        new Matrix4f(restingAssembly).translate(-0.5F, -(chainHeight - chainIndex), -0.5F),
+                        poseStack.last().pose()
+                );
+                blockRenderer.renderSingleBlock(chainState, poseStack, chainBuffers, packedLight, OverlayTexture.NO_OVERLAY, ASSEMBLY_MODEL_DATA, null);
                 poseStack.popPose();
             }
 
@@ -232,7 +240,12 @@ public final class SwingingLanternAssemblyRenderer {
         poseStack.pushPose();
         poseStack.translate(-0.5D, -1.0D + 0.03125D, -0.5D);
         int packedLight = LevelRenderer.getLightColor(level, lanternState, lanternPos);
-        blockRenderer.renderSingleBlock(lanternState, poseStack, bufferSource, packedLight, OverlayTexture.NO_OVERLAY, ASSEMBLY_MODEL_DATA, null);
+        MultiBufferSource lanternBuffers = restingAssembly == null ? bufferSource : PixelLockedWaving.buffers(
+                bufferSource,
+                new Matrix4f(restingAssembly).translate(-0.5F, -chainHeight - 1.0F + 0.03125F, -0.5F),
+                poseStack.last().pose()
+        );
+        blockRenderer.renderSingleBlock(lanternState, poseStack, lanternBuffers, packedLight, OverlayTexture.NO_OVERLAY, ASSEMBLY_MODEL_DATA, null);
         poseStack.popPose();
         poseStack.popPose();
     }

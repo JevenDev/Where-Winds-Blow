@@ -390,6 +390,7 @@ public final class WhereWindsBlowConfigScreen {
                                 SMALL_STEP,
                                 WhereWindsBlowConfigScreen::rebuildFoliage
                         ))
+                        .option(booleanOption(ClientConfig.PIXEL_LOCKED_WAVING))
                         .option(enumOption(
                                 ClientConfig.FOLIAGE_ANIMATION_MODE,
                                 ClientConfig.FoliageAnimationMode.class,

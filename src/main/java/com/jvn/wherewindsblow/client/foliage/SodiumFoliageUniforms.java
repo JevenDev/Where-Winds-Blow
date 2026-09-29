@@ -3,6 +3,7 @@ package com.jvn.wherewindsblow.client.foliage;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.jvn.wherewindsblow.client.wind.GlobalWindState;
 import com.jvn.wherewindsblow.client.wind.GustFrontState;
+import com.jvn.wherewindsblow.config.ClientConfig;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
@@ -114,6 +115,7 @@ public final class SodiumFoliageUniforms {
         private final int leafSheenStrengthUniform;
         private final int foliageColorVariationStrengthUniform;
         private final int foliageAnimationStepRateUniform;
+        private final int pixelLockedWavingUniform;
         private final int windDirectionUniform;
         private final int cameraPositionUniform;
         private final int interactorCountUniform;
@@ -137,6 +139,7 @@ public final class SodiumFoliageUniforms {
             leafSheenStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbLeafSheenStrength");
             foliageColorVariationStrengthUniform = GL20C.glGetUniformLocation(program, "u_WwbFoliageColorVariationStrength");
             foliageAnimationStepRateUniform = GL20C.glGetUniformLocation(program, "u_WwbFoliageAnimationStepRate");
+            pixelLockedWavingUniform = GL20C.glGetUniformLocation(program, "u_WwbPixelLockedWaving");
             windDirectionUniform = GL20C.glGetUniformLocation(program, "u_WwbWindDirection");
             cameraPositionUniform = GL20C.glGetUniformLocation(program, "u_WwbCameraPosition");
             interactorCountUniform = GL20C.glGetUniformLocation(program, "u_WwbInteractorCount");
@@ -166,6 +169,7 @@ public final class SodiumFoliageUniforms {
             uploadUniform(leafSheenStrengthUniform, ResponsiveFoliageShaders.leafWindSheenStrength());
             uploadUniform(foliageColorVariationStrengthUniform, ResponsiveFoliageShaders.foliageColorVariationStrength());
             uploadUniform(foliageAnimationStepRateUniform, ResponsiveFoliageShaders.foliageAnimationStepRate());
+            uploadIntUniform(pixelLockedWavingUniform, ClientConfig.PIXEL_LOCKED_WAVING.getAsBoolean() ? 1 : 0);
             uploadVector2Uniform(windDirectionUniform, windState.directionX(), windState.directionZ());
             uploadGustUniforms();
             Vec3 cameraPosition = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();

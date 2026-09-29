@@ -689,9 +689,9 @@ final class WindDebrisRenderer {
             return;
         }
 
-        double centerX = lerp(partialTick, leaf.xOld, leaf.x);
-        double centerY = lerp(partialTick, leaf.yOld, leaf.y);
-        double centerZ = lerp(partialTick, leaf.zOld, leaf.z);
+        double centerX = PixelLockedWaving.snap(lerp(partialTick, leaf.xOld, leaf.x));
+        double centerY = PixelLockedWaving.snap(lerp(partialTick, leaf.yOld, leaf.y));
+        double centerZ = PixelLockedWaving.snap(lerp(partialTick, leaf.zOld, leaf.z));
         double leafTime = (double) leaf.age + partialTick + leaf.seed;
 
         double dx = centerX - cameraPos.x();
@@ -720,6 +720,11 @@ final class WindDebrisRenderer {
                 0.86D,
                 1.14D
         );
+        if (PixelLockedWaving.enabled()) {
+            tilt = PixelLockedWaving.angle(tilt, (float) leaf.size * 0.5F);
+            flipScale = PixelLockedWaving.snap(halfSize * flipScale) / halfSize;
+            stretchScale = PixelLockedWaving.snap(halfSize * stretchScale) / halfSize;
+        }
         int alphaByte = alphaByte(alpha);
         int light = leaf.light;
         emitLeafQuad(

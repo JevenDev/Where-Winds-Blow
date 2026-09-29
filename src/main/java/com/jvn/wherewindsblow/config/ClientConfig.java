@@ -385,6 +385,10 @@ public final class ClientConfig {
             .comment("Sets how far above the bottom of plant-like foliage wind sway starts, in block units.")
             .defineInRange("windPlantSwayStartHeight", 0.6D, WIND_PLANT_SWAY_START_HEIGHT_MIN, WIND_PLANT_SWAY_START_HEIGHT_MAX);
 
+    public static final ModConfigSpec.BooleanValue PIXEL_LOCKED_WAVING = BUILDER
+            .comment("Snaps visible wind motion to the 1/16-block texel grid without changing wind physics.")
+            .define("pixelLockedWaving", false);
+
     public static final ModConfigSpec.EnumValue<FoliageAnimationMode> FOLIAGE_ANIMATION_MODE = BUILDER
             .comment("Chooses smooth foliage animation or staggered stepped updates for plant-like foliage.")
             .defineEnum("foliageAnimationMode", FoliageAnimationMode.SMOOTH);

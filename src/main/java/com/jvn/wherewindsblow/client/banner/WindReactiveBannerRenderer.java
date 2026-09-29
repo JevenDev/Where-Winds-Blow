@@ -1,5 +1,6 @@
 package com.jvn.wherewindsblow.client.banner;
 
+import com.jvn.wherewindsblow.client.wind.PixelLockedWaving;
 import com.jvn.wherewindsblow.client.wind.DynamicWindManager;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -19,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.RotationSegment;
 import net.minecraft.world.phys.Vec3;
 import com.jvn.wherewindsblow.config.ClientConfig;
+import org.joml.Matrix4f;
 
 /**
  * Owns the optional cloth-only banner rendering path and falls through to vanilla whenever the
@@ -206,10 +208,27 @@ public final class WindReactiveBannerRenderer {
         float yaw = Mth.clamp(sideResponse * 0.035F + sidewaysNoise, -0.045F, 0.045F);
         float roll = Mth.clamp(-sideResponse * 0.016F - sidewaysNoise * 0.45F, -0.022F, 0.022F);
 
+        Matrix4f restingPose = null;
+        if (PixelLockedWaving.enabled()) {
+            flag.xRot = 0.0F;
+            flag.yRot = 0.0F;
+            flag.zRot = 0.0F;
+            flag.y = -32.0F;
+            poseStack.pushPose();
+            flag.translateAndRotate(poseStack);
+            restingPose = new Matrix4f(poseStack.last().pose());
+            poseStack.popPose();
+        }
         flag.xRot = Mth.lerp(distanceFade, vanillaAngle, windAngle);
         flag.yRot = yaw * distanceFade;
         flag.zRot = roll * distanceFade;
         flag.y = -32.0F;
+        if (restingPose != null) {
+            poseStack.pushPose();
+            flag.translateAndRotate(poseStack);
+            bufferSource = PixelLockedWaving.buffers(bufferSource, restingPose, poseStack.last().pose());
+            poseStack.popPose();
+        }
         BannerRenderer.renderPatterns(
                 poseStack,
                 bufferSource,

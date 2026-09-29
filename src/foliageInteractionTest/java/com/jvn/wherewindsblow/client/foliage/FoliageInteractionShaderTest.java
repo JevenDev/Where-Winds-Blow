@@ -66,6 +66,7 @@ public final class FoliageInteractionShaderTest {
                 radialForce(program);
                 contact(sample(program, 0.25F), "radial forces retain their lower vertical falloff");
                 noContact(sample(program, -2.0F), "radial forces still have a limited range");
+                pixelLockedWaving(program);
                 check(GL33C.glGetError() == GL33C.GL_NO_ERROR, "shader checks complete without OpenGL errors");
                 System.out.println("Passed " + checks + " foliage shader checks on " + GL33C.glGetString(GL33C.GL_VERSION) + ".");
             } finally {
@@ -84,6 +85,9 @@ public final class FoliageInteractionShaderTest {
         String source = "#version 150\n#define WWB_HAS_FOLIAGE_MATERIAL true\n"
                 + FoliageShaderSource.UNIFORMS + FoliageShaderSource.FUNCTIONS + """
                 uniform float sampleY;
+                uniform int sampleWind;
+                uniform float sampleAlpha;
+                uniform vec3 samplePosition;
                 out vec3 interaction;
                 out vec3 windPosition;
                 void main() {
@@ -93,6 +97,19 @@ public final class FoliageInteractionShaderTest {
                     windPosition = wwb_apply_foliage_interaction(
                             base + vec3(0.1, 0.0, 0.05), base, anchor, 132.0 / 255.0
                     );
+                    if (sampleWind != 0) {
+                        base = samplePosition;
+                        vec2 motionPosition = wwb_foliage_motion_position(base, sampleAlpha);
+                        float gust;
+                        float turbulence;
+                        float leadingEdge;
+                        vec2 direction = wwb_sample_dynamic_wind(motionPosition, gust, turbulence, leadingEdge);
+                        vec3 moved = wwb_apply_foliage_wind(base, sampleAlpha, direction, gust, turbulence, leadingEdge);
+                        moved = wwb_apply_lantern_wind(moved, sampleAlpha);
+                        moved = wwb_apply_foliage_interaction(moved, base, motionPosition - u_WwbCameraPosition.xz, sampleAlpha);
+                        interaction = moved - base;
+                        windPosition = wwb_pixel_locked_position(moved, base);
+                    }
                     gl_Position = vec4(base, 1.0);
                 }
                 """;
@@ -113,6 +130,61 @@ public final class FoliageInteractionShaderTest {
         } finally {
             GL33C.glDeleteShader(shader);
         }
+    }
+
+    private static void pixelLockedWaving(int program) {
+        GL33C.glUniform1i(GL33C.glGetUniformLocation(program, "sampleWind"), 1);
+        GL33C.glUniform1f(GL33C.glGetUniformLocation(program, "u_WwbAmbientWindStrength"), 0.8F);
+        GL33C.glUniform1f(GL33C.glGetUniformLocation(program, "u_WwbWindTurbulence"), 0.6F);
+        GL33C.glUniform2f(GL33C.glGetUniformLocation(program, "u_WwbWindDirection"), 0.8F, 0.6F);
+        GL33C.glUniform1f(GL33C.glGetUniformLocation(program, "u_WwbPlantSwayStrength"), 1.0F);
+        GL33C.glUniform1f(GL33C.glGetUniformLocation(program, "u_WwbLeafSwayStrength"), 1.0F);
+        GL33C.glUniform1f(GL33C.glGetUniformLocation(program, "u_WwbLanternSwayStrength"), 1.0F);
+        GL33C.glUniform3f(GL33C.glGetUniformLocation(program, "u_WwbWeatherState"), 0.7F, 0.4F, 0.0F);
+        int enabled = GL33C.glGetUniformLocation(program, "u_WwbPixelLockedWaving");
+        int camera = GL33C.glGetUniformLocation(program, "u_WwbCameraPosition");
+        int position = GL33C.glGetUniformLocation(program, "samplePosition");
+        boolean moved = false;
+        for (int marker : new int[]{44, 72, 88, 104, 132, 255}) {
+            GL33C.glUniform1f(GL33C.glGetUniformLocation(program, "sampleAlpha"), marker / 255.0F);
+            for (float time : new float[]{0.37F, 1.41F, 6.2F, 10.9F}) {
+                GL33C.glUniform1f(GL33C.glGetUniformLocation(program, "u_WwbTime"), time);
+                GL33C.glUniform3f(camera, 0.0F, 0.0F, 0.0F);
+                GL33C.glUniform3f(position, 0.31F, 1.0F, -0.43F);
+                GL33C.glUniform1i(enabled, 0);
+                float[] smooth = sample(program, 1.0F);
+                GL33C.glUniform1i(enabled, 1);
+                float[] locked = sample(program, 1.0F);
+                float[] base = {0.31F, 1.0F, -0.43F};
+                for (int axis = 0; axis < 3; axis++) {
+                    check(Math.abs(smooth[axis + 3] - base[axis] - smooth[axis]) < 0.00001F,
+                            "disabled pixel locking preserves wind and interaction displacement");
+                    float delta = locked[axis + 3] - base[axis];
+                    check(Math.abs(delta * 16.0F - Math.round(delta * 16.0F)) < 0.00001F,
+                            "plant, leaf, lantern, chain, and interaction motion land on whole texels");
+                    check(Math.abs(delta - smooth[axis]) <= 1.0F / 32.0F + 0.00001F,
+                            "shader snapping moves at most half a texel");
+                    moved |= Math.abs(delta) > 0.0F;
+                }
+                if (marker == 255) {
+                    check(locked[0] == 0.0F && locked[1] == 0.0F && locked[2] == 0.0F,
+                            "unmarked geometry remains stationary");
+                }
+                GL33C.glUniform1i(GL33C.glGetUniformLocation(program, "u_WwbInteractorCount"), 0);
+                GL33C.glUniform3f(camera, 0.0F, 0.0F, 0.0F);
+                GL33C.glUniform3f(position, base[0], base[1], base[2]);
+                float[] stationaryCamera = sample(program, 1.0F);
+                GL33C.glUniform3f(camera, 0.173F, -0.329F, 0.411F);
+                GL33C.glUniform3f(position, base[0] - 0.173F, base[1] + 0.329F, base[2] - 0.411F);
+                float[] movingCamera = sample(program, 1.0F);
+                check(Math.abs(movingCamera[3] + 0.173F - stationaryCamera[3]) < 0.00001F
+                                && Math.abs(movingCamera[4] - 0.329F - stationaryCamera[4]) < 0.00001F
+                                && Math.abs(movingCamera[5] + 0.411F - stationaryCamera[5]) < 0.00001F,
+                        "shader snapping stays anchored as the camera moves");
+                GL33C.glUniform1i(GL33C.glGetUniformLocation(program, "u_WwbInteractorCount"), 1);
+            }
+        }
+        check(moved, "pixel locking still permits visible wind motion");
     }
 
     private static void entity(int program, float minY, float maxY, float radius, float trailX) {

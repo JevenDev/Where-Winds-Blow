@@ -1,5 +1,12 @@
 const float WWB_WORLD_POSITION_PERIOD = 8192.0;
 
+vec3 wwb_pixel_locked_position(vec3 position, vec3 basePosition) {
+    if (u_WwbPixelLockedWaving == 0) {
+        return position;
+    }
+    return basePosition + floor((position - basePosition) * 16.0 + 0.5) / 16.0;
+}
+
 bool wwb_is_plant_wind_vertex(float alpha) {
     float encoded = alpha * 255.0;
     return (encoded >= 16.5 && encoded <= 44.5) || (encoded >= 104.5 && encoded <= 216.5);

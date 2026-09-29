@@ -77,6 +77,7 @@ public final class AcediumFoliageShaderSource {
                 );
                 pos = wwb_apply_lantern_wind(pos, wwbFoliageAlpha);
                 pos = wwb_apply_foliage_interaction(pos, wwbFoliageBase, wwbInteractionAnchor, wwbFoliageAlpha);
+                pos = wwb_pixel_locked_position(pos, wwbFoliageBase);
                 pos -= subchunkOffset.xyz;""";
 
     private static final String WIND_COLOR_INJECTION = """
