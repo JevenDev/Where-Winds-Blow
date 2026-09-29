@@ -175,7 +175,8 @@ vec2 wwb_sample_dynamic_wind(vec2 worldPosition, out float gustStrength, out flo
         directionVector += localDirection * localStrength;
         gustStrength += localStrength;
         turbulence += strengthData.y * timeEnvelope * spatialEnvelope;
-        leadingEdge += localStrength * smoothstep(-0.22, 0.72, normalizedDistance);
+        float frontCrest = exp(-pow((normalizedDistance - 0.55) * 2.8, 2.0));
+        leadingEdge += localStrength * frontCrest;
     }
 
     return length(directionVector) > 0.001 ? normalize(directionVector) : ambientDirection;
@@ -277,7 +278,7 @@ vec2 wwb_plant_wind_motion(
     sway = mix(sway, stormSway * 0.062, thunder);
     float pressure = ambient * (0.035 + rain * 0.020 + thunder * 0.020)
             + gust * (0.085 + rain * 0.020 + thunder * 0.030)
-            + gustLeadingEdge * 0.025;
+            + gustLeadingEdge * 0.055;
     float flutter = sin(t * 6.13 + bladeSeed * 11.0 + across * 0.31)
             * sin(t * 4.31 + patchSeed * 7.0 - along * 0.17);
     float tipFlutter = flutter * (rain * 0.003 + turbulence * (0.008 + thunder * 0.012));
@@ -308,7 +309,8 @@ float wwb_foliage_wind_sheen(
     vec2 motionPosition = wwb_foliage_motion_position(position, alpha);
     if (wwb_is_plant_wind_vertex(alpha)) {
         vec2 motion = wwb_plant_wind_motion(motionPosition, localGustStrength, localTurbulence, gustLeadingEdge);
-        return clamp(length(motion) * 0.48 * wwb_smooth_curve(bend) * u_WwbPlantSheenStrength, 0.0, 0.32);
+        return clamp((length(motion) * 0.48 + gustLeadingEdge * 0.08)
+                * wwb_smooth_curve(bend) * u_WwbPlantSheenStrength, 0.0, 0.32);
     }
 
     float t = u_WwbTime;
