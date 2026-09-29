@@ -1,7 +1,7 @@
 {
   "type": "where_winds_blow:flower_patch",
   "config": {
-    "biomes": "#where_winds_blow:has_open_flower_accents",
+    "biomes": ["minecraft:flower_forest"],
     "to_place": {
       "type": "minecraft:weighted_state_provider",
       "entries": [

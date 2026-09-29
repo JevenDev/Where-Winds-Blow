@@ -1,6 +1,6 @@
 {
   "type": "where_winds_blow:configurable_grass",
-  "biomes": "#where_winds_blow:has_open_flower_accents",
+  "biomes": ["minecraft:flower_forest"],
   "features": [
     "where_winds_blow:open_flower_patch"
   ],

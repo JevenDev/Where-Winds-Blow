@@ -61,7 +61,7 @@ public final class GrassWorldgenTest {
         coversGrassyWetlandsAndShores();
         checksWetlandBiomeTags();
         checksFernBiomeTags();
-        checksFlowerBiomeTags();
+        checksFlowerBiomeScope();
         checksPatchTransitions();
         bootstrapBlocks();
         checksBroadGrassCoverage();
@@ -164,15 +164,14 @@ public final class GrassWorldgenTest {
                 "large fern accents stay in conifer habitats");
     }
 
-    private static void checksFlowerBiomeTags() throws IOException {
-        Set<String> open = resolveBiomeTag("where_winds_blow:has_open_flower_accents", true);
-        Set<String> woodland = resolveBiomeTag("where_winds_blow:has_woodland_flower_accents", true);
-        check(open.containsAll(Set.of("minecraft:plains", "minecraft:meadow", "minecraft:flower_forest")),
-                "open flower accents reach grassy open biomes");
-        check(woodland.containsAll(Set.of("minecraft:forest", "minecraft:birch_forest")),
-                "woodland flower accents reach forests");
-        check(!open.contains("minecraft:desert") && !woodland.contains("minecraft:snowy_plains"),
-                "flower accents avoid dry and snowy habitats");
+    private static void checksFlowerBiomeScope() throws IOException {
+        JsonObject configured = worldgenResource("configured_feature", "open_flower_patch");
+        JsonObject modifier = biomeModifierResource("where_winds_blow_open_flower_accents");
+        for (JsonObject resource : List.of(configured.getAsJsonObject("config"), modifier)) {
+            var biomes = resource.getAsJsonArray("biomes");
+            check(biomes.size() == 1 && biomes.get(0).getAsString().equals("minecraft:flower_forest"),
+                    "flower accents only target flower forests");
+        }
     }
 
     private static Set<String> biomeTagValues(String name) throws IOException {
@@ -429,24 +428,18 @@ public final class GrassWorldgenTest {
     }
 
     private static void placesFlowerAccents() throws IOException {
-        for (String family : List.of("open", "woodland")) {
-            String name = family + "_flower_patch";
-            JsonObject placed = worldgenResource("placed_feature", name);
-            check(placed.get("feature").getAsString().equals("where_winds_blow:" + name),
-                    "flower patches reference their own configured feature");
-            JsonObject configured = worldgenResource("configured_feature", name);
-            JsonObject settings = configured.getAsJsonObject("config");
-            check(settings.get("biomes").getAsString().equals("#where_winds_blow:has_" + family + "_flower_accents"),
-                    "flower patches use their matching biome tags");
-            settings.add("biomes", new com.google.gson.JsonArray());
-            ConfiguredFeature.DIRECT_CODEC.parse(JsonOps.INSTANCE, configured).getOrThrow();
-            for (JsonElement element : placed.getAsJsonArray("placement")) {
-                PlacementModifier.CODEC.parse(JsonOps.INSTANCE, element).getOrThrow();
-            }
-            JsonObject modifier = biomeModifierResource("where_winds_blow_" + family + "_flower_accents");
-            check(modifier.get("density").getAsString().equals("flower_accents"),
-                    "flower accents use their config control");
+        JsonObject placed = worldgenResource("placed_feature", "open_flower_patch");
+        check(placed.get("feature").getAsString().equals("where_winds_blow:open_flower_patch"),
+                "flower patches reference their configured feature");
+        JsonObject configured = worldgenResource("configured_feature", "open_flower_patch");
+        configured.getAsJsonObject("config").add("biomes", new com.google.gson.JsonArray());
+        ConfiguredFeature.DIRECT_CODEC.parse(JsonOps.INSTANCE, configured).getOrThrow();
+        for (JsonElement element : placed.getAsJsonArray("placement")) {
+            PlacementModifier.CODEC.parse(JsonOps.INSTANCE, element).getOrThrow();
         }
+        JsonObject modifier = biomeModifierResource("where_winds_blow_open_flower_accents");
+        check(modifier.get("density").getAsString().equals("flower_accents"),
+                "flower accents use their config control");
 
         FlowerPatchFeature feature = new FlowerPatchFeature(FlowerPatchConfiguration.CODEC);
         TestWorld field = new TestWorld((x, z) -> 64);
