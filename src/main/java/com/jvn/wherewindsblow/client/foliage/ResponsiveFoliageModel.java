@@ -1,5 +1,8 @@
 package com.jvn.wherewindsblow.client.foliage;
 
+import static com.jvn.toucanlib.util.ToucanRandom.signedUnitFloat;
+import static com.jvn.toucanlib.util.ToucanRandom.unitFloat;
+
 import com.jvn.toucanlib.client.ToucanEasing;
 import com.jvn.toucanlib.util.ToucanBoundedCache;
 import com.jvn.wherewindsblow.client.wind.WindExposureCache;
@@ -44,18 +47,27 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final int MAX_LEAF_QUAD_CACHE_ENTRIES = 128;
     private static final int MAX_PLANT_QUAD_CACHE_ENTRIES = 1024;
     private static final int MAX_GRASS_FILL_QUAD_CACHE_ENTRIES = 256;
+    private static final int MAX_FLOWER_FILL_QUAD_CACHE_ENTRIES = 1024;
     private static final int MAX_HEIGHT_QUAD_CACHE_ENTRIES = 1024;
     private static final int GRASS_FILL_EAST = 1;
     private static final int GRASS_FILL_SOUTH = 2;
     private static final float GRASS_FILL_HEIGHT_SCALE = 0.7F;
     private static final float GRASS_FILL_ROTATION = (float) Math.toRadians(7.0D);
     private static final ModelProperty<Integer> GRASS_FILL_EDGES = new ModelProperty<>(Integer.class::isInstance);
+    private static final Direction[] FLOWER_DIRECTIONS = {
+            Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
+    };
+    private static final int FLOWER_VARIANT_COUNT = 32;
+    private static final FlowerCopy[] FLOWER_COPIES = FlowerCopy.values();
+    private static final ModelProperty<FlowerCoverage> FLOWER_COVERAGE = new ModelProperty<>(FlowerCoverage.class::isInstance);
     @Nullable
     private volatile Map<LeafQuadKey, BakedQuad> leafQuadCache;
     @Nullable
     private volatile Map<PlantQuadKey, BakedQuad> plantQuadCache;
     @Nullable
     private volatile Map<GrassFillQuadKey, BakedQuad> grassFillQuadCache;
+    @Nullable
+    private volatile Map<FlowerFillQuadKey, BakedQuad> flowerFillQuadCache;
     @Nullable
     private volatile Map<HeightQuadKey, BakedQuad> heightQuadCache;
 
@@ -73,6 +85,15 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             int grassFillEdges = grassFillEdges(level, pos, state);
             if (grassFillEdges != 0) {
                 originalData = originalData.derive().with(GRASS_FILL_EDGES, grassFillEdges).build();
+            }
+        }
+        if (profile != null && profile.type() == ResponsiveFoliageType.FLOWER
+                && profile.denseWhenAdjacent() && ClientConfig.ENABLE_DENSE_FLOWERS.getAsBoolean()) {
+            int neighbors = flowerNeighbors(level, pos, state);
+            if (neighbors != 0) {
+                originalData = originalData.derive()
+                        .with(FLOWER_COVERAGE, new FlowerCoverage(neighbors, flowerVariant(pos)))
+                        .build();
             }
         }
         FoliageModelData.ColumnSegment variationSegment = null;
@@ -160,6 +181,29 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 if ((edges & GRASS_FILL_SOUTH) != 0) {
                     filled.add(grassFillQuadCache().computeIfAbsent(
                             new GrassFillQuadKey(quad, Direction.SOUTH), ResponsiveFoliageModel::grassFillQuad));
+                }
+            }
+            quads = filled;
+        }
+
+        if (side == null && ClientConfig.ENABLE_DENSE_FLOWERS.getAsBoolean()
+                && extraData.has(FLOWER_COVERAGE) && !quads.isEmpty()) {
+            FlowerCoverage coverage = extraData.get(FLOWER_COVERAGE);
+            int bridges = Integer.bitCount(coverage.neighbors() & (flowerNeighborBit(Direction.EAST)
+                    | flowerNeighborBit(Direction.SOUTH)));
+            List<BakedQuad> filled = new ArrayList<>(quads.size() * (3 + bridges));
+            filled.addAll(quads);
+            for (BakedQuad quad : quads) {
+                for (FlowerCopy copy : FLOWER_COPIES) {
+                    if ((copy == FlowerCopy.EAST_GAP
+                            && (coverage.neighbors() & flowerNeighborBit(Direction.EAST)) == 0)
+                            || (copy == FlowerCopy.SOUTH_GAP
+                            && (coverage.neighbors() & flowerNeighborBit(Direction.SOUTH)) == 0)) {
+                        continue;
+                    }
+                    filled.add(flowerFillQuadCache().computeIfAbsent(
+                            new FlowerFillQuadKey(quad, copy, coverage.variant()),
+                            ResponsiveFoliageModel::flowerFillQuad));
                 }
             }
             quads = filled;
@@ -312,6 +356,86 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 key.encodeInteractionMarker(),
                 null
         );
+    }
+
+    private static int flowerNeighbors(BlockAndTintGetter level, BlockPos pos, BlockState state) {
+        if (level.getBlockState(pos.below()).is(state.getBlock())) {
+            return 0;
+        }
+        int neighbors = 0;
+        for (Direction direction : FLOWER_DIRECTIONS) {
+            BlockPos adjacent = pos.relative(direction);
+            BlockState adjacentState = level.getBlockState(adjacent);
+            FoliageSwayProfile adjacentProfile = FoliageSwayProfiles.resolve(adjacentState);
+            if (adjacentProfile != null && adjacentProfile.type() == ResponsiveFoliageType.FLOWER
+                    && adjacentProfile.denseWhenAdjacent()
+                    && !level.getBlockState(adjacent.below()).is(adjacentState.getBlock())) {
+                neighbors |= flowerNeighborBit(direction);
+            }
+        }
+        return neighbors;
+    }
+
+    private static int flowerNeighborBit(Direction direction) {
+        return switch (direction) {
+            case NORTH -> 1;
+            case EAST -> 2;
+            case SOUTH -> 4;
+            case WEST -> 8;
+            default -> 0;
+        };
+    }
+
+    private static int flowerVariant(BlockPos pos) {
+        return (int) (unitFloat(pos.asLong() ^ 0x243F6A8885A308D3L) * FLOWER_VARIANT_COUNT);
+    }
+
+    private static FlowerPlacement flowerPlacement(FlowerCopy copy, int variant) {
+        long seed = variant * 0x9E3779B97F4A7C15L;
+        long copySeed = seed ^ (copy.ordinal() + 1L) * 0xA4093822299F31D0L;
+        float xOffset;
+        float zOffset;
+        if (copy == FlowerCopy.FIRST || copy == FlowerCopy.SECOND) {
+            float angle = unitFloat(seed ^ 0x082EFA98EC4E6C89L) * Mth.TWO_PI;
+            if (copy == FlowerCopy.SECOND) {
+                angle += 1.85F + unitFloat(seed ^ 0x452821E638D01377L) * 0.65F;
+            }
+            float radius = 0.24F + unitFloat(copySeed ^ 0xBE5466CF34E90C6CL) * 0.13F;
+            xOffset = Mth.cos(angle) * radius;
+            zOffset = Mth.sin(angle) * radius;
+        } else {
+            float along = 0.42F + unitFloat(copySeed ^ 0x3F84D5B5B5470917L) * 0.16F;
+            float across = signedUnitFloat(copySeed ^ 0xC0AC29B7C97C50DDL) * 0.23F;
+            xOffset = copy == FlowerCopy.EAST_GAP ? along : across;
+            zOffset = copy == FlowerCopy.SOUTH_GAP ? along : across;
+        }
+        return new FlowerPlacement(
+                xOffset,
+                zOffset,
+                0.68F + unitFloat(copySeed ^ 0x9216D5D98979FB1BL) * 0.18F,
+                0.74F + unitFloat(copySeed ^ 0xD1310BA698DFB5ACL) * 0.23F,
+                signedUnitFloat(copySeed ^ 0x2FFD72DBD01ADFB7L) * Mth.PI * 0.25F
+        );
+    }
+
+    private static BakedQuad flowerFillQuad(FlowerFillQuadKey key) {
+        BakedQuad quad = key.quad();
+        FlowerPlacement placement = flowerPlacement(key.copy(), key.variant());
+        int[] vertices = quad.getVertices().clone();
+        int stride = vertices.length / 4;
+        float cosine = Mth.cos(placement.rotation());
+        float sine = Mth.sin(placement.rotation());
+        for (int vertex = 0; vertex < 4; vertex++) {
+            int offset = vertex * stride;
+            float x = (Float.intBitsToFloat(vertices[offset]) - 0.5F) * placement.widthScale();
+            float y = Float.intBitsToFloat(vertices[offset + 1]);
+            float z = (Float.intBitsToFloat(vertices[offset + 2]) - 0.5F) * placement.widthScale();
+            vertices[offset] = Float.floatToRawIntBits(0.5F + x * cosine - z * sine + placement.xOffset());
+            vertices[offset + 1] = Float.floatToRawIntBits(y * placement.heightScale());
+            vertices[offset + 2] = Float.floatToRawIntBits(0.5F + x * sine + z * cosine + placement.zOffset());
+        }
+        return new BakedQuad(vertices, quad.getTintIndex(), quad.getDirection(), quad.getSprite(),
+                quad.isShade(), quad.hasAmbientOcclusion());
     }
 
     private static int grassFillEdges(BlockAndTintGetter level, BlockPos pos, BlockState state) {
@@ -627,6 +751,20 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return cache;
     }
 
+    private Map<FlowerFillQuadKey, BakedQuad> flowerFillQuadCache() {
+        Map<FlowerFillQuadKey, BakedQuad> cache = flowerFillQuadCache;
+        if (cache == null) {
+            synchronized (this) {
+                cache = flowerFillQuadCache;
+                if (cache == null) {
+                    cache = boundedCache(MAX_FLOWER_FILL_QUAD_CACHE_ENTRIES);
+                    flowerFillQuadCache = cache;
+                }
+            }
+        }
+        return cache;
+    }
+
     private Map<HeightQuadKey, BakedQuad> heightQuadCache() {
         Map<HeightQuadKey, BakedQuad> cache = heightQuadCache;
         if (cache == null) {
@@ -652,6 +790,22 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     }
 
     private record GrassFillQuadKey(BakedQuad quad, Direction edge) {
+    }
+
+    private enum FlowerCopy {
+        FIRST,
+        SECOND,
+        EAST_GAP,
+        SOUTH_GAP
+    }
+
+    private record FlowerCoverage(int neighbors, int variant) {
+    }
+
+    private record FlowerPlacement(float xOffset, float zOffset, float widthScale, float heightScale, float rotation) {
+    }
+
+    private record FlowerFillQuadKey(BakedQuad quad, FlowerCopy copy, int variant) {
     }
 
     private record HeightQuadKey(BakedQuad quad, int segmentOffset, int scaleBits) {

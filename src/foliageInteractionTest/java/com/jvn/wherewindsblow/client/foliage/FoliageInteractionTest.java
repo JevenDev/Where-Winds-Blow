@@ -1,12 +1,16 @@
 package com.jvn.wherewindsblow.client.foliage;
 
+import com.google.gson.JsonObject;
 import com.jvn.wherewindsblow.block.SnowLogging;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.SharedConstants;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.model.BakedQuad;
@@ -58,6 +62,7 @@ public final class FoliageInteractionTest {
         snowUsesAmbientOcclusion();
         loggedPlantsKeepTheirOffset();
         adjacentGrassGetsEdgeFill();
+        adjacentFlowersGetDenseCoverage();
         variedPlantHeightKeepsColumnsConnected();
         System.out.println("Passed " + checks + " foliage interaction checks.");
     }
@@ -261,6 +266,166 @@ public final class FoliageInteractionTest {
                 "neighboring edge copies no longer share a diagonal plane");
         check(Float.intBitsToFloat(original.getVertices()[0]) == 0.0F,
                 "fill does not mutate the original grass model");
+    }
+
+    private static void adjacentFlowersGetDenseCoverage() throws ReflectiveOperationException {
+        Method parse = FoliageSwayProfileReloadListener.class.getDeclaredMethod(
+                "parse", ResourceLocation.class, JsonObject.class);
+        parse.setAccessible(true);
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "flower");
+        json.addProperty("blocks", "minecraft:dandelion");
+        json.addProperty("dense_when_adjacent", true);
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("where_winds_blow", "dense_test");
+        FoliageSwayProfile enabled = (FoliageSwayProfile) parse.invoke(null, id, json);
+        check(enabled.denseWhenAdjacent(), "flower profiles can opt into dense coverage");
+        json.addProperty("blocks", "minecraft:poppy");
+        FoliageSwayProfile poppy = (FoliageSwayProfile) parse.invoke(null, id, json);
+        json.remove("dense_when_adjacent");
+        json.addProperty("blocks", "minecraft:blue_orchid");
+        FoliageSwayProfile defaultProfile = (FoliageSwayProfile) parse.invoke(null, id, json);
+        check(!defaultProfile.denseWhenAdjacent(), "dense coverage is opt in for other profiles");
+        FoliageSwayProfiles.apply(List.of(enabled, poppy, defaultProfile));
+
+        BlockPos pos = new BlockPos(4, 64, 6);
+        BlockState flower = Blocks.DANDELION.defaultBlockState();
+        Direction[] directions = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
+        Method neighbors = ResponsiveFoliageModel.class.getDeclaredMethod(
+                "flowerNeighbors", BlockAndTintGetter.class, BlockPos.class, BlockState.class);
+        neighbors.setAccessible(true);
+        for (int neighborMask = 0; neighborMask < 16; neighborMask++) {
+            int mask = neighborMask;
+            BlockAndTintGetter level = (BlockAndTintGetter) Proxy.newProxyInstance(
+                    BlockAndTintGetter.class.getClassLoader(), new Class<?>[]{BlockAndTintGetter.class},
+                    (proxy, method, arguments) -> {
+                        if (method.getName().equals("getBlockState")) {
+                            BlockPos adjacent = (BlockPos) arguments[0];
+                            for (int index = 0; index < directions.length; index++) {
+                                if (adjacent.equals(pos.relative(directions[index]))) {
+                                    return (mask & (1 << index)) != 0
+                                            ? (index == 1 ? Blocks.POPPY.defaultBlockState() : flower)
+                                            : Blocks.BLUE_ORCHID.defaultBlockState();
+                                }
+                            }
+                            return Blocks.AIR.defaultBlockState();
+                        }
+                        throw new AssertionError("unexpected world call: " + method.getName());
+                    });
+            check((int) neighbors.invoke(null, level, pos, flower) == mask,
+                    "dense coverage detects each eligible flower neighbor");
+        }
+        BlockAndTintGetter stacked = (BlockAndTintGetter) Proxy.newProxyInstance(
+                BlockAndTintGetter.class.getClassLoader(), new Class<?>[]{BlockAndTintGetter.class},
+                (proxy, method, arguments) -> {
+                    if (method.getName().equals("getBlockState")) {
+                        return flower;
+                    }
+                    throw new AssertionError("unexpected world call: " + method.getName());
+                });
+        check((int) neighbors.invoke(null, stacked, pos, flower) == 0,
+                "stacked flower parts do not receive dense copies");
+
+        FoliageSwayProfiles.apply(List.of());
+        scatteredFlowersVaryByPosition();
+    }
+
+    private static void scatteredFlowersVaryByPosition() throws ReflectiveOperationException {
+        Method variant = ResponsiveFoliageModel.class.getDeclaredMethod("flowerVariant", BlockPos.class);
+        variant.setAccessible(true);
+        Set<Integer> layouts = new HashSet<>();
+        for (int x = -8; x < 8; x++) {
+            for (int z = -8; z < 8; z++) {
+                BlockPos pos = new BlockPos(x, 64, z);
+                int layout = (int) variant.invoke(null, pos);
+                check(layout == (int) variant.invoke(null, pos),
+                        "flower placement stays stable when the same block rebuilds");
+                layouts.add(layout);
+            }
+        }
+        check(layouts.size() >= 24, "nearby flower blocks use a wide range of layouts");
+
+        int[] vertices = new int[32];
+        for (int vertex = 0; vertex < 4; vertex++) {
+            int offset = vertex * 8;
+            float diagonal = vertex == 0 || vertex == 3 ? 0.2F : 0.8F;
+            vertices[offset] = Float.floatToRawIntBits(diagonal);
+            vertices[offset + 1] = Float.floatToRawIntBits(vertex < 2 ? 0.0F : 1.0F);
+            vertices[offset + 2] = Float.floatToRawIntBits(diagonal);
+            vertices[offset + 3] = 0xFFFFFFFF;
+            vertices[offset + 4] = Float.floatToRawIntBits(0.25F);
+            vertices[offset + 5] = Float.floatToRawIntBits(0.75F);
+        }
+        BakedQuad original = new BakedQuad(vertices, 2, Direction.NORTH, null, true, false);
+        Class<?> copyType = Class.forName(ResponsiveFoliageModel.class.getName() + "$FlowerCopy");
+        Object[] copies = copyType.getEnumConstants();
+        Class<?> keyType = Class.forName(ResponsiveFoliageModel.class.getName() + "$FlowerFillQuadKey");
+        Constructor<?> keyConstructor = keyType.getDeclaredConstructor(BakedQuad.class, copyType, int.class);
+        keyConstructor.setAccessible(true);
+        Method fillQuad = ResponsiveFoliageModel.class.getDeclaredMethod("flowerFillQuad", keyType);
+        fillQuad.setAccessible(true);
+        double minimumGapOffset = Double.POSITIVE_INFINITY;
+        double maximumGapOffset = Double.NEGATIVE_INFINITY;
+        double minimumHeight = Double.POSITIVE_INFINITY;
+        double maximumHeight = Double.NEGATIVE_INFINITY;
+        for (int layout = 0; layout < 32; layout++) {
+            Vec3[] centers = new Vec3[copies.length];
+            for (int index = 0; index < copies.length; index++) {
+                Object key = keyConstructor.newInstance(original, copies[index], layout);
+                BakedQuad copy = (BakedQuad) fillQuad.invoke(null, key);
+                check(Arrays.equals(copy.getVertices(), ((BakedQuad) fillQuad.invoke(null, key)).getVertices()),
+                        "flower geometry is deterministic for each layout");
+                Vec3 center = quadCenter(copy).subtract(0.5D, 0.0D, 0.5D);
+                centers[index] = center;
+                if (index < 2) {
+                    double radius = Math.sqrt(center.x * center.x + center.z * center.z);
+                    check(radius >= 0.239D && radius <= 0.371D,
+                            "extra flowers scatter within their block");
+                } else {
+                    double along = index == 2 ? center.x : center.z;
+                    double across = index == 2 ? center.z : center.x;
+                    check(along >= 0.419D && along <= 0.581D && Math.abs(across) <= 0.231D,
+                            "gap flowers stay near their shared edge with sideways variation");
+                    minimumGapOffset = Math.min(minimumGapOffset, across);
+                    maximumGapOffset = Math.max(maximumGapOffset, across);
+                }
+                double height = center.y * 2.0D;
+                check(height >= 0.739D && height <= 0.971D, "extra flower heights stay within their bounds");
+                minimumHeight = Math.min(minimumHeight, height);
+                maximumHeight = Math.max(maximumHeight, height);
+                double dx = Float.intBitsToFloat(copy.getVertices()[8]) - Float.intBitsToFloat(copy.getVertices()[0]);
+                double dz = Float.intBitsToFloat(copy.getVertices()[10]) - Float.intBitsToFloat(copy.getVertices()[2]);
+                double widthScale = Math.sqrt(dx * dx + dz * dz) / Math.sqrt(0.72D);
+                check(widthScale >= 0.679D && widthScale <= 0.861D,
+                        "extra flowers use smaller widths to limit overlap");
+                for (int vertex = 0; vertex < 4; vertex++) {
+                    for (int component = 3; component < 8; component++) {
+                        int offset = vertex * 8 + component;
+                        check(copy.getVertices()[offset] == vertices[offset],
+                                "flower copies preserve texture and vertex data");
+                    }
+                }
+            }
+            check(Math.abs(centers[0].x * centers[1].z - centers[0].z * centers[1].x) > 0.03D,
+                    "flowers within each block form a cluster instead of a straight line");
+        }
+        check(maximumGapOffset - minimumGapOffset > 0.35D,
+                "gap flowers spread across both sides of the connecting axis");
+        check(maximumHeight - minimumHeight > 0.18D,
+                "individual flower copies have visible height variation");
+        check(Float.intBitsToFloat(original.getVertices()[0]) == 0.2F,
+                "dense flowers do not mutate the original model");
+    }
+
+    private static Vec3 quadCenter(BakedQuad quad) {
+        int[] vertices = quad.getVertices();
+        int stride = vertices.length / 4;
+        Vec3 center = Vec3.ZERO;
+        for (int vertex = 0; vertex < 4; vertex++) {
+            int offset = vertex * stride;
+            center = center.add(Float.intBitsToFloat(vertices[offset]),
+                    Float.intBitsToFloat(vertices[offset + 1]), Float.intBitsToFloat(vertices[offset + 2]));
+        }
+        return center.scale(0.25D);
     }
 
     private static void variedPlantHeightKeepsColumnsConnected() throws ReflectiveOperationException {

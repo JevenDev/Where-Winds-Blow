@@ -125,6 +125,10 @@ public final class ClientConfig {
             .comment("Adds shorter crossed grass between adjacent matching grass plants to cover visible gaps.")
             .define("enableGrassGapFill", true);
 
+    public static final ModConfigSpec.BooleanValue ENABLE_DENSE_FLOWERS = BUILDER
+            .comment("Adds flowers within and between adjacent flowers selected by foliage profiles.")
+            .define("enableDenseFlowers", true);
+
     public static final ModConfigSpec.BooleanValue ENABLE_GRASS_HEIGHT_VARIATION = BUILDER
             .comment("Varies the rendered height of grass while keeping each plant's width and depth.")
             .define("enableGrassHeightVariation", true);

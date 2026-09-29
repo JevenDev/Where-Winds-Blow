@@ -76,6 +76,7 @@ public final class FoliageSwayProfileReloadListener extends SimpleJsonResourceRe
                 type,
                 boundedInt(json, "priority", 0, -10000, 10000),
                 GsonHelper.getAsBoolean(json, "interactive", type.isPlant()),
+                GsonHelper.getAsBoolean(json, "dense_when_adjacent", false),
                 boundedFloat(json, "sway_start_height_multiplier", 1.0F, 0.0F, 4.0F),
                 boundedFloat(json, "height_scale", 1.0F, 0.0625F, 16.0F),
                 boundedFloat(json, "interaction_height_scale_multiplier", 1.0F, 0.0625F, 16.0F),

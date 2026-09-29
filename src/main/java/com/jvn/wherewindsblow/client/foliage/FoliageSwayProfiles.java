@@ -18,6 +18,7 @@ public final class FoliageSwayProfiles {
             ResponsiveFoliageType.NONE,
             Integer.MIN_VALUE,
             false,
+            false,
             0.0F,
             1.0F,
             1.0F,

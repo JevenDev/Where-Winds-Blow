@@ -15,6 +15,7 @@ record FoliageSwayProfile(
         ResponsiveFoliageType type,
         int priority,
         boolean interactive,
+        boolean denseWhenAdjacent,
         float swayStartHeightMultiplier,
         float heightScale,
         float interactionHeightScaleMultiplier,
