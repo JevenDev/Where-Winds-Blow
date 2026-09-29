@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
@@ -20,6 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.ChunkRenderTypeSet;
 import net.neoforged.neoforge.client.model.BakedModelWrapper;
 import net.neoforged.neoforge.client.model.data.ModelData;
+import net.neoforged.neoforge.client.model.data.ModelProperty;
 import org.jetbrains.annotations.Nullable;
 
 final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
@@ -41,10 +43,17 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final float LEAF_BEND_MAX = 0.36F;
     private static final int MAX_LEAF_QUAD_CACHE_ENTRIES = 128;
     private static final int MAX_PLANT_QUAD_CACHE_ENTRIES = 1024;
+    private static final int MAX_GRASS_FILL_QUAD_CACHE_ENTRIES = 256;
+    private static final int GRASS_FILL_EAST = 1;
+    private static final int GRASS_FILL_SOUTH = 2;
+    private static final float GRASS_FILL_HEIGHT_SCALE = 0.7F;
+    private static final ModelProperty<Integer> GRASS_FILL_EDGES = new ModelProperty<>(Integer.class::isInstance);
     @Nullable
     private volatile Map<LeafQuadKey, BakedQuad> leafQuadCache;
     @Nullable
     private volatile Map<PlantQuadKey, BakedQuad> plantQuadCache;
+    @Nullable
+    private volatile Map<GrassFillQuadKey, BakedQuad> grassFillQuadCache;
 
     ResponsiveFoliageModel(BakedModel originalModel) {
         super(originalModel);
@@ -54,6 +63,13 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
         ModelData originalData = originalModel.getModelData(level, pos, state, modelData);
         FoliageSwayProfile profile = FoliageSwayProfiles.resolve(state);
+        if (profile != null && (profile.type() == ResponsiveFoliageType.GRASS
+                || profile.type() == ResponsiveFoliageType.TALL_FOLIAGE)) {
+            int grassFillEdges = grassFillEdges(level, pos, state);
+            if (grassFillEdges != 0) {
+                originalData = originalData.derive().with(GRASS_FILL_EDGES, grassFillEdges).build();
+            }
+        }
         ResponsiveFoliage.LeafSnowSupport leafSnowSupport = ResponsiveFoliage.leafSnowSupport(level, pos, state);
         if (profile == null && leafSnowSupport == null) {
             return originalData;
@@ -108,6 +124,23 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         List<BakedQuad> quads = originalModel.getQuads(state, side, rand, extraData, renderType);
         if (state == null) {
             return quads;
+        }
+
+        if (side == null && extraData.has(GRASS_FILL_EDGES) && !quads.isEmpty()) {
+            int edges = extraData.get(GRASS_FILL_EDGES);
+            List<BakedQuad> filled = new ArrayList<>(quads.size() * (1 + Integer.bitCount(edges)));
+            filled.addAll(quads);
+            for (BakedQuad quad : quads) {
+                if ((edges & GRASS_FILL_EAST) != 0) {
+                    filled.add(grassFillQuadCache().computeIfAbsent(
+                            new GrassFillQuadKey(quad, Direction.EAST), ResponsiveFoliageModel::grassFillQuad));
+                }
+                if ((edges & GRASS_FILL_SOUTH) != 0) {
+                    filled.add(grassFillQuadCache().computeIfAbsent(
+                            new GrassFillQuadKey(quad, Direction.SOUTH), ResponsiveFoliageModel::grassFillQuad));
+                }
+            }
+            quads = filled;
         }
 
         boolean encodeVertexMarkers = ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers();
@@ -230,6 +263,42 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 key.encodeInteractionMarker(),
                 null
         );
+    }
+
+    private static int grassFillEdges(BlockAndTintGetter level, BlockPos pos, BlockState state) {
+        if (!BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath().contains("grass")
+                || level.getBlockState(pos.below()).is(state.getBlock())) {
+            return 0;
+        }
+        int edges = 0;
+        BlockPos east = pos.east();
+        if (level.getBlockState(east).is(state.getBlock())
+                && !level.getBlockState(east.below()).is(state.getBlock())) {
+            edges |= GRASS_FILL_EAST;
+        }
+        BlockPos south = pos.south();
+        if (level.getBlockState(south).is(state.getBlock())
+                && !level.getBlockState(south.below()).is(state.getBlock())) {
+            edges |= GRASS_FILL_SOUTH;
+        }
+        return edges;
+    }
+
+    private static BakedQuad grassFillQuad(GrassFillQuadKey key) {
+        BakedQuad quad = key.quad();
+        int[] vertices = quad.getVertices().clone();
+        int stride = vertices.length / 4;
+        for (int vertex = 0; vertex < 4; vertex++) {
+            int offset = vertex * stride;
+            float x = Float.intBitsToFloat(vertices[offset]);
+            float y = Float.intBitsToFloat(vertices[offset + 1]);
+            float z = Float.intBitsToFloat(vertices[offset + 2]);
+            vertices[offset] = Float.floatToRawIntBits(x + (key.edge() == Direction.EAST ? 0.5F : 0.0F));
+            vertices[offset + 1] = Float.floatToRawIntBits(y * GRASS_FILL_HEIGHT_SCALE);
+            vertices[offset + 2] = Float.floatToRawIntBits(z + (key.edge() == Direction.SOUTH ? 0.5F : 0.0F));
+        }
+        return new BakedQuad(vertices, quad.getTintIndex(), quad.getDirection(), quad.getSprite(),
+                quad.isShade(), quad.hasAmbientOcclusion());
     }
 
     private static BakedQuad transformPlantQuad(
@@ -474,6 +543,20 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return cache;
     }
 
+    private Map<GrassFillQuadKey, BakedQuad> grassFillQuadCache() {
+        Map<GrassFillQuadKey, BakedQuad> cache = grassFillQuadCache;
+        if (cache == null) {
+            synchronized (this) {
+                cache = grassFillQuadCache;
+                if (cache == null) {
+                    cache = boundedCache(MAX_GRASS_FILL_QUAD_CACHE_ENTRIES);
+                    grassFillQuadCache = cache;
+                }
+            }
+        }
+        return cache;
+    }
+
     @Nullable
     private static FoliageModelData.InteractionImpulse interactionImpulse(ModelData extraData) {
         return extraData.has(FoliageModelData.INTERACTION_IMPULSE)
@@ -482,6 +565,9 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     }
 
     private record LeafQuadKey(BakedQuad quad, int windExposureBits, boolean topSurface) {
+    }
+
+    private record GrassFillQuadKey(BakedQuad quad, Direction edge) {
     }
 
     private record PlantQuadKey(

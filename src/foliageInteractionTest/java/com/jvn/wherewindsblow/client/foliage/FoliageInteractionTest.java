@@ -19,6 +19,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -56,6 +57,7 @@ public final class FoliageInteractionTest {
         }
         snowUsesAmbientOcclusion();
         loggedPlantsKeepTheirOffset();
+        adjacentGrassGetsEdgeFill();
         System.out.println("Passed " + checks + " foliage interaction checks.");
     }
 
@@ -148,6 +150,95 @@ public final class FoliageInteractionTest {
                     RenderType.cutoutMipped()).getFirst() == quad, "unlogged foliage uses its original geometry");
         }
         check(Float.intBitsToFloat(quad.getVertices()[0]) == 0.0F, "offsetting foliage does not mutate shared model geometry");
+    }
+
+    private static void adjacentGrassGetsEdgeFill() throws ReflectiveOperationException {
+        BlockPos pos = new BlockPos(4, 64, 6);
+        BlockState grass = Blocks.SHORT_GRASS.defaultBlockState();
+        Method edges = ResponsiveFoliageModel.class.getDeclaredMethod(
+                "grassFillEdges", BlockAndTintGetter.class, BlockPos.class, BlockState.class);
+        edges.setAccessible(true);
+        for (int neighborMask = 0; neighborMask < 4; neighborMask++) {
+            int mask = neighborMask;
+            BlockAndTintGetter level = (BlockAndTintGetter) Proxy.newProxyInstance(
+                    BlockAndTintGetter.class.getClassLoader(), new Class<?>[]{BlockAndTintGetter.class},
+                    (proxy, method, arguments) -> {
+                        if (method.getName().equals("getBlockState")) {
+                            BlockPos neighbor = (BlockPos) arguments[0];
+                            boolean connected = (neighbor.equals(pos.east()) && (mask & 1) != 0)
+                                    || (neighbor.equals(pos.south()) && (mask & 2) != 0);
+                            return connected ? grass : Blocks.AIR.defaultBlockState();
+                        }
+                        throw new AssertionError("unexpected world call: " + method.getName());
+                    });
+            check((int) edges.invoke(null, level, pos, grass) == mask,
+                    "grass fill exists exactly on shared east and south edges");
+            check((int) edges.invoke(null, level, pos, Blocks.FERN.defaultBlockState()) == 0,
+                    "non-grass foliage does not get grass fill");
+        }
+
+        BlockState tallGrass = Blocks.TALL_GRASS.defaultBlockState();
+        BlockAndTintGetter tallLevel = (BlockAndTintGetter) Proxy.newProxyInstance(
+                BlockAndTintGetter.class.getClassLoader(), new Class<?>[]{BlockAndTintGetter.class},
+                (proxy, method, arguments) -> {
+                    if (method.getName().equals("getBlockState")) {
+                        BlockPos neighbor = (BlockPos) arguments[0];
+                        return neighbor.equals(pos.east()) || neighbor.equals(pos.below())
+                                ? tallGrass : Blocks.AIR.defaultBlockState();
+                    }
+                    throw new AssertionError("unexpected world call: " + method.getName());
+                });
+        check((int) edges.invoke(null, tallLevel, pos, tallGrass) == 0,
+                "upper grass segments do not add another fill");
+        BlockAndTintGetter tallRoots = (BlockAndTintGetter) Proxy.newProxyInstance(
+                BlockAndTintGetter.class.getClassLoader(), new Class<?>[]{BlockAndTintGetter.class},
+                (proxy, method, arguments) -> {
+                    if (method.getName().equals("getBlockState")) {
+                        return ((BlockPos) arguments[0]).equals(pos.east())
+                                ? tallGrass : Blocks.AIR.defaultBlockState();
+                    }
+                    throw new AssertionError("unexpected world call: " + method.getName());
+                });
+        check((int) edges.invoke(null, tallRoots, pos, tallGrass) == 1,
+                "adjacent tall grass roots share one shorter fill");
+
+        int[] vertices = new int[32];
+        for (int vertex = 0; vertex < 4; vertex++) {
+            int offset = vertex * 8;
+            vertices[offset] = Float.floatToRawIntBits(vertex % 2);
+            vertices[offset + 1] = Float.floatToRawIntBits(vertex / 2);
+            vertices[offset + 2] = Float.floatToRawIntBits(vertex / 2);
+            vertices[offset + 3] = 0xFFFFFFFF;
+            vertices[offset + 4] = Float.floatToRawIntBits(0.25F);
+            vertices[offset + 5] = Float.floatToRawIntBits(0.75F);
+        }
+        BakedQuad original = new BakedQuad(vertices, 2, Direction.NORTH, null, true, false);
+        Class<?> keyType = Class.forName(ResponsiveFoliageModel.class.getName() + "$GrassFillQuadKey");
+        Constructor<?> keyConstructor = keyType.getDeclaredConstructor(BakedQuad.class, Direction.class);
+        keyConstructor.setAccessible(true);
+        Method fillQuad = ResponsiveFoliageModel.class.getDeclaredMethod("grassFillQuad", keyType);
+        fillQuad.setAccessible(true);
+        for (Direction edge : List.of(Direction.EAST, Direction.SOUTH)) {
+            BakedQuad filled = (BakedQuad) fillQuad.invoke(null, keyConstructor.newInstance(original, edge));
+            for (int vertex = 0; vertex < 4; vertex++) {
+                int offset = vertex * 8;
+                float x = Float.intBitsToFloat(filled.getVertices()[offset]);
+                float y = Float.intBitsToFloat(filled.getVertices()[offset + 1]);
+                float z = Float.intBitsToFloat(filled.getVertices()[offset + 2]);
+                check(Math.abs(x - ((vertex % 2) + (edge == Direction.EAST ? 0.5F : 0.0F))) < 0.000001F,
+                        "fill keeps the source width at the shared edge");
+                check(Math.abs(y - (vertex / 2) * 0.7F) < 0.000001F,
+                        "fill is shorter than the source grass");
+                check(Math.abs(z - ((vertex / 2) + (edge == Direction.SOUTH ? 0.5F : 0.0F))) < 0.000001F,
+                        "fill keeps the source depth at the shared edge");
+                for (int component = 3; component < 8; component++) {
+                    check(filled.getVertices()[offset + component] == vertices[offset + component],
+                            "fill keeps the source texture and vertex data");
+                }
+            }
+        }
+        check(Float.intBitsToFloat(original.getVertices()[0]) == 0.0F,
+                "fill does not mutate the original grass model");
     }
 
     private static boolean hasImpulse(double minY, double maxY, int blockY, float radius, float trailX)
