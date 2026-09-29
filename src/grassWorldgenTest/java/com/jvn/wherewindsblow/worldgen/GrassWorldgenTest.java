@@ -29,6 +29,7 @@ import java.util.function.Predicate;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -47,6 +48,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvider;
 import net.minecraft.world.level.levelgen.placement.PlacementModifier;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.LoadingModList;
@@ -59,6 +61,7 @@ public final class GrassWorldgenTest {
         coversGrassyWetlandsAndShores();
         checksWetlandBiomeTags();
         checksFernBiomeTags();
+        checksFlowerBiomeTags();
         checksPatchTransitions();
         bootstrapBlocks();
         checksBroadGrassCoverage();
@@ -66,6 +69,7 @@ public final class GrassWorldgenTest {
         followsTerrainAndFillsPatches();
         keepsOvergrownClumpsLow();
         placesForestFerns();
+        placesFlowerAccents();
         placesSnowyPatches();
         preservesFernNeighbors();
         respectsFernPlacementLimits();
@@ -160,6 +164,17 @@ public final class GrassWorldgenTest {
                 "large fern accents stay in conifer habitats");
     }
 
+    private static void checksFlowerBiomeTags() throws IOException {
+        Set<String> open = resolveBiomeTag("where_winds_blow:has_open_flower_accents", true);
+        Set<String> woodland = resolveBiomeTag("where_winds_blow:has_woodland_flower_accents", true);
+        check(open.containsAll(Set.of("minecraft:plains", "minecraft:meadow", "minecraft:flower_forest")),
+                "open flower accents reach grassy open biomes");
+        check(woodland.containsAll(Set.of("minecraft:forest", "minecraft:birch_forest")),
+                "woodland flower accents reach forests");
+        check(!open.contains("minecraft:desert") && !woodland.contains("minecraft:snowy_plains"),
+                "flower accents avoid dry and snowy habitats");
+    }
+
     private static Set<String> biomeTagValues(String name) throws IOException {
         String resource = "/data/where_winds_blow/tags/worldgen/biome/" + name + ".json";
         try (InputStreamReader reader = new InputStreamReader(
@@ -252,6 +267,8 @@ public final class GrassWorldgenTest {
         BuiltInRegistries.BLOCK.freeze();
         Registry.register(BuiltInRegistries.FEATURE, ModFeatures.FERN_PATCH.getId(),
                 new FernPatchFeature(NoneFeatureConfiguration.CODEC));
+        Registry.register(BuiltInRegistries.FEATURE, ModFeatures.FLOWER_PATCH.getId(),
+                new FlowerPatchFeature(FlowerPatchConfiguration.CODEC));
         Registry.register(BuiltInRegistries.FEATURE, ModFeatures.TALL_GRASS_PATCH.getId(),
                 new TallGrassPatchFeature(NoneFeatureConfiguration.CODEC));
         Registry.register(BuiltInRegistries.FEATURE, ModFeatures.OVERGROWN_GRASS_PATCH.getId(),
@@ -409,6 +426,74 @@ public final class GrassWorldgenTest {
         check(feature.place(context(border, new BlockPos(-1, 64, 0), 42)), "fern patches reach habitat boundaries");
         check(border.blocks.keySet().stream().allMatch(pos -> pos.getX() < 0), "ferns respect each column's biome");
         border.checkPlants();
+    }
+
+    private static void placesFlowerAccents() throws IOException {
+        for (String family : List.of("open", "woodland")) {
+            String name = family + "_flower_patch";
+            JsonObject placed = worldgenResource("placed_feature", name);
+            check(placed.get("feature").getAsString().equals("where_winds_blow:" + name),
+                    "flower patches reference their own configured feature");
+            JsonObject configured = worldgenResource("configured_feature", name);
+            JsonObject settings = configured.getAsJsonObject("config");
+            check(settings.get("biomes").getAsString().equals("#where_winds_blow:has_" + family + "_flower_accents"),
+                    "flower patches use their matching biome tags");
+            settings.add("biomes", new com.google.gson.JsonArray());
+            ConfiguredFeature.DIRECT_CODEC.parse(JsonOps.INSTANCE, configured).getOrThrow();
+            for (JsonElement element : placed.getAsJsonArray("placement")) {
+                PlacementModifier.CODEC.parse(JsonOps.INSTANCE, element).getOrThrow();
+            }
+            JsonObject modifier = biomeModifierResource("where_winds_blow_" + family + "_flower_accents");
+            check(modifier.get("density").getAsString().equals("flower_accents"),
+                    "flower accents use their config control");
+        }
+
+        FlowerPatchFeature feature = new FlowerPatchFeature(FlowerPatchConfiguration.CODEC);
+        TestWorld field = new TestWorld((x, z) -> 64);
+        field.biome = biome("has_open_flower_accents");
+        FlowerPatchConfiguration config = new FlowerPatchConfiguration(
+                HolderSet.direct(field.biome), BlockStateProvider.simple(Blocks.CORNFLOWER.defaultBlockState()));
+        BlockPos origin = new BlockPos(0, 64, 0);
+        check(feature.place(new FeaturePlaceContext<>(Optional.empty(), field.level, null,
+                RandomSource.create(42), origin, config)), "flowers form an accent patch");
+        check(field.blocks.size() >= 5 && field.blocks.size() <= 80,
+                "flower patches stay compact");
+        check(field.blocks.values().stream().allMatch(state -> state.is(Blocks.CORNFLOWER)),
+                "a patch keeps one flower species");
+        field.checkPlants();
+
+        TestWorld repeated = new TestWorld((x, z) -> 64);
+        repeated.biome = field.biome;
+        feature.place(new FeaturePlaceContext<>(Optional.empty(), repeated.level, null,
+                RandomSource.create(42), origin, config));
+        check(repeated.blocks.equals(field.blocks), "flower patches reproduce from the same seed");
+
+        TestWorld border = new TestWorld((x, z) -> 64);
+        border.biome = field.biome;
+        border.includedBiomes = pos -> pos.getX() < 0;
+        feature.place(new FeaturePlaceContext<>(Optional.empty(), border.level, null,
+                RandomSource.create(42), origin, config));
+        check(border.blocks.keySet().stream().allMatch(pos -> pos.getX() < 0),
+                "flower patches stop at biome borders");
+
+        TestWorld occupied = new TestWorld((x, z) -> 64);
+        occupied.biome = field.biome;
+        occupied.blocks.put(occupied.bottom(), Blocks.DANDELION.defaultBlockState());
+        check(!FlowerPatchFeature.placeFlower(occupied.level, 0, 0, Blocks.CORNFLOWER.defaultBlockState(), config),
+                "flower patches preserve existing plants");
+        check(occupied.state(occupied.bottom()).is(Blocks.DANDELION),
+                "flower patches leave established flowers intact");
+        occupied.blocks.put(occupied.bottom(), Blocks.SHORT_GRASS.defaultBlockState());
+        check(FlowerPatchFeature.placeFlower(occupied.level, 0, 0, Blocks.CORNFLOWER.defaultBlockState(), config),
+                "flower accents can replace short grass");
+    }
+
+    private static JsonObject biomeModifierResource(String name) throws IOException {
+        String path = "/data/where_winds_blow/neoforge/biome_modifier/" + name + ".json";
+        try (InputStreamReader reader = new InputStreamReader(
+                Objects.requireNonNull(GrassWorldgenTest.class.getResourceAsStream(path)), StandardCharsets.UTF_8)) {
+            return JsonParser.parseReader(reader).getAsJsonObject();
+        }
     }
 
     private static void preservesFernNeighbors() {
@@ -626,9 +711,11 @@ public final class GrassWorldgenTest {
         }
         return (Holder<Biome>) Proxy.newProxyInstance(
                 Holder.class.getClassLoader(), new Class<?>[]{Holder.class},
-                (proxy, method, arguments) -> {
-                    check(method.getName().equals("is"), "placement checks biome tag membership");
-                    return allowedTags.contains(arguments[0]);
+                (proxy, method, arguments) -> switch (method.getName()) {
+                    case "is" -> allowedTags.contains(arguments[0]);
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "equals" -> proxy == arguments[0];
+                    default -> throw new AssertionError("placement checks biome tag membership");
                 }
         );
     }

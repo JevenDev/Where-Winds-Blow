@@ -6,7 +6,7 @@ public final class CommonConfig {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
     public static final ModConfigSpec.BooleanValue ENABLE_DENSE_GRASS_WORLDGEN = BUILDER
-            .comment("Enables Where Winds Blow's added grass worldgen. Changes require a world reload/restart and only affect newly generated chunks.")
+            .comment("Enables Where Winds Blow's added grass and flower worldgen. Changes require a world reload/restart and only affect newly generated chunks.")
             .define("enableDenseGrassWorldgen", true);
 
     public static final ModConfigSpec.DoubleValue DENSE_GRASS_DENSITY_MULTIPLIER = BUILDER
@@ -44,6 +44,10 @@ public final class CommonConfig {
     public static final ModConfigSpec.DoubleValue OVERGROWN_GRASS_PATCH_MULTIPLIER = BUILDER
             .comment("Multiplies overgrown grass patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")
             .defineInRange("overgrownGrassPatchMultiplier", 1.0D, 0.0D, 8.0D);
+
+    public static final ModConfigSpec.DoubleValue FLOWER_ACCENT_PATCH_MULTIPLIER = BUILDER
+            .comment("Controls flower accent patches. Rounded to 0 or 1 when biome modifiers load. Changes require a world reload/restart.")
+            .defineInRange("flowerAccentPatchMultiplier", 1.0D, 0.0D, 1.0D);
 
     public static final ModConfigSpec.DoubleValue WILD_WHEAT_PATCH_MULTIPLIER = BUILDER
             .comment("Multiplies wild wheat patch feature passes. Rounded to whole passes when biome modifiers load; changes require a world reload/restart.")

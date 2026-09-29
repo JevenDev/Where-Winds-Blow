@@ -1,0 +1,9 @@
+{
+  "type": "where_winds_blow:configurable_grass",
+  "biomes": "#where_winds_blow:has_woodland_flower_accents",
+  "features": [
+    "where_winds_blow:woodland_flower_patch"
+  ],
+  "density": "flower_accents",
+  "step": "vegetal_decoration"
+}

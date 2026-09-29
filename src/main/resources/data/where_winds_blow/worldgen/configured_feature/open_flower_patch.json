@@ -1,0 +1,35 @@
+{
+  "type": "where_winds_blow:flower_patch",
+  "config": {
+    "biomes": "#where_winds_blow:has_open_flower_accents",
+    "to_place": {
+      "type": "minecraft:weighted_state_provider",
+      "entries": [
+        {
+          "data": {
+            "Name": "minecraft:cornflower"
+          },
+          "weight": 5
+        },
+        {
+          "data": {
+            "Name": "minecraft:azure_bluet"
+          },
+          "weight": 3
+        },
+        {
+          "data": {
+            "Name": "minecraft:oxeye_daisy"
+          },
+          "weight": 3
+        },
+        {
+          "data": {
+            "Name": "minecraft:allium"
+          },
+          "weight": 1
+        }
+      ]
+    }
+  }
+}

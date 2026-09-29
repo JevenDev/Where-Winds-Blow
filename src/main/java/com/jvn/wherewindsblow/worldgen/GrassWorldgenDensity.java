@@ -18,6 +18,7 @@ public enum GrassWorldgenDensity {
     TALL_DRY_GRASS("tall_dry_grass", CommonConfig.TALL_DRY_GRASS_PATCH_MULTIPLIER),
     DEAD_GRASS("dead_grass", CommonConfig.DEAD_GRASS_PATCH_MULTIPLIER),
     OVERGROWN_GRASS("overgrown_grass", CommonConfig.OVERGROWN_GRASS_PATCH_MULTIPLIER),
+    FLOWER_ACCENTS("flower_accents", CommonConfig.FLOWER_ACCENT_PATCH_MULTIPLIER),
     WILD_WHEAT("wild_wheat", CommonConfig.WILD_WHEAT_PATCH_MULTIPLIER);
 
     public static final Codec<GrassWorldgenDensity> CODEC = Codec.STRING.comapFlatMap(GrassWorldgenDensity::decode, GrassWorldgenDensity::id);

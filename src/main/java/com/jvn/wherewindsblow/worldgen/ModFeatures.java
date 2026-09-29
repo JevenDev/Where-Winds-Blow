@@ -41,6 +41,11 @@ public final class ModFeatures {
             () -> new SnowyFoliagePatchFeature(NoneFeatureConfiguration.CODEC)
     );
 
+    public static final DeferredHolder<Feature<?>, FlowerPatchFeature> FLOWER_PATCH = FEATURES.register(
+            "flower_patch",
+            () -> new FlowerPatchFeature(FlowerPatchConfiguration.CODEC)
+    );
+
     private ModFeatures() {
     }
 
