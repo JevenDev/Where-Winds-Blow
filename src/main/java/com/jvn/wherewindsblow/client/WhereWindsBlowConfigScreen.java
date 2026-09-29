@@ -318,6 +318,49 @@ public final class WhereWindsBlowConfigScreen {
                         ))
                         .build())
                 .group(OptionGroup.createBuilder()
+                        .name(translatable("group.grassCoverage"))
+                        .description(description("group.grassCoverage.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_GRASS_GAP_FILL, WhereWindsBlowConfigScreen::rebuildFoliage))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.grassHeight"))
+                        .description(description("group.grassHeight.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_GRASS_HEIGHT_VARIATION, WhereWindsBlowConfigScreen::rebuildFoliage))
+                        .option(doubleOption(
+                                ClientConfig.GRASS_HEIGHT_MIN,
+                                ClientConfig.PLANT_HEIGHT_VARIATION_MIN,
+                                ClientConfig.PLANT_HEIGHT_VARIATION_MAX,
+                                SMALL_STEP,
+                                WhereWindsBlowConfigScreen::rebuildFoliage
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.GRASS_HEIGHT_MAX,
+                                ClientConfig.PLANT_HEIGHT_VARIATION_MIN,
+                                ClientConfig.PLANT_HEIGHT_VARIATION_MAX,
+                                SMALL_STEP,
+                                WhereWindsBlowConfigScreen::rebuildFoliage
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
+                        .name(translatable("group.flowerHeight"))
+                        .description(description("group.flowerHeight.description"))
+                        .option(booleanOption(ClientConfig.ENABLE_FLOWER_HEIGHT_VARIATION, WhereWindsBlowConfigScreen::rebuildFoliage))
+                        .option(doubleOption(
+                                ClientConfig.FLOWER_HEIGHT_MIN,
+                                ClientConfig.PLANT_HEIGHT_VARIATION_MIN,
+                                ClientConfig.PLANT_HEIGHT_VARIATION_MAX,
+                                SMALL_STEP,
+                                WhereWindsBlowConfigScreen::rebuildFoliage
+                        ))
+                        .option(doubleOption(
+                                ClientConfig.FLOWER_HEIGHT_MAX,
+                                ClientConfig.PLANT_HEIGHT_VARIATION_MIN,
+                                ClientConfig.PLANT_HEIGHT_VARIATION_MAX,
+                                SMALL_STEP,
+                                WhereWindsBlowConfigScreen::rebuildFoliage
+                        ))
+                        .build())
+                .group(OptionGroup.createBuilder()
                         .name(translatable("group.windMotion"))
                         .description(description("group.windMotion.description"))
                         .option(booleanOption(ClientConfig.ENABLE_WIND_FOLIAGE_SWAY))

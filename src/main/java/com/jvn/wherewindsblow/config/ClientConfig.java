@@ -9,6 +9,8 @@ public final class ClientConfig {
     public static final double WIND_SHEEN_STRENGTH_MAX = 2.0D;
     public static final double FOLIAGE_COLOR_VARIATION_STRENGTH_MIN = 0.0D;
     public static final double FOLIAGE_COLOR_VARIATION_STRENGTH_MAX = 2.0D;
+    public static final double PLANT_HEIGHT_VARIATION_MIN = 0.5D;
+    public static final double PLANT_HEIGHT_VARIATION_MAX = 1.5D;
     public static final double FOLIAGE_STEPPED_RATE_MIN = 4.0D;
     public static final double FOLIAGE_STEPPED_RATE_MAX = 24.0D;
     public static final double WIND_STREAK_VISIBILITY_MIN = 0.0D;
@@ -118,6 +120,34 @@ public final class ClientConfig {
                     FOLIAGE_COLOR_VARIATION_STRENGTH_MIN,
                     FOLIAGE_COLOR_VARIATION_STRENGTH_MAX
             );
+
+    public static final ModConfigSpec.BooleanValue ENABLE_GRASS_GAP_FILL = BUILDER
+            .comment("Adds shorter crossed grass between adjacent matching grass plants to cover visible gaps.")
+            .define("enableGrassGapFill", true);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_GRASS_HEIGHT_VARIATION = BUILDER
+            .comment("Varies the rendered height of grass while keeping each plant's width and depth.")
+            .define("enableGrassHeightVariation", true);
+
+    public static final ModConfigSpec.DoubleValue GRASS_HEIGHT_MIN = BUILDER
+            .comment("Lowest grass height multiplier. The minimum and maximum are sorted if entered in reverse.")
+            .defineInRange("grassHeightMin", 0.9D, PLANT_HEIGHT_VARIATION_MIN, PLANT_HEIGHT_VARIATION_MAX);
+
+    public static final ModConfigSpec.DoubleValue GRASS_HEIGHT_MAX = BUILDER
+            .comment("Highest grass height multiplier. Set both limits to 1 to keep the original height.")
+            .defineInRange("grassHeightMax", 1.1D, PLANT_HEIGHT_VARIATION_MIN, PLANT_HEIGHT_VARIATION_MAX);
+
+    public static final ModConfigSpec.BooleanValue ENABLE_FLOWER_HEIGHT_VARIATION = BUILDER
+            .comment("Varies the rendered height of vanilla small and tall flowers.")
+            .define("enableFlowerHeightVariation", true);
+
+    public static final ModConfigSpec.DoubleValue FLOWER_HEIGHT_MIN = BUILDER
+            .comment("Lowest vanilla flower height multiplier. The minimum and maximum are sorted if entered in reverse.")
+            .defineInRange("flowerHeightMin", 0.9D, PLANT_HEIGHT_VARIATION_MIN, PLANT_HEIGHT_VARIATION_MAX);
+
+    public static final ModConfigSpec.DoubleValue FLOWER_HEIGHT_MAX = BUILDER
+            .comment("Highest vanilla flower height multiplier. Set both limits to 1 to keep the original height.")
+            .defineInRange("flowerHeightMax", 1.1D, PLANT_HEIGHT_VARIATION_MIN, PLANT_HEIGHT_VARIATION_MAX);
 
     public static final ModConfigSpec.BooleanValue ENABLE_WIND_STREAKS = BUILDER
             .comment("Enables subtle Wind Waker-inspired wind streaks in the air.")

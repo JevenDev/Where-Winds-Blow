@@ -44,9 +44,11 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private static final int MAX_LEAF_QUAD_CACHE_ENTRIES = 128;
     private static final int MAX_PLANT_QUAD_CACHE_ENTRIES = 1024;
     private static final int MAX_GRASS_FILL_QUAD_CACHE_ENTRIES = 256;
+    private static final int MAX_HEIGHT_QUAD_CACHE_ENTRIES = 1024;
     private static final int GRASS_FILL_EAST = 1;
     private static final int GRASS_FILL_SOUTH = 2;
     private static final float GRASS_FILL_HEIGHT_SCALE = 0.7F;
+    private static final float GRASS_FILL_ROTATION = (float) Math.toRadians(7.0D);
     private static final ModelProperty<Integer> GRASS_FILL_EDGES = new ModelProperty<>(Integer.class::isInstance);
     @Nullable
     private volatile Map<LeafQuadKey, BakedQuad> leafQuadCache;
@@ -54,6 +56,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     private volatile Map<PlantQuadKey, BakedQuad> plantQuadCache;
     @Nullable
     private volatile Map<GrassFillQuadKey, BakedQuad> grassFillQuadCache;
+    @Nullable
+    private volatile Map<HeightQuadKey, BakedQuad> heightQuadCache;
 
     ResponsiveFoliageModel(BakedModel originalModel) {
         super(originalModel);
@@ -63,11 +67,27 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     public ModelData getModelData(BlockAndTintGetter level, BlockPos pos, BlockState state, ModelData modelData) {
         ModelData originalData = originalModel.getModelData(level, pos, state, modelData);
         FoliageSwayProfile profile = FoliageSwayProfiles.resolve(state);
-        if (profile != null && (profile.type() == ResponsiveFoliageType.GRASS
+        if (profile != null && ClientConfig.ENABLE_GRASS_GAP_FILL.getAsBoolean()
+                && (profile.type() == ResponsiveFoliageType.GRASS
                 || profile.type() == ResponsiveFoliageType.TALL_FOLIAGE)) {
             int grassFillEdges = grassFillEdges(level, pos, state);
             if (grassFillEdges != 0) {
                 originalData = originalData.derive().with(GRASS_FILL_EDGES, grassFillEdges).build();
+            }
+        }
+        FoliageModelData.ColumnSegment variationSegment = null;
+        if (profile != null) {
+            FoliageHeightVariation.Range range = FoliageHeightVariation.range(state, profile);
+            if (range != null && !range.isOriginalHeight()) {
+                variationSegment = ResponsiveFoliage.columnSegment(level, pos, state, profile);
+                float heightScale = FoliageHeightVariation.sample(
+                        variationSegment.rootPos(), BuiltInRegistries.BLOCK.getKey(state.getBlock()), range);
+                if (heightScale != 1.0F) {
+                    originalData = originalData.derive()
+                            .with(FoliageModelData.HEIGHT_VARIATION, heightScale)
+                            .with(FoliageModelData.COLUMN_SEGMENT, variationSegment)
+                            .build();
+                }
             }
         }
         ResponsiveFoliage.LeafSnowSupport leafSnowSupport = ResponsiveFoliage.leafSnowSupport(level, pos, state);
@@ -101,7 +121,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             builder.with(FoliageModelData.WIND_EXPOSURE, quantizeExposure(ResponsiveFoliage.windExposure(level, pos)));
         }
         if (plantFoliage) {
-            builder.with(FoliageModelData.COLUMN_SEGMENT, ResponsiveFoliage.columnSegment(level, pos, state, profile));
+            builder.with(FoliageModelData.COLUMN_SEGMENT, variationSegment != null
+                    ? variationSegment : ResponsiveFoliage.columnSegment(level, pos, state, profile));
             if (interactionImpulse != null) {
                 builder.with(FoliageModelData.INTERACTION_IMPULSE, interactionImpulse);
             }
@@ -126,7 +147,8 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
             return quads;
         }
 
-        if (side == null && extraData.has(GRASS_FILL_EDGES) && !quads.isEmpty()) {
+        if (side == null && ClientConfig.ENABLE_GRASS_GAP_FILL.getAsBoolean()
+                && extraData.has(GRASS_FILL_EDGES) && !quads.isEmpty()) {
             int edges = extraData.get(GRASS_FILL_EDGES);
             List<BakedQuad> filled = new ArrayList<>(quads.size() * (1 + Integer.bitCount(edges)));
             filled.addAll(quads);
@@ -141,6 +163,33 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
                 }
             }
             quads = filled;
+        }
+
+        FoliageModelData.ColumnSegment heightSegment = extraData.get(FoliageModelData.COLUMN_SEGMENT);
+        Float heightScale = extraData.get(FoliageModelData.HEIGHT_VARIATION);
+        if (heightScale == null || heightSegment == null) {
+            SnowRealMagicCompat.RenderContext context = SnowRealMagicCompat.currentRender();
+            if (context != null) {
+                FoliageSwayProfile contextProfile = FoliageSwayProfiles.resolve(state);
+                if (contextProfile != null) {
+                    FoliageHeightVariation.Range range = FoliageHeightVariation.range(state, contextProfile);
+                    if (range != null && !range.isOriginalHeight()) {
+                        heightSegment = ResponsiveFoliage.columnSegment(context.level(), context.pos(), state, contextProfile);
+                        heightScale = FoliageHeightVariation.sample(
+                                heightSegment.rootPos(), BuiltInRegistries.BLOCK.getKey(state.getBlock()), range);
+                    }
+                }
+            }
+        }
+        if (heightScale != null && heightScale != 1.0F && heightSegment != null) {
+            List<BakedQuad> varied = new ArrayList<>(quads.size());
+            int heightScaleBits = Float.floatToIntBits(heightScale);
+            for (BakedQuad quad : quads) {
+                varied.add(heightQuadCache().computeIfAbsent(
+                        new HeightQuadKey(quad, heightSegment.offset(), heightScaleBits),
+                        ResponsiveFoliageModel::heightQuad));
+            }
+            quads = varied;
         }
 
         boolean encodeVertexMarkers = ResponsiveFoliageShaders.shouldEncodeFoliageVertexMarkers();
@@ -288,14 +337,35 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         BakedQuad quad = key.quad();
         int[] vertices = quad.getVertices().clone();
         int stride = vertices.length / 4;
+        float angle = key.edge() == Direction.EAST ? GRASS_FILL_ROTATION : -GRASS_FILL_ROTATION;
+        float cosine = Mth.cos(angle);
+        float sine = Mth.sin(angle);
         for (int vertex = 0; vertex < 4; vertex++) {
             int offset = vertex * stride;
-            float x = Float.intBitsToFloat(vertices[offset]);
+            float x = Float.intBitsToFloat(vertices[offset]) - 0.5F;
             float y = Float.intBitsToFloat(vertices[offset + 1]);
-            float z = Float.intBitsToFloat(vertices[offset + 2]);
-            vertices[offset] = Float.floatToRawIntBits(x + (key.edge() == Direction.EAST ? 0.5F : 0.0F));
+            float z = Float.intBitsToFloat(vertices[offset + 2]) - 0.5F;
+            // edge copies need different diagonals to avoid coplanar overlap
+            vertices[offset] = Float.floatToRawIntBits(0.5F + x * cosine - z * sine
+                    + (key.edge() == Direction.EAST ? 0.5F : 0.0F));
             vertices[offset + 1] = Float.floatToRawIntBits(y * GRASS_FILL_HEIGHT_SCALE);
-            vertices[offset + 2] = Float.floatToRawIntBits(z + (key.edge() == Direction.SOUTH ? 0.5F : 0.0F));
+            vertices[offset + 2] = Float.floatToRawIntBits(0.5F + x * sine + z * cosine
+                    + (key.edge() == Direction.SOUTH ? 0.5F : 0.0F));
+        }
+        return new BakedQuad(vertices, quad.getTintIndex(), quad.getDirection(), quad.getSprite(),
+                quad.isShade(), quad.hasAmbientOcclusion());
+    }
+
+    private static BakedQuad heightQuad(HeightQuadKey key) {
+        BakedQuad quad = key.quad();
+        int[] vertices = quad.getVertices().clone();
+        int stride = vertices.length / 4;
+        float scale = Float.intBitsToFloat(key.scaleBits());
+        for (int vertex = 0; vertex < 4; vertex++) {
+            int offset = vertex * stride + 1;
+            float y = Float.intBitsToFloat(vertices[offset]);
+            vertices[offset] = Float.floatToRawIntBits(
+                    (key.segmentOffset() + y) * scale - key.segmentOffset());
         }
         return new BakedQuad(vertices, quad.getTintIndex(), quad.getDirection(), quad.getSprite(),
                 quad.isShade(), quad.hasAmbientOcclusion());
@@ -557,6 +627,20 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
         return cache;
     }
 
+    private Map<HeightQuadKey, BakedQuad> heightQuadCache() {
+        Map<HeightQuadKey, BakedQuad> cache = heightQuadCache;
+        if (cache == null) {
+            synchronized (this) {
+                cache = heightQuadCache;
+                if (cache == null) {
+                    cache = boundedCache(MAX_HEIGHT_QUAD_CACHE_ENTRIES);
+                    heightQuadCache = cache;
+                }
+            }
+        }
+        return cache;
+    }
+
     @Nullable
     private static FoliageModelData.InteractionImpulse interactionImpulse(ModelData extraData) {
         return extraData.has(FoliageModelData.INTERACTION_IMPULSE)
@@ -568,6 +652,9 @@ final class ResponsiveFoliageModel extends BakedModelWrapper<BakedModel> {
     }
 
     private record GrassFillQuadKey(BakedQuad quad, Direction edge) {
+    }
+
+    private record HeightQuadKey(BakedQuad quad, int segmentOffset, int scaleBits) {
     }
 
     private record PlantQuadKey(

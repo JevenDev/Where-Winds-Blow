@@ -58,6 +58,7 @@ public final class FoliageInteractionTest {
         snowUsesAmbientOcclusion();
         loggedPlantsKeepTheirOffset();
         adjacentGrassGetsEdgeFill();
+        variedPlantHeightKeepsColumnsConnected();
         System.out.println("Passed " + checks + " foliage interaction checks.");
     }
 
@@ -218,27 +219,105 @@ public final class FoliageInteractionTest {
         keyConstructor.setAccessible(true);
         Method fillQuad = ResponsiveFoliageModel.class.getDeclaredMethod("grassFillQuad", keyType);
         fillQuad.setAccessible(true);
+        Map<Direction, BakedQuad> fills = new HashMap<>();
         for (Direction edge : List.of(Direction.EAST, Direction.SOUTH)) {
             BakedQuad filled = (BakedQuad) fillQuad.invoke(null, keyConstructor.newInstance(original, edge));
+            fills.put(edge, filled);
+            double angle = Math.toRadians(edge == Direction.EAST ? 7.0D : -7.0D);
+            float cosine = (float) Math.cos(angle);
+            float sine = (float) Math.sin(angle);
             for (int vertex = 0; vertex < 4; vertex++) {
                 int offset = vertex * 8;
                 float x = Float.intBitsToFloat(filled.getVertices()[offset]);
                 float y = Float.intBitsToFloat(filled.getVertices()[offset + 1]);
                 float z = Float.intBitsToFloat(filled.getVertices()[offset + 2]);
-                check(Math.abs(x - ((vertex % 2) + (edge == Direction.EAST ? 0.5F : 0.0F))) < 0.000001F,
-                        "fill keeps the source width at the shared edge");
+                float originalX = vertex % 2 - 0.5F;
+                float originalZ = vertex / 2 - 0.5F;
+                float expectedX = 0.5F + originalX * cosine - originalZ * sine
+                        + (edge == Direction.EAST ? 0.5F : 0.0F);
+                float expectedZ = 0.5F + originalX * sine + originalZ * cosine
+                        + (edge == Direction.SOUTH ? 0.5F : 0.0F);
+                check(Math.abs(x - expectedX) < 0.0001F,
+                        "fill keeps its width while rotating at the shared edge");
                 check(Math.abs(y - (vertex / 2) * 0.7F) < 0.000001F,
                         "fill is shorter than the source grass");
-                check(Math.abs(z - ((vertex / 2) + (edge == Direction.SOUTH ? 0.5F : 0.0F))) < 0.000001F,
-                        "fill keeps the source depth at the shared edge");
+                check(Math.abs(z - expectedZ) < 0.0001F,
+                        "fill keeps its depth while rotating at the shared edge");
                 for (int component = 3; component < 8; component++) {
                     check(filled.getVertices()[offset + component] == vertices[offset + component],
                             "fill keeps the source texture and vertex data");
                 }
             }
         }
+        float eastDx = Float.intBitsToFloat(fills.get(Direction.EAST).getVertices()[24])
+                - Float.intBitsToFloat(fills.get(Direction.EAST).getVertices()[0]);
+        float eastDz = Float.intBitsToFloat(fills.get(Direction.EAST).getVertices()[26])
+                - Float.intBitsToFloat(fills.get(Direction.EAST).getVertices()[2]);
+        float southDx = Float.intBitsToFloat(fills.get(Direction.SOUTH).getVertices()[24])
+                - Float.intBitsToFloat(fills.get(Direction.SOUTH).getVertices()[0]);
+        float southDz = Float.intBitsToFloat(fills.get(Direction.SOUTH).getVertices()[26])
+                - Float.intBitsToFloat(fills.get(Direction.SOUTH).getVertices()[2]);
+        check(Math.abs(eastDx * southDz - eastDz * southDx) > 0.1F,
+                "neighboring edge copies no longer share a diagonal plane");
         check(Float.intBitsToFloat(original.getVertices()[0]) == 0.0F,
                 "fill does not mutate the original grass model");
+    }
+
+    private static void variedPlantHeightKeepsColumnsConnected() throws ReflectiveOperationException {
+        FoliageHeightVariation.Range range = new FoliageHeightVariation.Range(1.1F, 0.9F);
+        check(range.minimum() == 0.9F && range.maximum() == 1.1F,
+                "height limits can be entered in either order");
+        check(new FoliageHeightVariation.Range(1.0F, 1.0F).isOriginalHeight(),
+                "an original-height range disables geometry changes");
+        ResourceLocation grassId = ResourceLocation.withDefaultNamespace("short_grass");
+        BlockPos root = new BlockPos(11, 64, -7);
+        float chosen = FoliageHeightVariation.sample(root, grassId, range);
+        check(chosen >= range.minimum() && chosen <= range.maximum(),
+                "sampled grass height remains inside the configured range");
+        check(chosen == FoliageHeightVariation.sample(root, grassId, range),
+                "the same plant keeps its height between rebuilds");
+        boolean foundOtherHeight = false;
+        for (int x = 12; x < 44; x++) {
+            if (chosen != FoliageHeightVariation.sample(new BlockPos(x, 64, -7), grassId, range)) {
+                foundOtherHeight = true;
+                break;
+            }
+        }
+        check(foundOtherHeight, "nearby plants can have different heights");
+
+        int[] vertices = new int[32];
+        for (int vertex = 0; vertex < 4; vertex++) {
+            int offset = vertex * 8;
+            vertices[offset] = Float.floatToRawIntBits(vertex % 2);
+            vertices[offset + 1] = Float.floatToRawIntBits(vertex / 2);
+            vertices[offset + 2] = Float.floatToRawIntBits(vertex / 2);
+            vertices[offset + 3] = 0xFFFFFFFF;
+            vertices[offset + 4] = Float.floatToRawIntBits(0.25F);
+        }
+        BakedQuad original = new BakedQuad(vertices, 1, Direction.NORTH, null, true, false);
+        Class<?> keyType = Class.forName(ResponsiveFoliageModel.class.getName() + "$HeightQuadKey");
+        Constructor<?> constructor = keyType.getDeclaredConstructor(BakedQuad.class, int.class, int.class);
+        constructor.setAccessible(true);
+        Method heightQuad = ResponsiveFoliageModel.class.getDeclaredMethod("heightQuad", keyType);
+        heightQuad.setAccessible(true);
+        for (int segment = 0; segment < 2; segment++) {
+            BakedQuad varied = (BakedQuad) heightQuad.invoke(null,
+                    constructor.newInstance(original, segment, Float.floatToIntBits(0.9F)));
+            for (int vertex = 0; vertex < 4; vertex++) {
+                int offset = vertex * 8;
+                float expectedY = (segment + vertex / 2) * 0.9F - segment;
+                check(Math.abs(Float.intBitsToFloat(varied.getVertices()[offset + 1]) - expectedY) < 0.000001F,
+                        "each column segment uses the same root height scale");
+                for (int component = 0; component < 8; component++) {
+                    if (component != 1) {
+                        check(varied.getVertices()[offset + component] == vertices[offset + component],
+                                "height variation preserves width, depth, texture, and vertex data");
+                    }
+                }
+            }
+        }
+        check(Float.intBitsToFloat(original.getVertices()[1]) == 0.0F,
+                "height variation does not mutate the original model");
     }
 
     private static boolean hasImpulse(double minY, double maxY, int blockY, float radius, float trailX)
