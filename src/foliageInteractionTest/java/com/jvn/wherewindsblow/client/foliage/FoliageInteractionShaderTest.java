@@ -2,6 +2,8 @@ package com.jvn.wherewindsblow.client.foliage;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
@@ -10,8 +12,13 @@ import org.lwjgl.opengl.GL33C;
 
 public final class FoliageInteractionShaderTest {
     private static int checks;
+    private static Method veilParser;
 
     public static void main(String[] args) throws ReflectiveOperationException {
+        if (args.length == 1 && "--veil".equals(args[0])) {
+            veilParser = Class.forName("io.github.ocelot.glslprocessor.api.GlslParser")
+                    .getMethod("preprocessParse", String.class, Map.class);
+        }
         GLFWErrorCallback errors = GLFWErrorCallback.createPrint(System.err);
         errors.set();
         if (!GLFW.glfwInit()) {
@@ -68,6 +75,7 @@ public final class FoliageInteractionShaderTest {
                 radialForce(program);
                 contact(sample(program, 0.25F), "radial forces retain their lower vertical falloff");
                 noContact(sample(program, -2.0F), "radial forces still have a limited range");
+                plantAlphaDecoding(program);
                 pixelLockedWaving(program);
                 check(GL33C.glGetError() == GL33C.GL_NO_ERROR, "shader checks complete without OpenGL errors");
                 System.out.println("Passed " + checks + " foliage shader checks on " + GL33C.glGetString(GL33C.GL_VERSION) + ".");
@@ -140,7 +148,7 @@ public final class FoliageInteractionShaderTest {
                 }
                 int shader = GL33C.glCreateShader(GL33C.GL_VERTEX_SHADER);
                 try {
-                    GL33C.glShaderSource(shader, patched);
+                    GL33C.glShaderSource(shader, processShader(patched));
                     GL33C.glCompileShader(shader);
                     check(GL33C.glGetShaderi(shader, GL33C.GL_COMPILE_STATUS) != 0,
                             "composed lighting shader compiles: " + GL33C.glGetShaderInfoLog(shader));
@@ -167,7 +175,7 @@ public final class FoliageInteractionShaderTest {
                     windPosition = wwb_apply_foliage_interaction(
                             base + vec3(0.1, 0.0, 0.05), base, anchor, 132.0 / 255.0
                     );
-                    if (sampleWind != 0) {
+                    if (sampleWind == 1) {
                         base = samplePosition;
                         vec2 motionPosition = wwb_foliage_motion_position(base, sampleAlpha);
                         float gust;
@@ -179,6 +187,12 @@ public final class FoliageInteractionShaderTest {
                         moved = wwb_apply_foliage_interaction(moved, base, motionPosition - u_WwbCameraPosition.xz, sampleAlpha);
                         interaction = moved - base;
                         windPosition = wwb_pixel_locked_position(moved, base);
+                    } else if (sampleWind == 2) {
+                        interaction = vec3(
+                                wwb_plant_alpha_code(sampleAlpha),
+                                wwb_decode_plant_wind_alpha(sampleAlpha),
+                                wwb_decode_plant_interaction_alpha(sampleAlpha)
+                        );
                     }
                     gl_Position = vec4(base, 1.0);
                 }
@@ -186,7 +200,7 @@ public final class FoliageInteractionShaderTest {
         int shader = GL33C.glCreateShader(GL33C.GL_VERTEX_SHADER);
         int program = GL33C.glCreateProgram();
         try {
-            GL33C.glShaderSource(shader, source);
+            GL33C.glShaderSource(shader, processShader(source));
             GL33C.glCompileShader(shader);
             check(GL33C.glGetShaderi(shader, GL33C.GL_COMPILE_STATUS) != 0, GL33C.glGetShaderInfoLog(shader));
             GL33C.glAttachShader(program, shader);
@@ -199,6 +213,35 @@ public final class FoliageInteractionShaderTest {
             throw failure;
         } finally {
             GL33C.glDeleteShader(shader);
+        }
+    }
+
+    private static String processShader(String source) {
+        if (veilParser == null) {
+            return source;
+        }
+        try {
+            Object tree = veilParser.invoke(null, source, new HashMap<String, String>());
+            return (String) tree.getClass().getMethod("toSourceString").invoke(tree);
+        } catch (ReflectiveOperationException exception) {
+            throw new AssertionError("Could not process foliage shader with Veil's GLSL parser", exception);
+        }
+    }
+
+    private static void plantAlphaDecoding(int program) {
+        GL33C.glUniform1i(GL33C.glGetUniformLocation(program, "sampleWind"), 2);
+        int alpha = GL33C.glGetUniformLocation(program, "sampleAlpha");
+        for (int start : new int[]{17, 105, 133, 161, 189}) {
+            for (int code = 0; code < 28; code++) {
+                int marker = start + code;
+                GL33C.glUniform1f(alpha, marker / 255.0F);
+                float[] result = sample(program, 1.0F);
+                check(Math.abs(result[0] - code) < 0.00001F, "plant alpha code for marker " + marker);
+                check(Math.abs(result[1] - (code % 7) / 6.0F) < 0.00001F,
+                        "plant wind strength for marker " + marker);
+                check(Math.abs(result[2] - (code / 7) / 3.0F) < 0.00001F,
+                        "plant interaction strength for marker " + marker);
+            }
         }
     }
 

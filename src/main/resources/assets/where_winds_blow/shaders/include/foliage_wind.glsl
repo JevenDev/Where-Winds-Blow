@@ -37,8 +37,8 @@ bool wwb_is_foliage_wind_vertex(float alpha) {
 }
 
 float wwb_plant_alpha_code(float alpha) {
-    float code = floor(alpha * 255.0 + 0.5)
-            - (wwb_is_coherent_plant_wind_vertex(alpha) ? 105.0 : 17.0);
+    float baseCode = wwb_is_coherent_plant_wind_vertex(alpha) ? 105.0 : 17.0;
+    float code = floor(alpha * 255.0 + 0.5) - baseCode;
     return wwb_is_coherent_plant_wind_vertex(alpha)
             ? mod(code, 28.0)
             : clamp(code, 0.0, 27.0);

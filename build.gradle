@@ -264,6 +264,16 @@ tasks.register('testFoliageInteractionShaders', JavaExec) {
     javaLauncher = javaToolchains.launcherFor(java.toolchain)
 }
 
+tasks.register('testVeilFoliageShaders', JavaExec) {
+    group = 'verification'
+    description = 'Checks foliage shaders after processing with the GLSL processor jar bundled in Veil.'
+    dependsOn tasks.named('foliageInteractionTestClasses')
+    classpath = sourceSets.foliageInteractionTest.runtimeClasspath + files(providers.gradleProperty('veilGlslProcessorJar'))
+    mainClass = 'com.jvn.wherewindsblow.client.foliage.FoliageInteractionShaderTest'
+    args '--veil'
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+}
+
 tasks.register('packageNetherStarWindExample', Zip) {
     group = 'build'
     description = 'Packages the nether star particle wind example resource pack.'
