@@ -22,11 +22,7 @@ public abstract class SnowRealMagicVariantModelMixin {
     private BakedModel variantModel;
 
     @Inject(method = "<init>", at = @At("RETURN"))
-    private void wherewindsblow$wrapSnowVariantModel(
-            BakedModel model,
-            BakedModel variantModel,
-            CallbackInfo ci
-    ) {
+    private void wherewindsblow$wrapSnowVariantModel(CallbackInfo ci) {
         this.variantModel = ResponsiveFoliage.wrapSnowRealMagicVariant(this.variantModel);
     }
 
