@@ -2,6 +2,7 @@ package com.jvn.wherewindsblow.client.foliage;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
@@ -30,6 +31,7 @@ public final class FoliageInteractionShaderTest {
         try {
             GLFW.glfwMakeContextCurrent(window);
             GL.createCapabilities();
+            sodiumLightingComposition();
             int program = createProgram();
             int vertices = GL33C.glGenVertexArrays();
             int output = GL33C.glGenBuffers();
@@ -78,6 +80,74 @@ public final class FoliageInteractionShaderTest {
             GLFW.glfwDestroyWindow(window);
             GLFW.glfwTerminate();
             errors.free();
+        }
+    }
+
+    private static void sodiumLightingComposition() {
+        ResourceLocation name = ResourceLocation.fromNamespaceAndPath("sodium", "blocks/block_layer_opaque.vsh");
+        String source = """
+                #version 330 core
+                uniform sampler2D u_LightTex;
+                in vec3 _vert_position;
+                in vec4 _vert_color;
+                in vec2 _vert_tex_light_coord;
+                uint _material_params = 2u;
+                out vec4 v_Color;
+                void _vert_init() {}
+                void main() {
+                    _vert_init();
+                    vec3 position = _vert_position + vec3(0.0);
+                    gl_Position = vec4(position, 1.0);
+                    v_Color = _vert_color * texture(u_LightTex, _vert_tex_light_coord);
+                }
+                """;
+        String colorLine = "v_Color = _vert_color * texture(u_LightTex, _vert_tex_light_coord);";
+        String tint = """
+                {
+                    vec3 tintedLight = vec3(1.0, 0.25, 0.5);
+                    v_Color.rgb *= tintedLight;
+                }
+                """;
+        String declarations = """
+                out float v_GleamBlacklight;
+                vec4 computeLighting(vec3 position, vec4 color, vec2 lightCoord) {
+                    v_GleamBlacklight = max(position.y, 0.0);
+                    return vec4(color.rgb * vec3(0.4, 0.7, 1.0), color.a);
+                }
+                """;
+        String lightCall = "v_Color = computeLighting(position, v_Color, _vert_tex_light_coord);\n";
+        for (boolean coloredLight : new boolean[]{false, true}) {
+            for (boolean gleam : new boolean[]{false, true}) {
+                String lightingSource = coloredLight ? source.replace(colorLine, colorLine + "\n" + tint) : source;
+                if (gleam) {
+                    lightingSource = lightingSource.replace("void main()", declarations + "void main()");
+                    int end = lightingSource.lastIndexOf('}');
+                    lightingSource = lightingSource.substring(0, end) + lightCall + lightingSource.substring(end);
+                }
+                String patched = SodiumFoliageShaderSource.patch(name, lightingSource);
+                check(patched.contains("position = wwb_apply_foliage_wind("), "lighting shaders retain wind displacement");
+                check(patched.contains("v_Color.a = 1.0;"), "lighting shaders restore marker alpha to opaque");
+                check(patched.indexOf("position = wwb_apply_foliage_wind(") < patched.indexOf("gl_Position ="),
+                        "wind is applied before projecting the vertex");
+                check(patched.equals(SodiumFoliageShaderSource.patch(name, patched)), "shader composition is idempotent");
+                if (coloredLight) {
+                    check(patched.contains(tint), "colored light calculations remain intact");
+                }
+                if (gleam) {
+                    check(patched.contains(declarations) && patched.contains(lightCall), "Gleam varyings remain intact");
+                    check(patched.indexOf(lightCall) > patched.indexOf("position = wwb_apply_foliage_wind("),
+                            "Gleam receives the displaced vertex position");
+                }
+                int shader = GL33C.glCreateShader(GL33C.GL_VERTEX_SHADER);
+                try {
+                    GL33C.glShaderSource(shader, patched);
+                    GL33C.glCompileShader(shader);
+                    check(GL33C.glGetShaderi(shader, GL33C.GL_COMPILE_STATUS) != 0,
+                            "composed lighting shader compiles: " + GL33C.glGetShaderInfoLog(shader));
+                } finally {
+                    GL33C.glDeleteShader(shader);
+                }
+            }
         }
     }
 
