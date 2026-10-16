@@ -1,0 +1,23 @@
+{
+  "type": "flower",
+  "priority": 85,
+  "interactive": true,
+  "dense_when_adjacent": true,
+  "sway_start_height_multiplier": 1.0,
+  "sway_strength_multiplier": 0.9,
+  "interaction_strength_multiplier": 0.8,
+  "blocks": [
+    "biomesoplenty:rose",
+    "biomesoplenty:violet",
+    "biomesoplenty:lavender",
+    "biomesoplenty:white_lavender",
+    "biomesoplenty:orange_cosmos",
+    "biomesoplenty:pink_daffodil",
+    "biomesoplenty:pink_hibiscus",
+    "biomesoplenty:glowflower",
+    "biomesoplenty:wilted_lily",
+    "biomesoplenty:burning_blossom",
+    "biomesoplenty:endbloom",
+    "biomesoplenty:waterlily"
+  ]
+}

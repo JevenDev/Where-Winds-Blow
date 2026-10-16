@@ -1,0 +1,18 @@
+{
+  "type": "foliage",
+  "priority": 90,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.75,
+  "height_scale": 4.0,
+  "interaction_height_scale_multiplier": 3.0,
+  "sway_strength_multiplier": 0.85,
+  "interaction_strength_multiplier": 0.25,
+  "blocks": [
+    "biomesoplenty:clover",
+    "biomesoplenty:wildflower",
+    "biomesoplenty:white_petals",
+    "biomesoplenty:red_maple_leaf_pile",
+    "biomesoplenty:orange_maple_leaf_pile",
+    "biomesoplenty:yellow_maple_leaf_pile"
+  ]
+}

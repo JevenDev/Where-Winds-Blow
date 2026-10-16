@@ -1,0 +1,10 @@
+{
+  "type": "leaves",
+  "priority": 105,
+  "interactive": false,
+  "sway_strength_multiplier": 0.55,
+  "blocks": [
+    "biomesoplenty:dead_branch",
+    "biomesoplenty:bramble"
+  ]
+}

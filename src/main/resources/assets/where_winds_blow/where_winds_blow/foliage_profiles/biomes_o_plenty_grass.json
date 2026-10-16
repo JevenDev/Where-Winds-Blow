@@ -1,0 +1,18 @@
+{
+  "type": "grass",
+  "priority": 90,
+  "interactive": true,
+  "sway_start_height_multiplier": 0.25,
+  "sway_strength_multiplier": 1.1,
+  "interaction_strength_multiplier": 1.1,
+  "blocks": [
+    "biomesoplenty:sprout",
+    "biomesoplenty:bush",
+    "biomesoplenty:dune_grass",
+    "biomesoplenty:desert_grass",
+    "biomesoplenty:dead_grass",
+    "biomesoplenty:tundra_shrub",
+    "biomesoplenty:enderphyte",
+    "biomesoplenty:hair"
+  ]
+}
